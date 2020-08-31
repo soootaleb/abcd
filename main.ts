@@ -17,27 +17,36 @@ import { IMessage } from "./interface.ts";
 type TState = "leader" | "follower" | "candidate";
 
 // Variables
-const id: string = Math.random().toString(36).substring(2, 15) +
-  Math.random().toString(36).substring(2, 15);
+const id: string = Math.random().toString(36).substring(2, 10) +
+  Math.random().toString(36).substring(2, 10);
 let store: { [key: string]: any } = {};
 let state: TState = "follower";
 let heartBeatInterval: number = 3000;
-let electionTimeout: number = 1000;
+let electionTimeout: number = 4000;
 let peers: { [key: string]: { peerId: string } } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
 
 // Initialisation
-const transitionFunction = (to: TState) => {
+const transitionFunction = async (to: TState) => {
   switch (to) {
     case "follower":
       console.log("[MAIN][BECOME FOLLOWER]");
+      const sock = await connectWebSocket("ws://127.0.0.1:8080", new Headers({
+        'x-node-id': id
+      }));
       if (heartBeatIntervalId) {
         clearInterval(heartBeatIntervalId);
       }
       electionTimeoutId = setTimeout(() => {
         transitionFunction("candidate");
       }, electionTimeout);
+      for await (const msg of sock) {
+        if (typeof msg == "string") {
+          console.log(JSON.parse(msg));
+          handlePeerMessage(JSON.parse(msg));
+        }
+      }
       break;
     case "leader":
       console.log("[MAIN][BECOME LEADER]");
@@ -62,6 +71,8 @@ const transitionFunction = (to: TState) => {
       for (const peerId of Object.keys(peers)) {
         server.postMessage({
           type: "callForVote",
+          source: id,
+          destination: peerId,
           payload: {
             peerId: peerId,
             sourceId: id,
@@ -75,43 +86,76 @@ const transitionFunction = (to: TState) => {
 };
 
 const handlePeerMessage = (
-  message: IMessage<{
-    peerId: string;
-    message: {
-      action: "get" | "set";
-      data: any;
-    };
-  }>,
+  message: IMessage<any>,
 ): IMessage => {
-  switch (message.payload.message.action) {
+  switch (message.type) {
     case "get":
       return {
         type: "getResponse",
         source: "main",
         destination: "server",
         payload: {
-          peerId: message.payload.peerId,
+          peerId: message.source,
           data: {
-            key: message.payload.message.data.key,
-            value: store[message.payload.message.data.key],
+            key: message.payload.data.key,
+            value: store[message.payload.data.key],
           },
         },
       };
-      break;
     case "set":
-      store[message.payload.message.data.key] =
-        message.payload.message.data.value;
+      store[message.payload.data.key] = message.payload.data.value;
       return {
         type: "setResponse",
         source: "main",
         destination: "server",
         payload: {
-          peerId: message.payload.peerId,
+          peerId: message.source,
           data: {
-            key: message.payload.message.data.key,
-            value: store[message.payload.message.data.key],
+            key: message.payload.data.key,
+            value: store[message.payload.data.key],
             commited: true,
           },
+        },
+      };
+    case "heartbeat":
+      if (electionTimeoutId) {
+        clearTimeout(electionTimeoutId);
+      }
+      electionTimeoutId = setTimeout(() => {
+        transitionFunction("candidate");
+      }, electionTimeout);
+      return {
+        type: "heartbeatReceived",
+        source: "main",
+        destination: "main",
+        payload: {
+          peerId: message.payload.sourceId,
+        },
+      };
+    case "callForVote":
+      if (electionTimeoutId) {
+        clearTimeout(electionTimeoutId);
+      }
+      return {
+        type: "sendVote",
+        source: id,
+        destination: message.source,
+        payload: {},
+      };
+    case "connectionAccepted":
+      
+      console.log(yellow('successful connection to peer with id ' + message.source))
+      
+      peers[message.source] = {
+        peerId: message.source,
+      };
+
+      return {
+        type: "peerAdded",
+        source: "main",
+        destination: "main",
+        payload: {
+          peerId: message.source
         },
       };
     default:
@@ -142,22 +186,28 @@ const handleMessage = (message: IMessage<any>): IMessage => {
       };
       return {
         type: "connectionAccepted",
+        source: id,
+        destination: message.payload.peerId,
+        payload: {
+          type: "connectionAccepted",
+          source: id,
+          destination: message.payload.peerId,
+          payload: {
+            peerId: message.payload.peerId,
+            state: state,
+          },
+        } as IMessage,
+      };
+    case "peerConnectionClosed":
+      delete peers[message.payload.peerId];
+      return {
+        type: "removePeer",
         source: "main",
         destination: "server",
         payload: {
           peerId: message.payload.peerId,
         },
       };
-    case "peerConnectionClosed":
-      delete peers[message.payload.peerId]
-      return {
-        type: "removePeer",
-        source: "main",
-        destination: "server",
-        payload: {
-          peerId: message.payload.peerId
-        }
-      }
       break;
     default:
       return {
@@ -182,21 +232,9 @@ server.onmessage = (e: MessageEvent) => {
 };
 
 if (Deno.args[0] == "leader") {
-  transitionFunction("leader");
+  await transitionFunction("leader");
+  console.log(blue(`[MAIN] peer ${id} is now leader`));
 } else {
-  const sock = await connectWebSocket("ws://127.0.0.1:8080");
+  await transitionFunction("follower");
 
-  await sock.send(JSON.stringify({
-    type: "set",
-    data: {
-      key: "peerId",
-      value: id,
-    },
-  }));
-
-  for await (const msg of sock) {
-    if (typeof msg == "string") {
-      console.log(JSON.parse(msg));
-    }
-  }
 }

@@ -23,10 +23,6 @@ self.onmessage = (e: MessageEvent) => {
     data: Object;
   }> = e.data;
   switch (message.type) {
-    case "connectionAccepted":
-      const peerId = message.payload.peerId;
-      peers[peerId].send(JSON.stringify(e.data));
-      break;
     case "sendHeartbeat":
       if (!peers[message.payload.peerId].isClosed) {
         peers[message.payload.peerId].send(JSON.stringify({
@@ -65,8 +61,27 @@ self.onmessage = (e: MessageEvent) => {
       }
       delete peers[message.payload.peerId];
       break;
+    case "badPeerMessageType":
+      peers[message.payload.peerId].send(JSON.stringify({
+        type: 'badPeerMessageType'
+      }))
     default:
-      console.error("[SERVER] Bad message type from main " + message.type);
+      const destination = message.destination;
+      if (destination.length == 16 && Object.keys(peers).includes(destination) && !peers[destination].isClosed) {
+        peers[destination].send(JSON.stringify(message.payload))
+      } else if (!['server', 'main'].includes(destination)) {
+        self.postMessage({
+          type: "badDestinationPeerId",
+          source: "server",
+          destination: "main",
+          payload: {
+            invalidPeerId: destination,
+            availablePeers: Object.keys(peers)
+          }
+        } as IMessage)
+      } else {
+        console.error(red("[SERVER] Bad message type from main " + message.type));
+      }
   }
 
   console.log("[SERVER] from [MAIN] " + JSON.stringify(e.data));
@@ -83,8 +98,10 @@ for await (const request of server) {
     bufWriter,
     headers,
   }).then(async (sock: WebSocket) => {
-    const id: string = Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15);
+    const id: string = headers.get('x-node-id') as string;
+    peers[id] = sock;
+
+    console.log(yellow('[SERVER] new peer with id ' + id))
 
     self.postMessage({
       type: "newConnection",
@@ -94,8 +111,6 @@ for await (const request of server) {
         peerId: id,
       },
     } as IMessage);
-
-    peers[id] = sock;
 
     try {
       for await (const ev of sock) {
