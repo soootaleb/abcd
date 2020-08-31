@@ -43,7 +43,7 @@ const transitionFunction = async (to: TState) => {
       }, electionTimeout);
       for await (const msg of sock) {
         if (typeof msg == "string") {
-          console.log(JSON.parse(msg));
+          console.log("[MAIN] Received", JSON.parse(msg));
           handlePeerMessage(JSON.parse(msg));
         }
       }
@@ -144,7 +144,7 @@ const handlePeerMessage = (
       };
     case "connectionAccepted":
       
-      console.log(yellow('successful connection to peer with id ' + message.source))
+      console.log(yellow('[MAIN] Connected to peer ' + message.source))
       
       peers[message.source] = {
         peerId: message.source,
@@ -233,7 +233,7 @@ server.onmessage = (e: MessageEvent) => {
 
 if (Deno.args[0] == "leader") {
   await transitionFunction("leader");
-  console.log(blue(`[MAIN] peer ${id} is now leader`));
+  console.log(blue(`[MAIN] Peer ${id} is now leader`));
 } else {
   await transitionFunction("follower");
 

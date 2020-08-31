@@ -101,7 +101,7 @@ for await (const request of server) {
     const id: string = headers.get('x-node-id') as string;
     peers[id] = sock;
 
-    console.log(yellow('[SERVER] new peer with id ' + id))
+    console.log(yellow(`[SERVER] Peer ${id} connected`))
 
     self.postMessage({
       type: "newConnection",
