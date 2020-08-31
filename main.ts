@@ -23,7 +23,7 @@ let store: { [key: string]: any } = {};
 let state: TState = "follower";
 let heartBeatInterval: number = 3000;
 let electionTimeout: number = 1000;
-let peers: { [key: string]: WebSocket } = {};
+let peers: { [key: string]: {peerId: string} } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
 
@@ -45,7 +45,7 @@ const transitionFunction = (to: TState) => {
         clearTimeout(electionTimeoutId);
       }
       heartBeatIntervalId = setInterval(() => {
-        for (const peerId in Object.keys(peers)) {
+        for (const peerId of Object.keys(peers)) {
           server.postMessage({
             type: 'sendHeartbeat',
             payload: {
@@ -135,6 +135,9 @@ const handleMessage = (message: IMessage<any>): IMessage => {
     case "set":
       return handlePeerMessage(message);
     case "newConnection":
+      peers[message.payload.peerId] = {
+        peerId: message.payload.peerId
+      }
       return {
         type: "connectionAccepted",
         source: "main",
@@ -168,7 +171,7 @@ server.onmessage = (e: MessageEvent) => {
 if (Deno.args[0] == "leader") {
   transitionFunction("leader");
 } else {
-  const sock = await connectWebSocket("ws://127.0.0.1:" + Deno.args[0]);
+  const sock = await connectWebSocket("ws://127.0.0.1:8080");
 
   await sock.send(JSON.stringify({
     type: "set",
@@ -178,14 +181,6 @@ if (Deno.args[0] == "leader") {
     },
   }));
 
-  setTimeout(async () => {
-    await sock.send(JSON.stringify({
-      type: "get",
-      data: {
-        key: "peerId",
-      },
-    }));
-  }, 1000);
   for await (const msg of sock) {
     if (typeof msg == "string") {
       console.log(JSON.parse(msg));

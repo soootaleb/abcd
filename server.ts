@@ -9,7 +9,7 @@ import {
 import { blue, green, red, yellow } from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
-const server = serve({ hostname: "127.0.0.1", port: 8080 });
+const server = serve({ hostname: "127.0.0.1", port: Deno.args[0] == 'leader' ? 8080 : 0 });
 
 console.log("[SERVER] Started on port " + JSON.stringify(server.listener.addr));
 
@@ -25,7 +25,7 @@ self.onmessage = (e: MessageEvent) => {
       const peerId = message.payload.peerId;
       peers[peerId].send(JSON.stringify(e.data));
       break;
-    case "sendHearbeat":
+    case "sendHeartbeat":
       peers[message.payload.peerId].send(JSON.stringify({
         type: "heartbeat",
         payload: {
