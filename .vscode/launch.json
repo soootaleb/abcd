@@ -11,9 +11,13 @@
             "runtimeArgs": [
                 "run",
                 "--inspect-brk",
+                "--unstable",
+                "--allow-write",
                 "--allow-net",
+                "--allow-read",
                 "-A",
-                "${file}"
+                "${file}",
+                "leader"
             ],
             "attachSimplePort": 9229
         }
