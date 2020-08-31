@@ -21,8 +21,8 @@ const id: string = Math.random().toString(36).substring(2, 10) +
   Math.random().toString(36).substring(2, 10);
 let store: { [key: string]: any } = {};
 let state: TState = "follower";
-let heartBeatInterval: number = 3000;
-let electionTimeout: number = 4000;
+let heartBeatInterval: number = 30000;
+let electionTimeout: number = 2000;
 let peers: { [key: string]: { peerId: string } } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
