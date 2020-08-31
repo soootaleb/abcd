@@ -23,7 +23,7 @@ let store: { [key: string]: any } = {};
 let state: TState = "follower";
 let heartBeatInterval: number = 3000;
 let electionTimeout: number = 1000;
-let peers: { [key: string]: {peerId: string} } = {};
+let peers: { [key: string]: { peerId: string } } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
 
@@ -47,12 +47,12 @@ const transitionFunction = (to: TState) => {
       heartBeatIntervalId = setInterval(() => {
         for (const peerId of Object.keys(peers)) {
           server.postMessage({
-            type: 'sendHeartbeat',
+            type: "sendHeartbeat",
             payload: {
               peerId: peerId,
-              sourceId: id
-            }
-          })
+              sourceId: id,
+            },
+          });
         }
       }, heartBeatInterval);
       break;
@@ -61,12 +61,12 @@ const transitionFunction = (to: TState) => {
       let votes: number = 0;
       for (const peerId of Object.keys(peers)) {
         server.postMessage({
-          type: 'callForVote',
+          type: "callForVote",
           payload: {
             peerId: peerId,
-            sourceId: id
-          }
-        })
+            sourceId: id,
+          },
+        });
       }
       break;
     default:
@@ -74,16 +74,17 @@ const transitionFunction = (to: TState) => {
   }
 };
 
-const handlePeerMessage = (message: IMessage<{
-  peerId: string,
-  message: {
-    action: 'get' | 'set',
-    data: any
-  }
-}>): IMessage => {
-
+const handlePeerMessage = (
+  message: IMessage<{
+    peerId: string;
+    message: {
+      action: "get" | "set";
+      data: any;
+    };
+  }>,
+): IMessage => {
   switch (message.payload.message.action) {
-    case 'get':
+    case "get":
       return {
         type: "getResponse",
         source: "main",
@@ -93,12 +94,13 @@ const handlePeerMessage = (message: IMessage<{
           data: {
             key: message.payload.message.data.key,
             value: store[message.payload.message.data.key],
-          }
+          },
         },
       };
       break;
-    case 'set':
-      store[message.payload.message.data.key] = message.payload.message.data.value;
+    case "set":
+      store[message.payload.message.data.key] =
+        message.payload.message.data.value;
       return {
         type: "setResponse",
         source: "main",
@@ -109,20 +111,20 @@ const handlePeerMessage = (message: IMessage<{
             key: message.payload.message.data.key,
             value: store[message.payload.message.data.key],
             commited: true,
-          }
+          },
         },
       };
     default:
       return {
-        type: 'baddPeerMessageType',
+        type: "badPeerMessageType",
         source: "main",
         destination: "server",
         payload: {
-          message: 'peerMessageType ' + message.type + ' is invalid'
-        }
-      }
+          message: "peerMessageType " + message.type + " is invalid",
+        },
+      };
   }
-}
+};
 
 // Messages logic with peers
 const handleMessage = (message: IMessage<any>): IMessage => {
@@ -131,13 +133,13 @@ const handleMessage = (message: IMessage<any>): IMessage => {
       clearTimeout(electionTimeoutId);
       transitionFunction("follower");
     case "newPeerMessage":
-      return handlePeerMessage(message)
+      return handlePeerMessage(message);
     case "set":
       return handlePeerMessage(message);
     case "newConnection":
       peers[message.payload.peerId] = {
-        peerId: message.payload.peerId
-      }
+        peerId: message.payload.peerId,
+      };
       return {
         type: "connectionAccepted",
         source: "main",
@@ -146,6 +148,17 @@ const handleMessage = (message: IMessage<any>): IMessage => {
           peerId: message.payload.peerId,
         },
       };
+    case "peerConnectionClosed":
+      delete peers[message.payload.peerId]
+      return {
+        type: "removePeer",
+        source: "main",
+        destination: "server",
+        payload: {
+          peerId: message.payload.peerId
+        }
+      }
+      break;
     default:
       return {
         type: "error",

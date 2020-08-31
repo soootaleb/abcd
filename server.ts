@@ -9,7 +9,9 @@ import {
 import { blue, green, red, yellow } from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
-const server = serve({ hostname: "127.0.0.1", port: Deno.args[0] == 'leader' ? 8080 : 0 });
+const server = serve(
+  { hostname: "127.0.0.1", port: Deno.args[0] == "leader" ? 8080 : 0 },
+);
 
 console.log("[SERVER] Started on port " + JSON.stringify(server.listener.addr));
 
@@ -18,7 +20,7 @@ self.onmessage = (e: MessageEvent) => {
   const message: IMessage<{
     peerId: string;
     sourceId: string;
-    data: Object
+    data: Object;
   }> = e.data;
   switch (message.type) {
     case "connectionAccepted":
@@ -26,13 +28,24 @@ self.onmessage = (e: MessageEvent) => {
       peers[peerId].send(JSON.stringify(e.data));
       break;
     case "sendHeartbeat":
-      peers[message.payload.peerId].send(JSON.stringify({
-        type: "heartbeat",
-        payload: {
-          peerId: message.payload.peerId,
-          sourceId: message.payload.sourceId,
-        },
-      }));
+      if (!peers[message.payload.peerId].isClosed) {
+        peers[message.payload.peerId].send(JSON.stringify({
+          type: "heartbeat",
+          payload: {
+            peerId: message.payload.peerId,
+            sourceId: message.payload.sourceId,
+          },
+        }));
+      } else {
+        self.postMessage({
+          type: "peerConnectionClosed",
+          source: "server",
+          destination: "main",
+          payload: {
+            peerId: message.payload.peerId,
+          },
+        } as IMessage);
+      }
       break;
     case "getResponse":
       peers[message.payload.peerId].send(JSON.stringify({
@@ -46,16 +59,14 @@ self.onmessage = (e: MessageEvent) => {
         payload: message.payload.data,
       }));
       break;
+    case "removePeer":
+      if (!peers[message.payload.peerId].isClosed) {
+        peers[message.payload.peerId].close()
+      }
+      delete peers[message.payload.peerId];
+      break;
     default:
-      console.error('Bad message type from main ' + message.type)
-      // self.postMessage({
-      //   type: "error",
-      //   source: "server",
-      //   destination: "main",
-      //   payload: {
-      //     message: "bad message type " + message.type,
-      //   },
-      // });
+      console.error("[SERVER] Bad message type from main " + message.type);
   }
 
   console.log("[SERVER] from [MAIN] " + JSON.stringify(e.data));
