@@ -1,17 +1,4 @@
-import { serve } from "https://deno.land/std/http/server.ts";
-import {
-  acceptWebSocket,
-  connectWebSocket,
-  isWebSocketCloseEvent,
-  isWebSocketPingEvent,
-  WebSocket,
-} from "https://deno.land/std/ws/mod.ts";
-
-import { encode } from "https://deno.land/std/encoding/utf8.ts";
-import { BufReader } from "https://deno.land/std/io/bufio.ts";
-import { TextProtoReader } from "https://deno.land/std/textproto/mod.ts";
 import { blue, green, red, yellow } from "https://deno.land/std/fmt/colors.ts";
-import { DenoStdInternalError } from "https://deno.land/std@0.66.0/_util/assert.ts";
 import { IMessage } from "./interface.ts";
 
 type TState = "leader" | "follower" | "candidate";
@@ -19,34 +6,36 @@ type TState = "leader" | "follower" | "candidate";
 // Variables
 const id: string = Math.random().toString(36).substring(2, 10) +
   Math.random().toString(36).substring(2, 10);
-let store: { [key: string]: any } = {};
-let state: TState = "follower";
-let heartBeatInterval: number = 30000;
+// let store: { [key: string]: any } = {};
+let heartBeatCounter: number = 1;
+let heartBeatInterval: number = 1000;
 let electionTimeout: number = 2000;
-let peers: { [key: string]: { peerId: string } } = {};
+let peers: { [key: string]: { peerId: string; peerPort: string } } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
+let votesCounter: number = 0;
 
 // Initialisation
 const transitionFunction = async (to: TState) => {
   switch (to) {
     case "follower":
       console.log("[MAIN][BECOME FOLLOWER]");
-      const sock = await connectWebSocket("ws://127.0.0.1:8080", new Headers({
-        'x-node-id': id
-      }));
       if (heartBeatIntervalId) {
         clearInterval(heartBeatIntervalId);
       }
       electionTimeoutId = setTimeout(() => {
         transitionFunction("candidate");
       }, electionTimeout);
-      for await (const msg of sock) {
-        if (typeof msg == "string") {
-          console.log("[MAIN] Received", JSON.parse(msg));
-          handlePeerMessage(JSON.parse(msg));
-        }
-      }
+
+      net.postMessage({
+        type: "addPeer",
+        source: "main",
+        destination: "net",
+        payload: {
+          peerPort: Deno.args[0] ? Deno.args[0] : 8080,
+        },
+      });
+
       break;
     case "leader":
       console.log("[MAIN][BECOME LEADER]");
@@ -55,22 +44,28 @@ const transitionFunction = async (to: TState) => {
       }
       heartBeatIntervalId = setInterval(() => {
         for (const peerId of Object.keys(peers)) {
-          server.postMessage({
-            type: "sendHeartbeat",
+          net.postMessage({
+            type: "heartBeat",
+            source: id,
+            destination: peerId,
             payload: {
-              peerId: peerId,
-              sourceId: id,
+              heartBeatCounter: heartBeatCounter,
             },
           });
+          heartBeatCounter += 1;
         }
       }, heartBeatInterval);
       break;
     case "candidate":
       console.log("[MAIN][BECOME CANDIDATE]");
+      if (Object.keys(peers).length == 0) {
+        console.log(yellow("[MAIN] No peers... becoming leader"))
+        transitionFunction("leader")
+      }
       let votes: number = 0;
       for (const peerId of Object.keys(peers)) {
-        server.postMessage({
-          type: "callForVote",
+        net.postMessage({
+          type: "callForVoteRequest",
           source: id,
           destination: peerId,
           payload: {
@@ -85,39 +80,10 @@ const transitionFunction = async (to: TState) => {
   }
 };
 
-const handlePeerMessage = (
-  message: IMessage<any>,
-): IMessage => {
+// Messages logic with peers
+const handleMessage = (message: IMessage<any>): IMessage => {
   switch (message.type) {
-    case "get":
-      return {
-        type: "getResponse",
-        source: "main",
-        destination: "server",
-        payload: {
-          peerId: message.source,
-          data: {
-            key: message.payload.data.key,
-            value: store[message.payload.data.key],
-          },
-        },
-      };
-    case "set":
-      store[message.payload.data.key] = message.payload.data.value;
-      return {
-        type: "setResponse",
-        source: "main",
-        destination: "server",
-        payload: {
-          peerId: message.source,
-          data: {
-            key: message.payload.data.key,
-            value: store[message.payload.data.key],
-            commited: true,
-          },
-        },
-      };
-    case "heartbeat":
+    case "heartBeat":
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
       }
@@ -125,110 +91,171 @@ const handlePeerMessage = (
         transitionFunction("candidate");
       }, electionTimeout);
       return {
-        type: "heartbeatReceived",
+        type: "heartBeatReceived",
         source: "main",
         destination: "main",
         payload: {
           peerId: message.payload.sourceId,
         },
       };
-    case "callForVote":
+    case "callForVoteRequest":
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
       }
       return {
-        type: "sendVote",
+        type: "callForVoteReply",
         source: id,
         destination: message.source,
-        payload: {},
+        payload: {
+          voteGranted: true,
+        },
       };
-    case "connectionAccepted":
-      
-      console.log(yellow('[MAIN] Connected to peer ' + message.source))
-      
-      peers[message.source] = {
-        peerId: message.source,
-      };
+    case "callForVoteReply":
+      console.log(blue("[MAIN] Received one vote from " + message.source));
+
+      if (votesCounter + 1 > (Object.keys(peers).length + 1) / 2) {
+        votesCounter = 0;
+        transitionFunction("leader");
+      }
 
       return {
-        type: "peerAdded",
+        type: "becameLeader",
+        source: "main",
+        destination: "main",
+        payload: {},
+      };
+    case "knownPeers":
+      let addedPeers: { [key: string]: any } = {};
+      for (const peerId of Object.keys(message.payload.knownPeers)) {
+        if (!Object.keys(peers).includes(peerId)) {
+          peers[peerId] = message.payload.knownPeers[peerId];
+          addedPeers[peerId] = message.payload.knownPeers[peerId];
+          net.postMessage({
+            type: "addPeer",
+            source: "main",
+            destination: "net",
+            payload: {
+              peerId: peerId,
+              peerPort: message.payload.knownPeers[peerId].peerPort,
+            },
+          });
+        }
+      }
+
+      return {
+        type: "peersAdded",
         source: "main",
         destination: "main",
         payload: {
-          peerId: message.source
+          addedPeers: addedPeers,
         },
       };
-    default:
-      return {
-        type: "badPeerMessageType",
-        source: "main",
-        destination: "server",
-        payload: {
-          message: "peerMessageType " + message.type + " is invalid",
-        },
-      };
-  }
-};
-
-// Messages logic with peers
-const handleMessage = (message: IMessage<any>): IMessage => {
-  switch (message.type) {
-    case "heartbeat":
-      clearTimeout(electionTimeoutId);
-      transitionFunction("follower");
-    case "newPeerMessage":
-      return handlePeerMessage(message);
-    case "set":
-      return handlePeerMessage(message);
     case "newConnection":
+      // Duplicate known peers before adding the new one (it already knows itself...)
+      const knownPeers = { ...peers };
+
+      // Then we add the new peer
       peers[message.payload.peerId] = {
         peerId: message.payload.peerId,
+        peerPort: message.payload.peerPort,
       };
+
       return {
-        type: "connectionAccepted",
+        type: "knownPeers",
         source: id,
         destination: message.payload.peerId,
         payload: {
-          type: "connectionAccepted",
-          source: id,
-          destination: message.payload.peerId,
-          payload: {
-            peerId: message.payload.peerId,
-            state: state,
-          },
-        } as IMessage,
+          knownPeers: knownPeers, // And we send back all other peers than itself
+        },
       };
-    case "peerConnectionClosed":
-      delete peers[message.payload.peerId];
+    case "idSetSuccess":
+      const setId = message.payload.id;
+      if (setId == id) {
+        console.log(
+          green(`[MAIN] Successfuly sync id ${blue(setId)} with net`),
+        );
+        return {
+          type: "syncIdSuccess",
+          source: "main",
+          destination: "main",
+          payload: {
+            setId: setId,
+            id: id,
+          },
+        };
+      } else {
+        console.error(red(`[MAIN] Net set bad id (${setId} instead of ${id}`));
+        return {
+          type: "syncIdFail",
+          source: "main",
+          destination: "main",
+          payload: {
+            setId: setId,
+            id: id,
+          },
+        };
+      }
+      break;
+    case "peerConnectionLost":
       return {
         type: "removePeer",
         source: "main",
-        destination: "server",
+        destination: "net",
         payload: {
           peerId: message.payload.peerId,
         },
       };
-      break;
-    default:
+    case "peerRemovedSuccess":
+      delete peers[message.payload.peerId];
       return {
-        type: "error",
+        type: "peerRemovedComplete",
         source: "main",
-        destination: "server",
+        destination: "main",
         payload: {
-          message: "bad message type " + message.type,
+          peerId: message.payload.peerId
+        }
+      }
+    default:
+      console.error(
+        red(
+          "[MAIN] Invalid message type " + message.type + " from " +
+            message.source,
+        ),
+      );
+      return {
+        type: "invalidMessageType",
+        source: "main",
+        destination: "main",
+        payload: {
+          message: message,
         },
       };
   }
 };
 
-const server: Worker = new Worker(new URL("server.ts", import.meta.url).href, {
+const net: Worker = new Worker(new URL("net.ts", import.meta.url).href, {
   type: "module",
   deno: true,
 });
 
-server.onmessage = (e: MessageEvent) => {
-  console.log("[MAIN] from [SERVER] - " + JSON.stringify(e.data));
-  server.postMessage(handleMessage(e.data));
+net.postMessage({
+  type: "setNodeId",
+  source: "main",
+  destination: "net",
+  payload: {
+    id: id,
+  },
+});
+
+net.onmessage = (e: MessageEvent) => {
+  if (e.data.type != "heartBeat") {
+    console.log("[MAIN] from [NET]", e.data);
+  }
+  const message = handleMessage(e.data);
+  // [FIXME] Latter if we have other comps than NET, this dispatch will fail (need to make sure it's for net)
+  if (message.destination !== "main") {
+    net.postMessage(message);
+  }
 };
 
 if (Deno.args[0] == "leader") {
@@ -236,5 +263,4 @@ if (Deno.args[0] == "leader") {
   console.log(blue(`[MAIN] Peer ${id} is now leader`));
 } else {
   await transitionFunction("follower");
-
 }
