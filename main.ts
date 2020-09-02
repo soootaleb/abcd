@@ -1,12 +1,4 @@
-import {
-  blue,
-  green,
-  red,
-  yellow,
-  brightYellow,
-  bgBrightBlue,
-  bold,
-} from "https://deno.land/std/fmt/colors.ts";
+import * as c from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
 type TState = "leader" | "follower" | "candidate";
@@ -30,7 +22,11 @@ let leaderPort: number = parseInt(Deno.args[0]);
 const transitionFunction = (to: TState) => {
   switch (to) {
     case "follower":
-      console.log("[MAIN][BECOME FOLLOWER]");
+      console.log(
+        c.bgBrightBlue(
+          c.brightYellow(c.bold(`----- BECOMING FOLLOWER ${id} ----`)),
+        ),
+      );
       if (heartBeatIntervalId) {
         clearInterval(heartBeatIntervalId);
       }
@@ -41,7 +37,9 @@ const transitionFunction = (to: TState) => {
       break;
     case "leader":
       console.log(
-        bgBrightBlue(brightYellow(bold(`----- BECOMING LEADER ----`))),
+        c.bgBrightBlue(
+          c.brightYellow(c.bold(`----- BECOMING LEADER ${id} ----`)),
+        ),
       );
 
       if (electionTimeoutId) {
@@ -79,9 +77,12 @@ const transitionFunction = (to: TState) => {
 
       break;
     case "candidate":
-      console.log("[MAIN][BECOME CANDIDATE]");
+      console.log(
+        c.bgBrightBlue(
+          c.brightYellow(c.bold(`----- BECOMING CANDIDATE ${id} ----`)),
+        ),
+      );
       if (Object.keys(peers).length == 0) {
-        console.log(yellow("[MAIN] No peers... becoming leader"));
         transitionFunction("leader");
       }
       let votes: number = 0;
@@ -147,8 +148,6 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         },
       };
     case "callForVoteReply":
-      console.log(blue("[MAIN] Received one vote from " + message.source));
-
       if (message.payload.voteGranted) {
         votesCounter += 1;
       }
@@ -213,9 +212,6 @@ const handleMessage = (message: IMessage<any>): IMessage => {
     case "idSetSuccess":
       const setId = message.payload.id;
       if (setId == id) {
-        console.log(
-          green(`[MAIN] Successfuly sync id ${blue(setId)} with net`),
-        );
         return {
           type: "syncIdSuccess",
           source: "main",
@@ -226,7 +222,6 @@ const handleMessage = (message: IMessage<any>): IMessage => {
           },
         };
       } else {
-        console.error(red(`[MAIN] Net set bad id (${setId} instead of ${id}`));
         return {
           type: "syncIdFail",
           source: "main",
@@ -258,12 +253,6 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         },
       };
     default:
-      console.error(
-        red(
-          "[MAIN] Invalid message type " + message.type + " from " +
-            message.source,
-        ),
-      );
       return {
         type: "invalidMessageType",
         source: "main",
@@ -291,18 +280,81 @@ net.postMessage({
 
 net.onmessage = (e: MessageEvent) => {
   if (e.data.type != "heartBeat") {
-    console.log("[MAIN] from [NET]", e.data);
+    console.log(
+      c.bgWhite(
+        "                                                                                   ",
+      ),
+    );
+    if (e.data.source == "net") {
+      if (e.data.type == "serverStarted") {
+        console.log(
+          c.bgBrightMagenta(
+            c.brightYellow(
+              c.bold(
+                `[${e.data.source}]->[${e.data.destination}][${e.data.type}]${
+                  JSON.stringify(e.data.payload)
+                }`,
+              ),
+            ),
+          ),
+        );
+      } else {
+        console.log(
+          c.gray(
+            `[${e.data.source}]->[${e.data.destination}][${e.data.type}]${
+              JSON.stringify(e.data.payload)
+            }`,
+          ),
+        );
+      }
+    } else {
+      console.log(c.red(e.data.source), e.data);
+    }
+    console.log(
+      c.bgWhite(
+        "                                                                                   ",
+      ),
+    );
   }
   const message = handleMessage(e.data);
   // [FIXME] Latter if we have other comps than NET, this dispatch will fail (need to make sure it's for net)
   if (message.destination !== "main") {
     net.postMessage(message);
+
+    if (message.type != "heartBeat") {
+      console.log(
+        c.bgWhite(
+          "                                                                                   ",
+        ),
+      );
+      if (message.destination == "net") {
+        console.log(
+          c.gray(
+            `[${message.source}]->[${message.destination}][${message.type}]${
+              JSON.stringify(e.data.payload)
+            }`,
+          ),
+        );
+      } else {
+        console.log(c.green(message.destination), message);
+      }
+      console.log(
+        c.bgWhite(
+          "                                                                                   ",
+        ),
+      );
+    }
+  } else {
+    c.gray(
+      `[${message.source}]->[${message.destination}][${message.type}]${
+        JSON.stringify(message.payload)
+      }`,
+    );
   }
 };
 
 if (Deno.args[0] == "8080") {
   transitionFunction("leader");
-  console.log(blue(`[MAIN] Peer ${id} is now leader`));
 } else {
   leaderPort = Deno.args[0] ? parseInt(Deno.args[0]) : 8080;
   transitionFunction("follower");

@@ -7,7 +7,7 @@ import {
   WebSocket,
   connectWebSocket,
 } from "https://deno.land/std/ws/mod.ts";
-import { blue, green, red, yellow } from "https://deno.land/std/fmt/colors.ts";
+import * as c from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
 let id: string = "tmp-id";
@@ -22,7 +22,12 @@ const server = serve({
 
 let peers: { [key: string]: WebSocket } = {};
 
-console.log(blue("Started server"), server.listener.addr);
+self.postMessage({
+  type: "serverStarted",
+  source: "net",
+  destination: "main",
+  payload: server.listener.addr
+})
 
 async function handleMainMessage(
   message: IMessage<any>,
@@ -41,9 +46,6 @@ async function handleMainMessage(
       for await (const msg of sock) {
         if (typeof msg == "string") {
           const message = JSON.parse(msg);
-          if (message.type != "heartBeat") {
-            console.log("[NET] Received", message);
-          }
           if (message.destination == id) {
             self.postMessage(message);
           } else {
@@ -115,10 +117,6 @@ self.onmessage = async (e: MessageEvent) => {
     data: Object;
   }> = e.data;
 
-  if (message.type != "heartBeat") {
-    console.log("[NET] Received", message);
-  }
-
   if (id == "tmp-id" && message.type != "setNodeId") {
     self.postMessage({
       type: "nodeIdNotSet",
@@ -128,7 +126,7 @@ self.onmessage = async (e: MessageEvent) => {
         message: "received message while id is set to " + id,
       },
     });
-    throw new Error(red("[NET] Received message while ID is not set"));
+    throw new Error(c.bgBrightRed(c.brightWhite("[NET] ID IS NOT SET")));
   }
 
   const destination = message.destination;
@@ -142,9 +140,6 @@ self.onmessage = async (e: MessageEvent) => {
   } else if (destination == "net") {
     self.postMessage(await handleMainMessage(message));
   } else {
-    console.error(
-      red("[NET] Bad destination " + message.destination),
-    );
     self.postMessage({
       type: "invalidMessageDestination",
       source: "net",
@@ -170,8 +165,6 @@ for await (const request of server) {
     const peerPort: number = parseInt(headers.get("x-node-port") as string);
 
     peers[peerId] = sock;
-
-    console.log(yellow(`[NET] Peer ${peerId} connected`));
 
     self.postMessage({
       type: "newConnection",
