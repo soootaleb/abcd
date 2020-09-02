@@ -23,6 +23,7 @@ let peers: { [key: string]: { peerId: string; peerPort: string } } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
 let votesCounter: number = 0;
+let term: number = 0;
 let leaderPort: number = parseInt(Deno.args[0]);
 
 // Initialisation
@@ -42,9 +43,11 @@ const transitionFunction = (to: TState) => {
       console.log(
         bgBrightBlue(brightYellow(bold(`----- BECOMING LEADER ----`))),
       );
+
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
       }
+
       heartBeatIntervalId = setInterval(() => {
         for (const peerId of Object.keys(peers)) {
           net.postMessage({
@@ -58,7 +61,22 @@ const transitionFunction = (to: TState) => {
           heartBeatCounter += 1;
         }
       }, heartBeatInterval);
+
+      term += 1;
       state = "leader";
+
+      for (const peerId of Object.keys(peers)) {
+        net.postMessage({
+          type: "newTerm",
+          source: id,
+          destination: peerId,
+          payload: {
+            term: term,
+          },
+        });
+        heartBeatCounter += 1;
+      }
+
       break;
     case "candidate":
       console.log("[MAIN][BECOME CANDIDATE]");
@@ -103,12 +121,23 @@ const handleMessage = (message: IMessage<any>): IMessage => {
           peerId: message.payload.sourceId,
         },
       };
-    case "callForVoteRequest":
+    case "newTerm":
       leaderPort = parseInt(peers[message.source].peerPort);
+      term = message.payload.term;
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
         transitionFunction("follower");
       }
+      return {
+        type: "newTermAccepted",
+        source: "main",
+        destination: "main",
+        payload: {
+          term: term,
+          leader: peers[message.source],
+        },
+      };
+    case "callForVoteRequest":
       return {
         type: "callForVoteReply",
         source: id,
@@ -135,7 +164,8 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         destination: "main",
         payload: {},
       };
-    case "knownPeers":
+    case "connectionAccepted":
+      term = message.payload.term;
       let addedPeers: { [key: string]: any } = {};
       for (const peerId of Object.keys(message.payload.knownPeers)) {
         if (!Object.keys(peers).includes(peerId)) {
@@ -162,34 +192,24 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         },
       };
     case "newConnection":
-        // Duplicate known peers before adding the new one (it already knows itself...)
-        const knownPeers = { ...peers };
-  
-        // Then we add the new peer
-        peers[message.payload.peerId] = {
-          peerId: message.payload.peerId,
-          peerPort: message.payload.peerPort,
-        };
+      // Duplicate known peers before adding the new one (it already knows itself...)
+      const knownPeers = { ...peers };
 
-      if (state == "leader") {
-        return {
-          type: "knownPeers",
-          source: id,
-          destination: message.payload.peerId,
-          payload: {
-            knownPeers: knownPeers, // And we send back all other peers than itself
-          },
-        };
-      } else {
-        return {
-          type: "connectionAccepted",
-          source: "main",
-          destination: "main",
-          payload: {
-            newPeerId: message.source
-          }
-        }
-      }
+      // Then we add the new peer
+      peers[message.payload.peerId] = {
+        peerId: message.payload.peerId,
+        peerPort: message.payload.peerPort,
+      };
+
+      return {
+        type: "connectionAccepted",
+        source: state == "leader" ? id : "main",
+        destination: state == "leader" ? message.payload.peerId : "main",
+        payload: {
+          term: term,
+          knownPeers: knownPeers, // And we send back all other peers than itself
+        },
+      };
     case "idSetSuccess":
       const setId = message.payload.id;
       if (setId == id) {

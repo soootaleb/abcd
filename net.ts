@@ -13,6 +13,8 @@ import { IMessage } from "./interface.ts";
 let id: string = "tmp-id";
 let port: string = "tmp-port";
 
+declare const self: Worker;
+
 const server = serve({
   hostname: "127.0.0.1",
   port: Deno.args[0] == "8080" ? 8080 : 0,
