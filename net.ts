@@ -15,7 +15,7 @@ let port: string = "tmp-port";
 
 const server = serve({
   hostname: "127.0.0.1",
-  port: Deno.args[0] == "leader" ? 8080 : 0,
+  port: Deno.args[0] == "8080" ? 8080 : 0,
 });
 
 let peers: { [key: string]: WebSocket } = {};

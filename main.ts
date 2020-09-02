@@ -1,4 +1,12 @@
-import { blue, green, red, yellow } from "https://deno.land/std/fmt/colors.ts";
+import {
+  blue,
+  green,
+  red,
+  yellow,
+  brightYellow,
+  bgBrightBlue,
+  bold,
+} from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
 type TState = "leader" | "follower" | "candidate";
@@ -7,16 +15,18 @@ type TState = "leader" | "follower" | "candidate";
 const id: string = Math.random().toString(36).substring(2, 10) +
   Math.random().toString(36).substring(2, 10);
 // let store: { [key: string]: any } = {};
+let state: TState = "follower";
 let heartBeatCounter: number = 1;
-let heartBeatInterval: number = 1000;
-let electionTimeout: number = 2000;
+let heartBeatInterval: number = 100;
+let electionTimeout: number = (Math.random() + 0.125) * 1000;
 let peers: { [key: string]: { peerId: string; peerPort: string } } = {};
 let electionTimeoutId: number;
 let heartBeatIntervalId: number;
 let votesCounter: number = 0;
+let leaderPort: number = parseInt(Deno.args[0]);
 
 // Initialisation
-const transitionFunction = async (to: TState) => {
+const transitionFunction = (to: TState) => {
   switch (to) {
     case "follower":
       console.log("[MAIN][BECOME FOLLOWER]");
@@ -26,19 +36,12 @@ const transitionFunction = async (to: TState) => {
       electionTimeoutId = setTimeout(() => {
         transitionFunction("candidate");
       }, electionTimeout);
-
-      net.postMessage({
-        type: "addPeer",
-        source: "main",
-        destination: "net",
-        payload: {
-          peerPort: Deno.args[0] ? Deno.args[0] : 8080,
-        },
-      });
-
+      state = "follower";
       break;
     case "leader":
-      console.log("[MAIN][BECOME LEADER]");
+      console.log(
+        bgBrightBlue(brightYellow(bold(`----- BECOMING LEADER ----`))),
+      );
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
       }
@@ -55,12 +58,13 @@ const transitionFunction = async (to: TState) => {
           heartBeatCounter += 1;
         }
       }, heartBeatInterval);
+      state = "leader";
       break;
     case "candidate":
       console.log("[MAIN][BECOME CANDIDATE]");
       if (Object.keys(peers).length == 0) {
-        console.log(yellow("[MAIN] No peers... becoming leader"))
-        transitionFunction("leader")
+        console.log(yellow("[MAIN] No peers... becoming leader"));
+        transitionFunction("leader");
       }
       let votes: number = 0;
       for (const peerId of Object.keys(peers)) {
@@ -74,6 +78,7 @@ const transitionFunction = async (to: TState) => {
           },
         });
       }
+      state = "candidate";
       break;
     default:
       break;
@@ -99,8 +104,10 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         },
       };
     case "callForVoteRequest":
+      leaderPort = parseInt(peers[message.source].peerPort);
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
+        transitionFunction("follower");
       }
       return {
         type: "callForVoteReply",
@@ -112,6 +119,10 @@ const handleMessage = (message: IMessage<any>): IMessage => {
       };
     case "callForVoteReply":
       console.log(blue("[MAIN] Received one vote from " + message.source));
+
+      if (message.payload.voteGranted) {
+        votesCounter += 1;
+      }
 
       if (votesCounter + 1 > (Object.keys(peers).length + 1) / 2) {
         votesCounter = 0;
@@ -151,23 +162,34 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         },
       };
     case "newConnection":
-      // Duplicate known peers before adding the new one (it already knows itself...)
-      const knownPeers = { ...peers };
+        // Duplicate known peers before adding the new one (it already knows itself...)
+        const knownPeers = { ...peers };
+  
+        // Then we add the new peer
+        peers[message.payload.peerId] = {
+          peerId: message.payload.peerId,
+          peerPort: message.payload.peerPort,
+        };
 
-      // Then we add the new peer
-      peers[message.payload.peerId] = {
-        peerId: message.payload.peerId,
-        peerPort: message.payload.peerPort,
-      };
-
-      return {
-        type: "knownPeers",
-        source: id,
-        destination: message.payload.peerId,
-        payload: {
-          knownPeers: knownPeers, // And we send back all other peers than itself
-        },
-      };
+      if (state == "leader") {
+        return {
+          type: "knownPeers",
+          source: id,
+          destination: message.payload.peerId,
+          payload: {
+            knownPeers: knownPeers, // And we send back all other peers than itself
+          },
+        };
+      } else {
+        return {
+          type: "connectionAccepted",
+          source: "main",
+          destination: "main",
+          payload: {
+            newPeerId: message.source
+          }
+        }
+      }
     case "idSetSuccess":
       const setId = message.payload.id;
       if (setId == id) {
@@ -212,9 +234,9 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         source: "main",
         destination: "main",
         payload: {
-          peerId: message.payload.peerId
-        }
-      }
+          peerId: message.payload.peerId,
+        },
+      };
     default:
       console.error(
         red(
@@ -258,9 +280,18 @@ net.onmessage = (e: MessageEvent) => {
   }
 };
 
-if (Deno.args[0] == "leader") {
-  await transitionFunction("leader");
+if (Deno.args[0] == "8080") {
+  transitionFunction("leader");
   console.log(blue(`[MAIN] Peer ${id} is now leader`));
 } else {
-  await transitionFunction("follower");
+  leaderPort = Deno.args[0] ? parseInt(Deno.args[0]) : 8080;
+  transitionFunction("follower");
+  net.postMessage({
+    type: "addPeer",
+    source: "main",
+    destination: "net",
+    payload: {
+      peerPort: leaderPort,
+    },
+  });
 }
