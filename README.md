@@ -2,6 +2,25 @@
 
 Key Value Store with raft in TypeScript for Deno runtime (inspired by etcd, for pedagogical purpose only)
 
+# Getting Started
+
+A leader needs to be started first, on port 8080
+
+## Starting the leader
+
+`deno run --unstable --allow-write --allow-net --allow-read main.ts 8080`
+
+## Connecting a new node
+
+If no arg is provided, the node tries to reach the leader on port 8080
+
+`deno run --unstable --allow-write --allow-net --allow-read main.ts`
+
+An arg can be provided to specify a leader port (e.g required if the first leader is dead, making another peer being leader on a random port)
+
+`deno run --unstable --allow-write --allow-net --allow-read main.ts 54886`
+
+
 # Implemented
 
 - Leader starts & listens on 8080 (if port 8080 is provided as args[0])
