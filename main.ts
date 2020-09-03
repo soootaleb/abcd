@@ -85,7 +85,6 @@ const transitionFunction = (to: TState) => {
       if (Object.keys(peers).length == 0) {
         transitionFunction("leader");
       }
-      let votes: number = 0;
       for (const peerId of Object.keys(peers)) {
         net.postMessage({
           type: "callForVoteRequest",
@@ -123,12 +122,14 @@ const handleMessage = (message: IMessage<any>): IMessage => {
         },
       };
     case "newTerm":
-      leaderPort = parseInt(peers[message.source].peerPort);
       term = message.payload.term;
+      leaderPort = parseInt(peers[message.source].peerPort);
+
       if (electionTimeoutId) {
         clearTimeout(electionTimeoutId);
         transitionFunction("follower");
       }
+
       return {
         type: "newTermAccepted",
         source: "main",
