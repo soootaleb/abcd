@@ -16,7 +16,7 @@ If no arg is provided, the node tries to reach the leader on port 8080
 
 `deno run --unstable --allow-write --allow-net --allow-read main.ts`
 
-An arg can be provided to specify a leader port (e.g required if the first leader is dead, making another peer being leader on a random port)
+An arg can be provided to specify a node port (can join a cluster by any node)
 
 `deno run --unstable --allow-write --allow-net --allow-read main.ts 54886`
 
@@ -25,23 +25,22 @@ An arg can be provided to specify a leader port (e.g required if the first leade
 
 - Leader starts & listens on 8080 (if port 8080 is provided as args[0])
 - Follower starts & listens on random port (if no argv[0] is provided)
-- Follower connects to leader on port 8080
+- Follower connects to leader on port 8080 (if no argv[0] is provided)
 - Follower receives "knownPeers" (with peerPort)
 - Follower connects to all peers (on peerPort)
 
 > Now a leader can be started & nodes added to cluster will be connected to leader and all other peers
 
-- Leader stends heartbeats to all peers
-- Peers become candidates if not heartbeat before the electionTimeout
+- Leader sends heartbeats to all peers
+- Peers become candidates if not heartbeat received before the electionTimeout
 - Peers send a callForVoteRequest to all knownPeers
 - Peers send a callForVoteReply (grantVote == true) to any callForVoteRequest received
-- Peer becomes leader if the callForVoteReply count reaches a majority (more than half of the cluster size)
-- Peer elected leader increments the term
-- Peer elected sends "newTerm" to all knownPeers
-- Peer receiving "newTerm" becomes follower, updates its term & leaderPort
+- Peer becomes leader if the callForVoteReply count reaches a majority (more than half of the cluster size which is knownPeers)
+- Peer which is elected leader increments the term
+- Peer which is elected sends "newTerm" to all knownPeers
+- Peer receiving "newTerm" becomes follower & updates its term
 
 > Now a peer is elected leader automatically if the leader is lost
-
 
 # Next steps
 
@@ -60,5 +59,5 @@ An arg can be provided to specify a leader port (e.g required if the first leade
 
 # Known issues
 
-1. on "connectionAccepted" the [main]->[net] "addPeer" for connecting to "knownPeers" provided by leader is not logged
-2. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests
+1. on "connectionAccepted" the [main]->[net] "connectToPeer" for connecting to "knownPeers" provided by leader is not logged
+2. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests (OK if not even qorum)

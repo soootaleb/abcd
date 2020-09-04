@@ -1,5 +1,9 @@
 // Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import { serve, ServerRequest } from "https://deno.land/std/http/server.ts";
+import {
+  serve,
+  ServerRequest,
+  Server,
+} from "https://deno.land/std/http/server.ts";
 import {
   acceptWebSocket,
   isWebSocketCloseEvent,
@@ -10,9 +14,6 @@ import {
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
-let id: string = "tmp-id";
-let port: string = "tmp-port";
-
 declare const self: Worker;
 
 const server = serve({
@@ -20,82 +21,89 @@ const server = serve({
   port: Deno.args[0] == "8080" ? 8080 : 0,
 });
 
+const addr: Deno.NetAddr = server.listener.addr as Deno.NetAddr;
+const port: string = addr.port.toString();
 let peers: { [key: string]: WebSocket } = {};
 
 self.postMessage({
   type: "serverStarted",
   source: "net",
   destination: "main",
-  payload: server.listener.addr
-})
+  payload: server.listener.addr,
+});
 
 async function handleMainMessage(
   message: IMessage<any>,
 ): Promise<IMessage> {
   switch (message.type) {
-    case "addPeer":
-      const s = server.listener.addr as Deno.NetAddr;
-      const sock = await connectWebSocket(
-        "ws://127.0.0.1:" + message.payload.peerPort,
-        new Headers({
-          "x-node-id": id,
-          "x-node-port": s.port.toString(),
-        }),
-      );
-      peers[message.payload.peerId] = sock;
-      for await (const msg of sock) {
-        if (typeof msg == "string") {
-          const message = JSON.parse(msg);
-          if (message.destination == id) {
-            self.postMessage(message);
-          } else {
-            sock.send(JSON.stringify({
-              type: "messageNotForMe",
-              source: id,
-              destination: message.source,
-              payload: {
-                myIdIs: id,
-                yourDestinationIs: message.destination,
-              },
-            }));
+    case "connectToPeer":
+
+      if (peers[message.payload.peerPort] && !peers[message.payload.peerPort].isClosed) {
+        return {
+          type: "peerConnectionExists",
+          source: "net",
+          destination: "main",
+          payload: {
+            peerPort: message.payload.peerPort
           }
         }
       }
 
-      // Reaches here if the connection is lost
+      const sock = await connectWebSocket(
+        "ws://127.0.0.1:" + message.payload.peerPort,
+        new Headers({ "x-node-port": port }), // I need to send it by header instead of sock.conn because of a bug
+      );
+
       if (!sock.isClosed) {
-        sock.close();
+
+        peers[message.payload.peerPort] = sock;
+
+        for await (const msg of sock) {
+          if (typeof msg == "string") {
+            const peerMessage = JSON.parse(msg);
+            if (peerMessage.destination == port) {
+              self.postMessage(peerMessage);
+            } else {
+              sock.send(JSON.stringify({
+                type: "messageNotForMe",
+                source: port,
+                destination: peerMessage.source,
+                payload: {
+                  myIdIs: port,
+                  yourDestinationIs: peerMessage.destination,
+                },
+              }));
+            }
+          }
+        }
+
+        return {
+          type: "peerConnectionLost",
+          source: "net",
+          destination: "main",
+          payload: {
+            peerPort: message.payload.peerPort,
+          },
+        };
+      } else {
+        return {
+          type: "peerConnectionFailed",
+          source: "net",
+          destination: "main",
+          payload: {
+            peerPort: message.payload.peerPort,
+          },
+        };
       }
 
-      return {
-        type: "peerConnectionLost",
-        source: "net",
-        destination: "main",
-        payload: {
-          peerId: message.payload.peerId,
-        },
-      };
     case "removePeer":
-      if (!peers[message.payload.peerId].isClosed) {
-        peers[message.payload.peerId].close();
-      }
-      delete peers[message.payload.peerId];
+
       return {
-        type: "peerRemovedSuccess",
+        type: "removePeerSuccess",
         source: "net",
         destination: "main",
         payload: {
-          peerId: message.payload.peerId,
-        },
-      };
-    case "setNodeId":
-      id = message.payload.id;
-      return {
-        type: "idSetSuccess",
-        source: "net",
-        destination: "main",
-        payload: {
-          id: message.payload.id,
+          peerPort: message.payload.peerPort,
         },
       };
     default:
@@ -112,29 +120,16 @@ async function handleMainMessage(
 
 self.onmessage = async (e: MessageEvent) => {
   const message: IMessage<{
-    peerId: string;
+    peerPort: string;
     sourceId: string;
     data: Object;
   }> = e.data;
 
-  if (id == "tmp-id" && message.type != "setNodeId") {
-    self.postMessage({
-      type: "nodeIdNotSet",
-      source: "net",
-      destination: "main",
-      payload: {
-        message: "received message while id is set to " + id,
-      },
-    });
-    throw new Error(c.bgBrightRed(c.brightWhite("[NET] ID IS NOT SET")));
-  }
-
   const destination = message.destination;
 
   if (
-    destination.length == 16 &&
-    Object.keys(peers).includes(destination) &&
-    !peers[destination].isClosed
+    /^[0-9]{4,5}$/g.test(destination) &&
+    Object.keys(peers).includes(destination)
   ) {
     peers[destination].send(JSON.stringify(message));
   } else if (destination == "net") {
@@ -161,64 +156,40 @@ for await (const request of server) {
     bufWriter,
     headers,
   }).then(async (sock: WebSocket) => {
-    const peerId: string = headers.get("x-node-id") as string;
-    const peerPort: number = parseInt(headers.get("x-node-port") as string);
+    const peerPort: string = headers.get("x-node-port") as string;
 
-    peers[peerId] = sock;
+    peers[peerPort] = sock;
 
     self.postMessage({
       type: "newConnection",
       source: "net",
       destination: "main",
       payload: {
-        peerId: peerId,
         peerPort: peerPort,
       },
     } as IMessage);
 
-    try {
-      for await (const ev of sock) {
-        if (typeof ev === "string") {
-          self.postMessage(JSON.parse(ev));
-        } else {
-          sock.send(JSON.stringify({
-            type: "badMessageFormat",
-            payload: {
-              message: "Please send JSON formated string",
-            },
-          }));
-          await request.respond({ status: 400 });
-        }
-      }
-
-      // Reaches here if the connection is lost
-      if (!sock.isClosed) {
-        sock.close();
-      }
-
-      self.postMessage({
-        type: "peerConnectionLost",
-        source: "net",
-        destination: "main",
-        payload: {
-          peerId: peerId,
-        },
-      });
-    } catch (err) {
-      if (!sock.isClosed) {
+    for await (const ev of sock) {
+      if (typeof ev === "string") {
+        self.postMessage(JSON.parse(ev));
+      } else {
         sock.send(JSON.stringify({
-          type: "connectionFailedError",
-          source: id,
-          destination: "unknown",
+          type: "badMessageFormat",
           payload: {
-            message: "Failed to keep connection " + err,
+            message: "Please send JSON formated string",
           },
         }));
         await request.respond({ status: 400 });
-        await sock.close(1000).catch(console.error);
       }
     }
-  }).catch(async (err) => {
-    await request.respond({ status: 400 });
+
+    self.postMessage({
+      type: "peerConnectionLost",
+      source: "net",
+      destination: "main",
+      payload: {
+        peerPort: peerPort,
+      },
+    });
   });
 }
