@@ -61,3 +61,4 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 1. on "connectionAccepted" the [main]->[net] "connectToPeer" for connecting to "knownPeers" provided by leader is not logged
 2. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests (OK if not even qorum)
+3. grant vote only one time before getting a heartbeat (with 5 nodes, got 3-4 terms before stabilizing a leader); due to #2 ?
