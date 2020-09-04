@@ -54,7 +54,11 @@ An arg can be provided to specify a leader port (e.g required if the first leade
 - Network partitions
 - Network latency
 - PUT/GET keys
+- PUT/GET consensus
+- WAL
+- WAL replication
 
 # Known issues
 
 1. on "connectionAccepted" the [main]->[net] "addPeer" for connecting to "knownPeers" provided by leader is not logged
+2. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests
