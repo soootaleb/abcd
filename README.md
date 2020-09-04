@@ -45,11 +45,15 @@ An arg can be provided to specify a leader port (e.g required if the first leade
 
 # Next steps
 
-- Message broker instead of postMessage():
+- Message broker instead of postMessage()
+- Use ob RxJS Observables
 - Cleaner & global logging
 - OOriented API to send messages (e.g FIXME #1)
 - Implement a frontend
 - Abstract a frontend interaction (fetch states, monitoring, ...)
+- Network partitions
+- Network latency
+- PUT/GET keys
 
 # Known issues
 
