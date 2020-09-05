@@ -1,5 +1,5 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
-import { IMessage } from "./interface.ts";
+import { IMessage } from "./src/interface.ts";
 
 type TState = "leader" | "follower" | "candidate";
 
@@ -279,7 +279,7 @@ const handleMessage = (message: IMessage<any>): IMessage => {
   }
 };
 
-const net: Worker = new Worker(new URL("net.ts", import.meta.url).href, {
+const net: Worker = new Worker(new URL("src/net.ts", import.meta.url).href, {
   type: "module",
   deno: true,
 });
