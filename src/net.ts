@@ -14,182 +14,142 @@ import {
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
-declare const self: Worker;
+import Observe from "https://deno.land/x/Observe/Observe.ts";
 
-const server = serve({
-  hostname: "127.0.0.1",
-  port: Deno.args[0] == "8080" ? 8080 : 0,
-});
+export default class Net {
+  private _peers: { [key: string]: { peerPort: string } } = {};
+  private _port: string = Deno.args[0] ? Deno.args[0] : "0";
+  private worker: Worker;
+  private messages: Observe<IMessage>;
 
-const addr: Deno.NetAddr = server.listener.addr as Deno.NetAddr;
-const port: string = addr.port.toString();
-let peers: { [key: string]: WebSocket } = {};
+  public get peers() {
+    return this._peers;
+  }
 
-self.postMessage({
-  type: "serverStarted",
-  source: "net",
-  destination: "main",
-  payload: server.listener.addr,
-});
+  public get port() {
+    return this._port;
+  }
 
-async function handleMainMessage(
-  message: IMessage<any>,
-): Promise<IMessage> {
-  switch (message.type) {
-    case "connectToPeer":
+  constructor(messages: Observe<IMessage>) {
+    this.messages = messages;
 
-      if (peers[message.payload.peerPort] && !peers[message.payload.peerPort].isClosed) {
-        return {
-          type: "peerConnectionExists",
+    // START THE WORKER
+    this.worker = new Worker(new URL("./net.worker.ts", import.meta.url).href, {
+      type: "module",
+      deno: true,
+    });
+
+    // MESSAGE RECEIVED FROM WORKER WILL GO EITHER TO
+    // handleMessage if destination is NET
+    // this.messages otherwise
+    this.worker.onmessage = (e: MessageEvent) => {
+      const message: IMessage<any> = e.data;
+      if (message.destination == "net") {
+        this.handleMessage(message);
+      } else if (Object.keys(this._peers).includes(message.destination)) {
+        this.messages.setValue(e.data);
+      } else if (this.port == message.destination) {
+        this.messages.setValue(message);
+      }
+    };
+
+    // MESSAGES RECEIVED FROM QUEUE WILL GO EITHER TO
+    // handleMessage if destination is NET
+    // this.worker.postMessage if destination is a peer
+    // Nowhere otherwise
+    this.messages.bind((message: IMessage<any>) => {
+      if (message.destination == "net") {
+        this.handleMessage(message);
+      } else if (Object.keys(this._peers).includes(message.destination)) {
+        if (message.destination == "main") {
+          console.log(message.destination, Object.keys(this._peers), Object.keys(this._peers).includes(message.destination))
+        }
+        this.worker.postMessage(message);
+      }
+    });
+  }
+
+  /**
+   * Method to handle message with destination NET
+   * @param message message with destination == "net"
+   */
+  private handleMessage(
+    message: IMessage<{
+      port: string;
+      connectedTo: { peerPort: string };
+      peerPort: string;
+    }>,
+  ) {
+    switch (message.type) {
+      case "newConnection":
+        this._peers[message.payload.peerPort] = message.payload;
+        this.messages.setValue({
+          type: message.type,
           source: "net",
           destination: "main",
+          payload: message.payload,
+        });
+        break;
+      case "peerConnectionLost":
+        delete this.peers[message.payload.peerPort];
+        this.messages.setValue({
+          type: message.type,
+          source: "net",
+          destination: "main",
+          payload: message.payload,
+        });
+        break;
+      case "serverStarted":
+        this._port = message.payload.port.toString();
+        this.messages.setValue({
+          type: message.type,
+          source: "net",
+          destination: "main",
+          payload: message.payload,
+        });
+        break;
+      case "connectToPeer":
+        this.worker.postMessage({
+          type: "connectToPeer",
+          source: "net",
+          destination: "worker",
+          payload: message.payload,
+        });
+        break;
+      case "peerConnectionComplete":
+        this._peers[message.payload.connectedTo.peerPort] = message.payload.connectedTo;
+        this.messages.setValue({
+          type: "peerAdded",
+          source: "net",
+          destination: "log",
+          payload: message.payload,
+        });
+        break;
+      case "invalidMessageDestination":
+        this.messages.setValue({
+          ...message,
+          source: "net",
+          destination: "log"
+        })
+      case "peerConnectionExists":
+        this.messages.setValue({
+          type: "peerConnectionExists",
+          source: "net",
+          destination: "log",
           payload: {
             peerPort: message.payload.peerPort
           }
-        }
-      }
-
-      const sock = await connectWebSocket(
-        "ws://127.0.0.1:" + message.payload.peerPort,
-        new Headers({ "x-node-port": port }), // I need to send it by header instead of sock.conn because of a bug
-      );
-
-      if (!sock.isClosed) {
-
-        peers[message.payload.peerPort] = sock;
-
-        for await (const msg of sock) {
-          if (typeof msg == "string") {
-            const peerMessage = JSON.parse(msg);
-            if (peerMessage.destination == port) {
-              self.postMessage(peerMessage);
-            } else {
-              sock.send(JSON.stringify({
-                type: "messageNotForMe",
-                source: port,
-                destination: peerMessage.source,
-                payload: {
-                  myIdIs: port,
-                  yourDestinationIs: peerMessage.destination,
-                },
-              }));
-            }
-          }
-        }
-
-        return {
-          type: "peerConnectionLost",
+        })
+      default:
+        this.messages.setValue({
+          type: "invalidMessageType",
           source: "net",
-          destination: "main",
+          destination: "log",
           payload: {
-            peerPort: message.payload.peerPort,
+            message: message,
           },
-        };
-      } else {
-        return {
-          type: "peerConnectionFailed",
-          source: "net",
-          destination: "main",
-          payload: {
-            peerPort: message.payload.peerPort,
-          },
-        };
-      }
-
-    case "removePeer":
-
-      return {
-        type: "removePeerSuccess",
-        source: "net",
-        destination: "main",
-        payload: {
-          peerPort: message.payload.peerPort,
-        },
-      };
-    default:
-      return {
-        type: "invalidMessageType",
-        source: "net",
-        destination: "main",
-        payload: {
-          message: message,
-        },
-      };
-  }
-}
-
-self.onmessage = async (e: MessageEvent) => {
-  const message: IMessage<{
-    peerPort: string;
-    sourceId: string;
-    data: Object;
-  }> = e.data;
-
-  const destination = message.destination;
-
-  if (
-    /^[0-9]{4,5}$/g.test(destination) &&
-    Object.keys(peers).includes(destination)
-  ) {
-    peers[destination].send(JSON.stringify(message));
-  } else if (destination == "net") {
-    self.postMessage(await handleMainMessage(message));
-  } else {
-    self.postMessage({
-      type: "invalidMessageDestination",
-      source: "net",
-      destination: "main",
-      payload: {
-        invalidMessageDestination: destination,
-        availablePeers: Object.keys(peers),
-      },
-    } as IMessage);
-  }
-};
-
-for await (const request of server) {
-  const { conn, r: bufReader, w: bufWriter, headers } = request;
-
-  acceptWebSocket({
-    conn,
-    bufReader,
-    bufWriter,
-    headers,
-  }).then(async (sock: WebSocket) => {
-    const peerPort: string = headers.get("x-node-port") as string;
-
-    peers[peerPort] = sock;
-
-    self.postMessage({
-      type: "newConnection",
-      source: "net",
-      destination: "main",
-      payload: {
-        peerPort: peerPort,
-      },
-    } as IMessage);
-
-    for await (const ev of sock) {
-      if (typeof ev === "string") {
-        self.postMessage(JSON.parse(ev));
-      } else {
-        sock.send(JSON.stringify({
-          type: "badMessageFormat",
-          payload: {
-            message: "Please send JSON formated string",
-          },
-        }));
-        await request.respond({ status: 400 });
-      }
+        });
+        break;
     }
-
-    self.postMessage({
-      type: "peerConnectionLost",
-      source: "net",
-      destination: "main",
-      payload: {
-        peerPort: peerPort,
-      },
-    });
-  });
+  }
 }
