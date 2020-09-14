@@ -24,7 +24,7 @@ export default class Node {
     this.messages = new Observe<IMessage>({
       type: "initialMessage",
       source: "node",
-      destination: "any",
+      destination: "log",
       payload: {},
     });
 
