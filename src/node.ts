@@ -163,7 +163,7 @@ export default class Node {
         this.messages.setValue({
           type: "newTermAccepted",
           source: "node",
-          destination: "main",
+          destination: "log",
           payload: {
             term: this.term,
             leader: this.net.peers[message.source],
