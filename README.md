@@ -42,23 +42,23 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 > Now a peer is elected leader automatically if the leader is lost
 
+- Object Oriented implemented with Node & Net. Net has a worker and abstracts it
+- Message broker is implemented with Deno Observe, owned by Node and passed to the Net constructor (didn't succeed to install RxJS)
+- Logging is now cleaner by _just_ listening to the messages & printing (can be advanced later)
+
 # Next steps
 
-- Message broker instead of postMessage()
-- Use ob RxJS Observables
-- Cleaner & global logging
-- OOriented API to send messages (e.g FIXME #1)
 - Implement a frontend
-- Abstract a frontend interaction (fetch states, monitoring, ...)
-- Network partitions
-- Network latency
 - PUT/GET keys
 - PUT/GET consensus
 - WAL
 - WAL replication
+- OOriented API to send messages (e.g FIXME #1)
+- Abstract a frontend interaction (fetch states, monitoring, ...)
+- Network partitions
+- Network latency
 
 # Known issues
 
-1. on "connectionAccepted" the [main]->[net] "connectToPeer" for connecting to "knownPeers" provided by leader is not logged
-2. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests (OK if not even qorum)
-3. grant vote only one time before getting a heartbeat (with 5 nodes, got 3-4 terms before stabilizing a leader); due to #2 ?
+1. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests (OK if not even qorum)
+2. grant vote only one time before getting a heartbeat (with 5 nodes, got 3-4 terms before stabilizing a leader); due to #1 ?
