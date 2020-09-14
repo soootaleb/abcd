@@ -23,7 +23,7 @@ export default class Node {
   constructor() {
     this.messages = new Observe<IMessage>({
       type: "initialMessage",
-      source: "main",
+      source: "node",
       destination: "any",
       payload: {},
     });
@@ -162,7 +162,7 @@ export default class Node {
 
         this.messages.setValue({
           type: "newTermAccepted",
-          source: "main",
+          source: "node",
           destination: "main",
           payload: {
             term: this.term,
@@ -194,7 +194,7 @@ export default class Node {
 
         this.messages.setValue({
           type: "becameLeader",
-          source: "main",
+          source: "node",
           destination: "log",
           payload: {},
         });
@@ -203,7 +203,7 @@ export default class Node {
         this.term = message.payload.term;
         this.messages.setValue({
           type: "peerConnectionComplete",
-          source: "main",
+          source: "node",
           destination: "net",
           payload: {
             connectedTo: message.payload.connectedTo
@@ -214,7 +214,7 @@ export default class Node {
           if (!Object.keys(this.net.peers).includes(peerPort)) {
             this.messages.setValue({
               type: "connectToPeer",
-              source: "main",
+              source: "node",
               destination: "net",
               payload: {
                 peerPort: peerPort,
@@ -251,7 +251,7 @@ export default class Node {
       case "peerConnectionLost":
         this.messages.setValue({
           type: "peerConnectionLost",
-          source: "main",
+          source: "node",
           destination: "log",
           payload: {
             peerPort: message.payload.peerPort,
@@ -274,7 +274,7 @@ export default class Node {
       default:
         this.messages.setValue({
           type: "invalidMessageType",
-          source: "main",
+          source: "node",
           destination: "log",
           payload: {
             message: message,
