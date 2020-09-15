@@ -72,7 +72,7 @@ export default class Net {
         this.messages.setValue({
           type: message.type,
           source: "net",
-          destination: "main",
+          destination: "node",
           payload: message.payload,
         });
         break;
@@ -81,7 +81,7 @@ export default class Net {
         this.messages.setValue({
           type: message.type,
           source: "net",
-          destination: "main",
+          destination: "node",
           payload: message.payload,
         });
         break;
@@ -90,7 +90,7 @@ export default class Net {
         this.messages.setValue({
           type: message.type,
           source: "net",
-          destination: "main",
+          destination: "node",
           payload: message.payload,
         });
         break;

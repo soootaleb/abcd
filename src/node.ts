@@ -31,7 +31,7 @@ export default class Node {
     this.messages.bind((message: IMessage<any>) => {
       this.log(message);
       if (
-        message.destination == "main" || message.destination == this.net.port
+        message.destination == "node" || message.destination == this.net.port
       ) {
         this.handleMessage(message);
       }
