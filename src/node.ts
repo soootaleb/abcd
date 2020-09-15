@@ -308,7 +308,7 @@ export default class Node {
       })
     }
 
-    if (message.type != "heartBeat") {
+    if (!["heartBeat", "uiLogMessage"].includes(message.type)) {
       console.log(
         c.bgWhite(
           "                                                                                   ",
