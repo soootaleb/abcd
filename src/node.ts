@@ -43,13 +43,6 @@ export default class Node {
   private transitionFunction(to: TState) {
     switch (to) {
       case "follower":
-        console.log(
-          c.bgBrightBlue(
-            c.brightYellow(
-              c.bold(`----- BECOMING FOLLOWER ${this.net.port} ----`),
-            ),
-          ),
-        );
         if (this.heartBeatIntervalId) {
           clearInterval(this.heartBeatIntervalId);
         }
@@ -57,17 +50,20 @@ export default class Node {
           this.transitionFunction("candidate");
         }, this.electionTimeout);
 
+        this.messages.setValue({
+          type: "newState",
+          source: "node",
+          destination: "log",
+          payload: {
+            oldState: this.state,
+            newState: "follower"
+          }
+        })
+
         this.state = "follower";
 
         break;
       case "leader":
-        console.log(
-          c.bgBrightBlue(
-            c.brightYellow(
-              c.bold(`----- BECOMING LEADER ${this.net.port} ----`),
-            ),
-          ),
-        );
 
         if (this.state == "leader") {
           // This avoid a leader to send newTerm multiple times to each node
@@ -96,6 +92,18 @@ export default class Node {
         }, this.heartBeatInterval);
 
         this.term += 1;
+
+
+        this.messages.setValue({
+          type: "newState",
+          source: "node",
+          destination: "log",
+          payload: {
+            oldState: this.state,
+            newState: "leader"
+          }
+        })
+
         this.state = "leader";
 
         for (const peerPort of Object.keys(this.net.peers)) {
@@ -112,13 +120,7 @@ export default class Node {
 
         break;
       case "candidate":
-        console.log(
-          c.bgBrightBlue(
-            c.brightYellow(
-              c.bold(`----- BECOMING CANDIDATE ${this.net.port} ----`),
-            ),
-          ),
-        );
+
         if (Object.keys(this.net.peers).length == 0) {
           this.transitionFunction("leader");
         }
@@ -133,6 +135,16 @@ export default class Node {
             },
           });
         }
+
+        this.messages.setValue({
+          type: "newState",
+          source: "node",
+          destination: "log",
+          payload: {
+            oldState: this.state,
+            newState: "candidate"
+          }
+        })
 
         this.state = "candidate";
 
@@ -287,8 +299,12 @@ export default class Node {
   private log(message: IMessage) {
     if (message.destination != "ui") {
       this.messages.setValue({
-        ...message,
-        destination: "ui"
+        type: "uiLogMessage",
+        source: this.net.port,
+        destination: "ui",
+        payload: {
+          message: message
+        }
       })
     }
 

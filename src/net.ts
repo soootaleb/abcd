@@ -1,17 +1,3 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import {
-  serve,
-  ServerRequest,
-  Server,
-} from "https://deno.land/std/http/server.ts";
-import {
-  acceptWebSocket,
-  isWebSocketCloseEvent,
-  isWebSocketPingEvent,
-  WebSocket,
-  connectWebSocket,
-} from "https://deno.land/std/ws/mod.ts";
-import * as c from "https://deno.land/std/fmt/colors.ts";
 import { IMessage } from "./interface.ts";
 
 import Observe from "https://deno.land/x/Observe/Observe.ts";
@@ -78,7 +64,7 @@ export default class Net {
       port: string;
       connectedTo: { peerPort: string };
       peerPort: string;
-    }>,
+    }>, 
   ) {
     switch (message.type) {
       case "newConnection":

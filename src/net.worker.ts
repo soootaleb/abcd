@@ -24,7 +24,7 @@ const server = serve({
 const addr: Deno.NetAddr = server.listener.addr as Deno.NetAddr;
 const port: string = addr.port.toString();
 let peers: { [key: string]: WebSocket } = {};
-let ui: WebSocket;
+let ui: WebSocket | undefined;
 
 self.postMessage({
   type: "serverStarted",
@@ -194,6 +194,8 @@ for await (const request of server) {
       });
     } else {
       ui = sock;
+      for await (const ev of sock) {}
+      ui = undefined;
     }
   });
 }
