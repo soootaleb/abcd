@@ -285,6 +285,13 @@ export default class Node {
   }
 
   private log(message: IMessage) {
+    if (message.destination != "ui") {
+      this.messages.setValue({
+        ...message,
+        destination: "ui"
+      })
+    }
+
     if (message.type != "heartBeat") {
       console.log(
         c.bgWhite(

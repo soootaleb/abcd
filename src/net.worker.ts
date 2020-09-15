@@ -24,6 +24,7 @@ const server = serve({
 const addr: Deno.NetAddr = server.listener.addr as Deno.NetAddr;
 const port: string = addr.port.toString();
 let peers: { [key: string]: WebSocket } = {};
+let ui: WebSocket;
 
 self.postMessage({
   type: "serverStarted",
@@ -124,6 +125,10 @@ self.onmessage = async (e: MessageEvent) => {
     Object.keys(peers).includes(destination)
   ) {
     peers[destination].send(JSON.stringify(message));
+  } else if (destination == "ui") {
+    if (ui != undefined) {
+      ui.send(JSON.stringify(message));
+    }
   } else if (destination == "worker") {
     self.postMessage(await handleMessage(message));
   } else {
@@ -134,7 +139,7 @@ self.onmessage = async (e: MessageEvent) => {
       payload: {
         invalidMessageDestination: destination,
         availablePeers: Object.keys(peers),
-        message: message
+        message: message,
       },
     } as IMessage);
   }
@@ -151,40 +156,44 @@ for await (const request of server) {
   }).then(async (sock: WebSocket) => {
     const peerPort: string = headers.get("x-node-port") as string;
 
-    peers[peerPort] = sock;
+    if (peerPort != null) {
+      peers[peerPort] = sock;
 
-    self.postMessage({
-      type: "newConnection",
-      source: "worker",
-      destination: "net",
-      payload: {
-        peerPort: peerPort,
-      },
-    } as IMessage);
+      self.postMessage({
+        type: "newConnection",
+        source: "worker",
+        destination: "net",
+        payload: {
+          peerPort: peerPort,
+        },
+      } as IMessage);
 
-    for await (const ev of sock) {
-      if (typeof ev === "string") {
-        self.postMessage(JSON.parse(ev));
-      } else {
-        sock.send(JSON.stringify({
-          type: "badMessageFormat",
-          payload: {
-            message: "Please send JSON formated string",
-          },
-        }));
-        await request.respond({ status: 400 });
+      for await (const ev of sock) {
+        if (typeof ev === "string") {
+          self.postMessage(JSON.parse(ev));
+        } else {
+          sock.send(JSON.stringify({
+            type: "badMessageFormat",
+            payload: {
+              message: "Please send JSON formated string",
+            },
+          }));
+          await request.respond({ status: 400 });
+        }
       }
+
+      delete peers[peerPort];
+
+      self.postMessage({
+        type: "peerConnectionLost",
+        source: "worker",
+        destination: "net",
+        payload: {
+          peerPort: peerPort,
+        },
+      });
+    } else {
+      ui = sock;
     }
-
-    delete peers[peerPort];
-
-    self.postMessage({
-      type: "peerConnectionLost",
-      source: "worker",
-      destination: "net",
-      payload: {
-        peerPort: peerPort,
-      },
-    });
   });
 }

@@ -60,10 +60,10 @@ export default class Net {
     this.messages.bind((message: IMessage<any>) => {
       if (message.destination == "net") {
         this.handleMessage(message);
-      } else if (Object.keys(this._peers).includes(message.destination)) {
-        if (message.destination == "main") {
-          console.log(message.destination, Object.keys(this._peers), Object.keys(this._peers).includes(message.destination))
-        }
+      } else if (
+        Object.keys(this._peers).includes(message.destination) ||
+        message.destination == "ui"
+      ) {
         this.worker.postMessage(message);
       }
     });
@@ -117,7 +117,8 @@ export default class Net {
         });
         break;
       case "peerConnectionComplete":
-        this._peers[message.payload.connectedTo.peerPort] = message.payload.connectedTo;
+        this._peers[message.payload.connectedTo.peerPort] =
+          message.payload.connectedTo;
         this.messages.setValue({
           type: "peerAdded",
           source: "net",
@@ -129,17 +130,17 @@ export default class Net {
         this.messages.setValue({
           ...message,
           source: "net",
-          destination: "log"
-        })
+          destination: "log",
+        });
       case "peerConnectionExists":
         this.messages.setValue({
           type: "peerConnectionExists",
           source: "net",
           destination: "log",
           payload: {
-            peerPort: message.payload.peerPort
-          }
-        })
+            peerPort: message.payload.peerPort,
+          },
+        });
       default:
         this.messages.setValue({
           type: "invalidMessageType",
