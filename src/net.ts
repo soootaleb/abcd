@@ -118,6 +118,7 @@ export default class Net {
           source: "net",
           destination: "log",
         });
+        break;
       case "peerConnectionExists":
         this.messages.setValue({
           type: "peerConnectionExists",
@@ -127,6 +128,7 @@ export default class Net {
             peerPort: message.payload.peerPort,
           },
         });
+        break;
       default:
         this.messages.setValue({
           type: "invalidMessageType",
