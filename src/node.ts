@@ -45,6 +45,7 @@ export default class Node {
         source: "node",
         destination: "log",
         payload: {
+          port: this.net.port,
           state: this.state,
           peers: Object.keys(this.net.peers),
           electionTimeout: this.electionTimeout,
@@ -52,7 +53,7 @@ export default class Node {
           heartBeatCounter: this.heartBeatCounter
         }
       })
-    }, 300)
+    }, 100)
   }
 
   private transitionFunction(to: TState) {
@@ -296,7 +297,7 @@ export default class Node {
         if (message.payload.port != "8080") {
           this.messages.setValue({
             type: "connectToPeer",
-            source: this.net.port,
+            source: "node",
             destination: "net",
             payload: {
               peerPort: Deno.args[0] ? Deno.args[0] : "8080"
