@@ -65,14 +65,6 @@ export default class Node {
         break;
       case "leader":
 
-        if (oldState == "leader") {
-          // This avoid a leader to send newTerm multiple times to each node
-          // Hence duplicating the execution of transitionFunction("follower")
-          // etc
-          // [TODO] This may be better handled (it's already idempotent but it may be good to not duplicate)
-          break;
-        }
-
         if (this.electionTimeoutId) {
           clearTimeout(this.electionTimeoutId);
         }
@@ -191,23 +183,28 @@ export default class Node {
         });
         break;
       case "callForVoteReply":
-        if (message.payload.voteGranted) {
-          this.votesCounter += 1;
+        if (this.state == "candidate") {
+          if (message.payload.voteGranted) {
+            this.votesCounter += 1;
+          }
+  
+          if (
+            this.votesCounter + 1 > (Object.keys(this.net.peers).length + 1) / 2
+          ) {
+            this.votesCounter = 0;
+            this.transitionFunction("leader");
+          }
+        } else {
+          this.messages.setValue({
+            type: "voteReceivedButNotCandidate",
+            source: "node",
+            destination: "log",
+            payload: {
+              callForVoteReply: message,
+              currentState: this.state
+            }
+          })
         }
-
-        if (
-          this.votesCounter + 1 > (Object.keys(this.net.peers).length + 1) / 2
-        ) {
-          this.votesCounter = 0;
-          this.transitionFunction("leader");
-        }
-
-        this.messages.setValue({
-          type: "becameLeader",
-          source: "node",
-          destination: "log",
-          payload: {},
-        });
         break;
       case "connectionAccepted":
         this.term = message.payload.term;
