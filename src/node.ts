@@ -41,6 +41,7 @@ export default class Node {
   }
 
   private transitionFunction(to: TState) {
+    const oldState: TState = this.state;
     switch (to) {
       case "follower":
         if (this.heartBeatIntervalId) {
@@ -50,22 +51,21 @@ export default class Node {
           this.transitionFunction("candidate");
         }, this.electionTimeout);
 
+        this.state = "follower";
         this.messages.setValue({
           type: "newState",
           source: "node",
           destination: "log",
           payload: {
-            oldState: this.state,
-            newState: "follower"
+            oldState: oldState,
+            newState: this.state
           }
         })
-
-        this.state = "follower";
 
         break;
       case "leader":
 
-        if (this.state == "leader") {
+        if (oldState == "leader") {
           // This avoid a leader to send newTerm multiple times to each node
           // Hence duplicating the execution of transitionFunction("follower")
           // etc
@@ -93,18 +93,16 @@ export default class Node {
 
         this.term += 1;
 
-
+        this.state = "leader";
         this.messages.setValue({
           type: "newState",
           source: "node",
           destination: "log",
           payload: {
-            oldState: this.state,
-            newState: "leader"
+            oldState: oldState,
+            newState: this.state
           }
         })
-
-        this.state = "leader";
 
         for (const peerPort of Object.keys(this.net.peers)) {
           this.messages.setValue({
@@ -121,32 +119,32 @@ export default class Node {
         break;
       case "candidate":
 
-        if (Object.keys(this.net.peers).length == 0) {
-          this.transitionFunction("leader");
-        }
-        for (const peerPort of Object.keys(this.net.peers)) {
-          this.messages.setValue({
-            type: "callForVoteRequest",
-            source: this.net.port,
-            destination: peerPort,
-            payload: {
-              peerPort: peerPort,
-              sourcePort: this.net.port,
-            },
-          });
-        }
-
+        this.state = "candidate";
         this.messages.setValue({
           type: "newState",
           source: "node",
           destination: "log",
           payload: {
-            oldState: this.state,
-            newState: "candidate"
+            oldState: oldState,
+            newState: this.state
           }
         })
 
-        this.state = "candidate";
+        if (Object.keys(this.net.peers).length == 0) {
+          this.transitionFunction("leader");
+        } else {
+          for (const peerPort of Object.keys(this.net.peers)) {
+            this.messages.setValue({
+              type: "callForVoteRequest",
+              source: this.net.port,
+              destination: peerPort,
+              payload: {
+                peerPort: peerPort,
+                sourcePort: this.net.port,
+              },
+            });
+          }
+        }
 
         break;
       default:
