@@ -16,9 +16,9 @@ export default class Node {
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
   private heartBeatInterval: number = 100;
-  private heartBeatIntervalId: number = 0;
+  private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.125) * 1000;
-  private electionTimeoutId: number = 0;
+  private electionTimeoutId: number | undefined;
 
   constructor() {
     this.messages = new Observe<IMessage>({
@@ -42,11 +42,12 @@ export default class Node {
 
   private transitionFunction(to: TState) {
     const oldState: TState = this.state;
+
+    clearTimeout(this.electionTimeoutId);
+    clearInterval(this.heartBeatIntervalId);
+
     switch (to) {
       case "follower":
-        if (this.heartBeatIntervalId) {
-          clearInterval(this.heartBeatIntervalId);
-        }
         this.electionTimeoutId = setTimeout(() => {
           this.transitionFunction("candidate");
         }, this.electionTimeout);
@@ -64,10 +65,6 @@ export default class Node {
 
         break;
       case "leader":
-
-        if (this.electionTimeoutId) {
-          clearTimeout(this.electionTimeoutId);
-        }
 
         this.heartBeatIntervalId = setInterval(() => {
           for (const peerPort of Object.keys(this.net.peers)) {
@@ -147,30 +144,42 @@ export default class Node {
   private handleMessage(message: IMessage<any>) {
     switch (message.type) {
       case "heartBeat":
-        if (this.electionTimeoutId) {
-          clearTimeout(this.electionTimeoutId);
-        }
+
+        clearTimeout(this.electionTimeoutId);
+
         this.electionTimeoutId = setTimeout(() => {
           this.transitionFunction("candidate");
         }, this.electionTimeout);
         break;
       case "newTerm":
-        this.term = message.payload.term;
 
-        if (this.electionTimeoutId) {
-          clearTimeout(this.electionTimeoutId);
+        if (message.payload.term > this.term) {
+          this.term = message.payload.term;
+  
+          this.messages.setValue({
+            type: "newTermAccepted",
+            source: "node",
+            destination: "log",
+            payload: {
+              term: this.term,
+              leader: this.net.peers[message.source],
+            },
+          });
+  
+          // TODO Implement WAL sync here
+
           this.transitionFunction("follower");
-        }
 
-        this.messages.setValue({
-          type: "newTermAccepted",
-          source: "node",
-          destination: "log",
-          payload: {
-            term: this.term,
-            leader: this.net.peers[message.source],
-          },
-        });
+        } else {
+          this.messages.setValue({
+            type: "newTermRejected",
+            source: this.net.port,
+            destination: message.source,
+            payload: {
+              term: this.term
+            }
+          })
+        }
         break;
       case "callForVoteRequest":
         this.messages.setValue({
@@ -178,7 +187,7 @@ export default class Node {
           source: this.net.port,
           destination: message.source,
           payload: {
-            voteGranted: true,
+            voteGranted: this.state != "leader",
           },
         });
         break;
