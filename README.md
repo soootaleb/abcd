@@ -45,6 +45,9 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 - Object Oriented implemented with Node & Net. Net has a worker and abstracts it
 - Message broker is implemented with Deno Observe, owned by Node and passed to the Net constructor (didn't succeed to install RxJS)
 - Logging is now cleaner by _just_ listening to the messages & printing (can be advanced later)
+- A newTerm is accepted only if superior than the current node term (necessary later for split brain recovery)
+- A node grants a vote (voteGranted = true) only if it's not leader
+- A node reacts to callForVoteReply only if its a candidate
 
 # Next steps
 
