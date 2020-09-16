@@ -39,24 +39,20 @@ export default class Node {
 
     this.net = new Net(this.messages);
 
-    if (Deno.args[1] == "debug") {
-      let counter = 0;
-      setInterval(() => {
-        counter += 1;
-        this.messages.setValue({
-          type: "debug",
-          source: "node",
-          destination: "log",
-          payload: {
-            state: this.state,
-            electionTimeout: this.electionTimeout,
-            term: this.term,
-            heartBeatCounter: this.heartBeatCounter,
-            debugCounter: counter
-          }
-        })
-      }, 1000)
-    }
+    setInterval(() => {
+      this.messages.setValue({
+        type: "uiStateUpdate",
+        source: "node",
+        destination: "log",
+        payload: {
+          state: this.state,
+          peers: Object.keys(this.net.peers),
+          electionTimeout: this.electionTimeout,
+          term: this.term,
+          heartBeatCounter: this.heartBeatCounter
+        }
+      })
+    }, 300)
   }
 
   private transitionFunction(to: TState) {
@@ -163,6 +159,8 @@ export default class Node {
   private handleMessage(message: IMessage<any>) {
     switch (message.type) {
       case "heartBeat":
+
+        this.heartBeatCounter += 1;
 
         clearTimeout(this.electionTimeoutId);
 
@@ -320,7 +318,7 @@ export default class Node {
   }
 
   private log(message: IMessage) {
-    if (message.destination != "ui") {
+    if (message.destination != "ui" && message.type != "heartBeat") {
       /**
        * We wrap the messages for UI in another messages
        * - source is the current node sending the messages (so the UI can know it & deal with multiple nodes)
