@@ -49,6 +49,10 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 - A node grants a vote (voteGranted = true) only if it's not leader
 - A node reacts to callForVoteReply only if its a candidate
 
+> Now a cluster scales to dozens of nodes and reaches a stable & coherent state (conflicts are resolved and all peers agree on the same leader)
+
+> The UI is able to connect to various nodes and display they respective logs
+
 # Next steps
 
 - Implement a frontend
