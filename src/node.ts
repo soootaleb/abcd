@@ -38,6 +38,25 @@ export default class Node {
     });
 
     this.net = new Net(this.messages);
+
+    if (Deno.args[1] == "debug") {
+      let counter = 0;
+      setInterval(() => {
+        counter += 1;
+        this.messages.setValue({
+          type: "debug",
+          source: "node",
+          destination: "log",
+          payload: {
+            state: this.state,
+            electionTimeout: this.electionTimeout,
+            term: this.term,
+            heartBeatCounter: this.heartBeatCounter,
+            debugCounter: counter
+          }
+        })
+      }, 1000)
+    }
   }
 
   private transitionFunction(to: TState) {
@@ -302,6 +321,16 @@ export default class Node {
 
   private log(message: IMessage) {
     if (message.destination != "ui") {
+      /**
+       * We wrap the messages for UI in another messages
+       * - source is the current node sending the messages (so the UI can know it & deal with multiple nodes)
+       * - destination is "ui" so there is no ambiguity for the network layer
+       * - payload contains the log message we want to forward
+       * 
+       * This approach has been implemented because using messages with destination "ui"
+       * in the application coupled the ui logging logic & created complexity
+       * This way, the application has no messages with destination ui, only this log function
+       */
       this.messages.setValue({
         type: "uiLogMessage",
         source: this.net.port,
