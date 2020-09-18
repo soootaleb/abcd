@@ -12,7 +12,7 @@ import {
   connectWebSocket,
 } from "https://deno.land/std/ws/mod.ts";
 import * as c from "https://deno.land/std/fmt/colors.ts";
-import { IMessage } from "./interface.ts";
+import type { IMessage } from "./interface.ts";
 
 declare const self: Worker;
 
