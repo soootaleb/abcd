@@ -158,9 +158,6 @@ for await (const request of server) {
 
     if (peerPort != null) {
       peers[peerPort] = sock;
-    } else {
-      ui = sock;
-    }
 
       self.postMessage({
         type: "newConnection",
@@ -170,42 +167,39 @@ for await (const request of server) {
           peerPort: peerPort,
         },
       } as IMessage);
+    } else {
+      ui = sock;
+    }
 
-      for await (const ev of sock) {
-        if (typeof ev === "string") {
-          self.postMessage(JSON.parse(ev));
-        } else {
-          sock.send(JSON.stringify({
-            type: "badMessageFormat",
-            payload: {
-              message: "Please send JSON formated string",
-            },
-          }));
-          await request.respond({ status: 400 });
-        }
-      }
+    
 
-      if (peerPort != null) {
-        delete peers[peerPort];
-
-        self.postMessage({
-          type: "peerConnectionLost",
-          source: "worker",
-          destination: "net",
-          payload: {
-            peerPort: peerPort,
-          },
-        });
+    for await (const ev of sock) {
+      if (typeof ev === "string") {
+        self.postMessage(JSON.parse(ev));
       } else {
-        ui = undefined;
-        self.postMessage({
-          type: "uiConnectionLost",
-          source: "worker",
-          destination: "net",
-          payload: {},
-        });
+        sock.send(JSON.stringify({
+          type: "badMessageFormat",
+          payload: {
+            message: "Please send JSON formated string",
+          },
+        }));
+        await request.respond({ status: 400 });
       }
-      
-      
+    }
+
+    if (peerPort != null) {
+      delete peers[peerPort];
+
+      self.postMessage({
+        type: "peerConnectionLost",
+        source: "worker",
+        destination: "net",
+        payload: {
+          peerPort: peerPort,
+        },
+      });
+    } else {
+      ui = undefined;
+    }
   });
 }

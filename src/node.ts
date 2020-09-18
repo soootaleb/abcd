@@ -159,6 +159,9 @@ export default class Node {
 
   private handleMessage(message: IMessage<any>) {
     switch (message.type) {
+      case "setState":
+        this.transitionFunction(message.payload.state)
+        break;
       case "heartBeat":
 
         this.heartBeatCounter += 1;
