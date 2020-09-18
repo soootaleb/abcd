@@ -53,6 +53,16 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 > The UI is able to connect to various nodes and display they respective logs
 
+- UI can send a message to define the node state
+- UI can send a message to define a key with a value
+- Node not leader sends log setValueRequestReceivedButNotLeader
+- Node leader sends pendingSetKVRequests in next heartBeat
+- Peers commit pendingSetKVRequests in store
+- Peers send setKVAccepted to leader
+- Leader commits KV in store after quorum is reached
+
+> The cluster is able to store a value in memory with consensus after a qorum has been reached
+
 # Next steps
 
 - Implement a frontend

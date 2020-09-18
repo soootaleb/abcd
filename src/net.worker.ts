@@ -24,7 +24,7 @@ const server = serve({
 const addr: Deno.NetAddr = server.listener.addr as Deno.NetAddr;
 const port: string = addr.port.toString();
 let peers: { [key: string]: WebSocket } = {};
-let ui: WebSocket | undefined;
+let uis: WebSocket[] = [];
 
 self.postMessage({
   type: "serverStarted",
@@ -126,8 +126,12 @@ self.onmessage = async (e: MessageEvent) => {
   ) {
     peers[destination].send(JSON.stringify(message));
   } else if (destination == "ui") {
-    if (ui != undefined) {
-      ui.send(JSON.stringify(message));
+    if (uis.length) {
+      for (const ui of uis) {
+        if (!ui.isClosed) {
+          ui.send(JSON.stringify(message));
+        }
+      }
     }
   } else if (destination == "worker") {
     self.postMessage(await handleMessage(message));
@@ -168,7 +172,7 @@ for await (const request of server) {
         },
       } as IMessage);
     } else {
-      ui = sock;
+      uis.push(sock);
     }
 
     
@@ -191,7 +195,7 @@ for await (const request of server) {
         },
       });
     } else {
-      ui = undefined;
+      uis = uis.filter(ui => ui.conn.rid === sock.conn.rid);
     }
   });
 }

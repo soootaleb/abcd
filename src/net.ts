@@ -12,6 +12,10 @@ export default class Net {
     return this._peers;
   }
 
+  public get quorum(): number {
+    return Math.floor((Object.keys(this.peers).length + 1) / 2) + 1
+  }
+
   public get port() {
     return this._port;
   }

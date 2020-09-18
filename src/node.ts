@@ -1,16 +1,16 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import Observe from "https://deno.land/x/Observe/Observe.ts";
-import type { IMessage } from "./interface.ts";
+import type { IKeyValue, IMessage } from "./interface.ts";
 import Net from "./net.ts";
 
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
   private net: Net;
+  private uiRefreshTimeout: number = 500;
   private messages: Observe<IMessage>;
 
   private state: TState = "follower";
-  // private store: { [key: string]: any } = {};
 
   private term: number = 0;
   private votesCounter: number = 0;
@@ -19,6 +19,27 @@ export default class Node {
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.125) * 1000;
   private electionTimeoutId: number | undefined;
+
+  /**
+   * TODO Make pedding setKV requests uniq in store & heartBeat
+   * Now get to make two delete actions on complete
+   */
+  private heartBeatMessage: {
+    pendingSetKeyValueRequests: { [key: string]: IKeyValue };
+    heartBeatCounter: number;
+  } = {
+    pendingSetKeyValueRequests: {},
+    heartBeatCounter: this.heartBeatCounter,
+  };
+
+  private kvstore: { [key: string]: IKeyValue } = {};
+
+  private kvstorecounter: {
+    [key: string]: {
+      kv: IKeyValue;
+      votes: number;
+    };
+  } = {};
 
   constructor() {
     this.messages = new Observe<IMessage>({
@@ -33,7 +54,9 @@ export default class Node {
       if (
         message.destination == "node" || message.destination == this.net.port
       ) {
-        this.handleMessage(message);
+        message.source == "ui"
+          ? this.handleUiMessage(message)
+          : this.handleMessage(message);
       }
     });
 
@@ -50,10 +73,10 @@ export default class Node {
           peers: Object.keys(this.net.peers),
           electionTimeout: this.electionTimeout,
           term: this.term,
-          heartBeatCounter: this.heartBeatCounter
-        }
-      })
-    }, 500)
+          heartBeatCounter: this.heartBeatCounter,
+        },
+      });
+    }, this.uiRefreshTimeout);
   }
 
   private transitionFunction(to: TState) {
@@ -61,6 +84,8 @@ export default class Node {
 
     clearTimeout(this.electionTimeoutId);
     clearInterval(this.heartBeatIntervalId);
+
+    this.kvstorecounter = {};
 
     switch (to) {
       case "follower":
@@ -75,22 +100,19 @@ export default class Node {
           destination: "log",
           payload: {
             oldState: oldState,
-            newState: this.state
-          }
-        })
+            newState: this.state,
+          },
+        });
 
         break;
       case "leader":
-
         this.heartBeatIntervalId = setInterval(() => {
           for (const peerPort of Object.keys(this.net.peers)) {
             this.messages.setValue({
               type: "heartBeat",
               source: this.net.port,
               destination: peerPort,
-              payload: {
-                heartBeatCounter: this.heartBeatCounter,
-              },
+              payload: this.heartBeatMessage,
             });
             this.heartBeatCounter += 1;
           }
@@ -105,9 +127,9 @@ export default class Node {
           destination: "log",
           payload: {
             oldState: oldState,
-            newState: this.state
-          }
-        })
+            newState: this.state,
+          },
+        });
 
         for (const peerPort of Object.keys(this.net.peers)) {
           this.messages.setValue({
@@ -123,17 +145,17 @@ export default class Node {
 
         break;
       case "candidate":
-
         this.state = "candidate";
+        this.votesCounter += 1;
         this.messages.setValue({
           type: "newState",
           source: "node",
           destination: "log",
           payload: {
             oldState: oldState,
-            newState: this.state
-          }
-        })
+            newState: this.state,
+          },
+        });
 
         if (Object.keys(this.net.peers).length == 0) {
           this.transitionFunction("leader");
@@ -157,13 +179,74 @@ export default class Node {
     }
   }
 
-  private handleMessage(message: IMessage<any>) {
+  private handleUiMessage(message: IMessage<any>) {
     switch (message.type) {
       case "setState":
-        this.transitionFunction(message.payload.state)
+        this.transitionFunction(message.payload.state);
         break;
-      case "heartBeat":
+      case "setKeyValueRequest":
+        if (this.state == "leader") {
+          // Later we'll need to verify the kv is not in process
+          // Otherwise, the request will have to be delayed or rejected
 
+          if (this.net.quorum == 1) {
+            this.kvstore[message.payload.key] = {
+              key: message.payload.key,
+              value: message.payload.value,
+            };
+
+            // Always better clean
+            delete this.kvstorecounter[message.payload.key];
+            delete this.heartBeatMessage.pendingSetKeyValueRequests[message.payload.key];
+
+            this.messages.setValue({
+              type: "setKVRequestComplete",
+              source: "node",
+              destination: "log",
+              payload: message.payload,
+            });
+          } else {
+            // Initialise the store counter with value & reset vote at 1
+            this.kvstorecounter[message.payload.key] = {
+              kv: message.payload,
+              votes: 1, // because the current node votes for itself
+            };
+
+            // Send the kv to sync at next heartbeat
+            this.heartBeatMessage
+              .pendingSetKeyValueRequests[message.payload.key] = {
+                key: message.payload.key,
+                value: message.payload.value,
+              };
+          }
+        } else {
+          this.messages.setValue({
+            type: "setValueRequestReceivedButNotLeader",
+            source: this.net.port,
+            destination: "log",
+            payload: {
+              key: message.payload.key,
+              value: message.payload.value,
+            },
+          });
+        }
+        break;
+      default:
+        this.messages.setValue({
+          type: "invalidUiMessageType",
+          source: "node",
+          destination: "log",
+          payload: {
+            message: message,
+          },
+        });
+        break;
+    }
+  }
+
+  private handleMessage(message: IMessage<any>) {
+    switch (message.type) {
+      case "heartBeat":
         this.heartBeatCounter += 1;
 
         clearTimeout(this.electionTimeoutId);
@@ -171,12 +254,68 @@ export default class Node {
         this.electionTimeoutId = setTimeout(() => {
           this.transitionFunction("candidate");
         }, this.electionTimeout);
+
+        for (
+          const [key, kv] of Object.entries<IKeyValue>(
+            message.payload.pendingSetKeyValueRequests,
+          )
+        ) {
+          this.messages.setValue({
+            type: "heartBeatContainsSetKV",
+            source: "node",
+            destination: "log",
+            payload: message.payload
+          })
+          this.kvstore[key] = kv;
+          this.messages.setValue({
+            type: "setKVAccepted",
+            source: this.net.port,
+            destination: message.source,
+            payload: kv,
+          });
+        }
+        break;
+      case "setKVAccepted":
+        if (Object.keys(this.kvstorecounter).includes(message.payload.key)) {
+          this.kvstorecounter[message.payload.key].votes += 1;
+          if (
+            this.kvstorecounter[message.payload.key].votes >= this.net.quorum
+          ) {
+            this.kvstore[message.payload.key] = {
+              key: message.payload.key,
+              value: message.payload.value,
+            };
+
+            delete this.kvstorecounter[message.payload.key];
+            delete this.heartBeatMessage.pendingSetKeyValueRequests[message.payload.key];
+
+            this.messages.setValue({
+              type: "setKVRequestComplete",
+              source: "node",
+              destination: "log",
+              payload: message.payload,
+            });
+          } else {
+            this.messages.setValue({
+              type: "setKVAcceptedReceived",
+              source: "node",
+              destination: "log",
+              payload: this.kvstore[message.payload.key],
+            });
+          }
+        } else {
+          this.messages.setValue({
+            type: "setKVAcceptedReceivedButCommited",
+            source: "node",
+            destination: "log",
+            payload: message.payload,
+          });
+        }
         break;
       case "newTerm":
-
         if (message.payload.term > this.term) {
           this.term = message.payload.term;
-  
+
           this.messages.setValue({
             type: "newTermAccepted",
             source: "node",
@@ -186,20 +325,19 @@ export default class Node {
               leader: this.net.peers[message.source],
             },
           });
-  
+
           // TODO Implement WAL sync here
 
           this.transitionFunction("follower");
-
         } else {
           this.messages.setValue({
             type: "newTermRejected",
             source: this.net.port,
             destination: message.source,
             payload: {
-              term: this.term
-            }
-          })
+              term: this.term,
+            },
+          });
         }
         break;
       case "callForVoteRequest":
@@ -217,9 +355,9 @@ export default class Node {
           if (message.payload.voteGranted) {
             this.votesCounter += 1;
           }
-  
+
           if (
-            this.votesCounter + 1 > (Object.keys(this.net.peers).length + 1) / 2
+            this.votesCounter >= this.net.quorum
           ) {
             this.votesCounter = 0;
             this.transitionFunction("leader");
@@ -231,9 +369,9 @@ export default class Node {
             destination: "log",
             payload: {
               callForVoteReply: message,
-              currentState: this.state
-            }
-          })
+              currentState: this.state,
+            },
+          });
         }
         break;
       case "connectionAccepted":
@@ -243,7 +381,7 @@ export default class Node {
           source: "node",
           destination: "net",
           payload: {
-            connectedTo: message.payload.connectedTo
+            connectedTo: message.payload.connectedTo,
           },
         });
 
@@ -303,9 +441,9 @@ export default class Node {
             source: "node",
             destination: "net",
             payload: {
-              peerPort: Deno.args[0] ? Deno.args[0] : "8080"
-            }
-          })
+              peerPort: Deno.args[0] ? Deno.args[0] : "8080",
+            },
+          });
         }
         break;
       default:
@@ -338,9 +476,9 @@ export default class Node {
         source: this.net.port,
         destination: "ui",
         payload: {
-          message: message
-        }
-      })
+          message: message,
+        },
+      });
     }
 
     if (!["heartBeat", "uiLogMessage"].includes(message.type)) {
