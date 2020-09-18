@@ -176,14 +176,6 @@ for await (const request of server) {
     for await (const ev of sock) {
       if (typeof ev === "string") {
         self.postMessage(JSON.parse(ev));
-      } else {
-        sock.send(JSON.stringify({
-          type: "badMessageFormat",
-          payload: {
-            message: "Please send JSON formated string",
-          },
-        }));
-        await request.respond({ status: 400 });
       }
     }
 
