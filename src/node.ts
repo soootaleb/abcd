@@ -1,6 +1,6 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
-import Observe from "https://deno.land/x/Observe@v1.2.1/Observe.ts";
-import { IMessage } from "./interface.ts";
+import Observe from "https://deno.land/x/Observe/Observe.ts";
+import type { IMessage } from "./interface.ts";
 import Net from "./net.ts";
 
 export type TState = "leader" | "follower" | "candidate";
@@ -53,7 +53,7 @@ export default class Node {
           heartBeatCounter: this.heartBeatCounter
         }
       })
-    }, 100)
+    }, 500)
   }
 
   private transitionFunction(to: TState) {

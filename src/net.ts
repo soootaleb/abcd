@@ -1,6 +1,6 @@
-import { IMessage } from "./interface.ts";
+import type { IMessage } from "./interface.ts";
 
-import Observe from "https://deno.land/x/Observe/Observe.ts";
+import type Observe from "https://deno.land/x/Observe/Observe.ts";
 
 export default class Net {
   private _peers: { [key: string]: { peerPort: string } } = {};
