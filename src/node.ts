@@ -1,15 +1,17 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import Observe from "https://deno.land/x/Observe/Observe.ts";
-import type { IKeyValue, IMessage } from "./interface.ts";
+import type { IKeyValue, ILog, IMessage } from "./interface.ts";
 import Net from "./net.ts";
+import Store from "./store.ts";
 
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
-  private net: Net;
   private uiRefreshTimeout: number = 500;
   private messages: Observe<IMessage>;
 
+  private net: Net;
+  private store: Store;
   private state: TState = "follower";
 
   private term: number = 0;
@@ -20,26 +22,6 @@ export default class Node {
   private electionTimeout: number = (Math.random() + 0.125) * 1000;
   private electionTimeoutId: number | undefined;
 
-  /**
-   * TODO Make pedding setKV requests uniq in store & heartBeat
-   * Now get to make two delete actions on complete
-   */
-  private heartBeatMessage: {
-    pendingSetKeyValueRequests: { [key: string]: IKeyValue };
-    heartBeatCounter: number;
-  } = {
-    pendingSetKeyValueRequests: {},
-    heartBeatCounter: this.heartBeatCounter,
-  };
-
-  private kvstore: { [key: string]: IKeyValue } = {};
-
-  private kvstorecounter: {
-    [key: string]: {
-      kv: IKeyValue;
-      votes: number;
-    };
-  } = {};
 
   constructor() {
     this.messages = new Observe<IMessage>({
@@ -61,6 +43,7 @@ export default class Node {
     });
 
     this.net = new Net(this.messages);
+    this.store = new Store(this.messages);
 
     setInterval(() => {
       this.messages.setValue({
@@ -73,6 +56,9 @@ export default class Node {
           peers: Object.keys(this.net.peers),
           electionTimeout: this.electionTimeout,
           term: this.term,
+          store: {
+            store: this.store.store
+          },
           heartBeatCounter: this.heartBeatCounter,
         },
       });
@@ -85,7 +71,7 @@ export default class Node {
     clearTimeout(this.electionTimeoutId);
     clearInterval(this.heartBeatIntervalId);
 
-    this.kvstorecounter = {};
+    this.store.reset();
 
     switch (to) {
       case "follower":
@@ -112,7 +98,10 @@ export default class Node {
               type: "heartBeat",
               source: this.net.port,
               destination: peerPort,
-              payload: this.heartBeatMessage,
+              payload: {
+                pendingSetKeyValueRequests: this.store.pending,
+                heartBeatCounter: this.heartBeatCounter,
+              }
             });
             this.heartBeatCounter += 1;
           }
@@ -189,35 +178,16 @@ export default class Node {
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected
 
+          this.store.set(message.payload.key, message.payload.value);
+          
           if (this.net.quorum == 1) {
-            this.kvstore[message.payload.key] = {
-              key: message.payload.key,
-              value: message.payload.value,
-            };
-
-            // Always better clean
-            delete this.kvstorecounter[message.payload.key];
-            delete this.heartBeatMessage.pendingSetKeyValueRequests[message.payload.key];
-
+            this.store.commit(message.payload.key);
             this.messages.setValue({
               type: "setKVRequestComplete",
               source: "node",
               destination: "log",
               payload: message.payload,
             });
-          } else {
-            // Initialise the store counter with value & reset vote at 1
-            this.kvstorecounter[message.payload.key] = {
-              kv: message.payload,
-              votes: 1, // because the current node votes for itself
-            };
-
-            // Send the kv to sync at next heartbeat
-            this.heartBeatMessage
-              .pendingSetKeyValueRequests[message.payload.key] = {
-                key: message.payload.key,
-                value: message.payload.value,
-              };
           }
         } else {
           this.messages.setValue({
@@ -255,18 +225,17 @@ export default class Node {
           this.transitionFunction("candidate");
         }, this.electionTimeout);
 
-        for (
-          const [key, kv] of Object.entries<IKeyValue>(
-            message.payload.pendingSetKeyValueRequests,
-          )
-        ) {
+        const requests: { [key: string]: ILog } = message.payload.pendingSetKeyValueRequests
+        for (const [key, kv] of Object.entries<ILog>(requests)) {
           this.messages.setValue({
             type: "heartBeatContainsSetKV",
             source: "node",
             destination: "log",
-            payload: message.payload
-          })
-          this.kvstore[key] = kv;
+            payload: message.payload,
+          });
+
+          this.store.set(kv.next.key, kv.next.value);
+
           this.messages.setValue({
             type: "setKVAccepted",
             source: this.net.port,
@@ -276,39 +245,37 @@ export default class Node {
         }
         break;
       case "setKVAccepted":
-        if (Object.keys(this.kvstorecounter).includes(message.payload.key)) {
-          this.kvstorecounter[message.payload.key].votes += 1;
-          if (
-            this.kvstorecounter[message.payload.key].votes >= this.net.quorum
-          ) {
-            this.kvstore[message.payload.key] = {
-              key: message.payload.key,
-              value: message.payload.value,
-            };
 
-            delete this.kvstorecounter[message.payload.key];
-            delete this.heartBeatMessage.pendingSetKeyValueRequests[message.payload.key];
+      const log: ILog = message.payload;
 
-            this.messages.setValue({
-              type: "setKVRequestComplete",
-              source: "node",
-              destination: "log",
-              payload: message.payload,
-            });
-          } else {
-            this.messages.setValue({
-              type: "setKVAcceptedReceived",
-              source: "node",
-              destination: "log",
-              payload: this.kvstore[message.payload.key],
-            });
-          }
-        } else {
+        const votes: number = this.store.voteFor(log.next.key);
+
+        if (votes === -1) { // Key is not currently under vote
           this.messages.setValue({
             type: "setKVAcceptedReceivedButCommited",
             source: "node",
             destination: "log",
-            payload: message.payload,
+            payload: log,
+          });
+        } else if (votes >= this.net.quorum) {
+
+          this.store.commit(log);
+
+          this.messages.setValue({
+            type: "setKVRequestComplete",
+            source: "node",
+            destination: "log",
+            payload: log,
+          });
+        } else {
+          this.messages.setValue({
+            type: "setKVAcceptedReceived",
+            source: "node",
+            destination: "log",
+            payload: {
+              message: message,
+              votes: this.store.getVotes(log.next.key)
+            },
           });
         }
         break;
