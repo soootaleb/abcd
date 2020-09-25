@@ -55,6 +55,8 @@ export default class Store {
     if (Object.keys(this._votes).includes(key)) {
       this._votes[key] += 1;
       outcome = this.getVotes(key);
+    } else {
+      this.wal[key] = this.wget(key).filter((log) => log.commited)
     }
 
     this.messages.setValue({
