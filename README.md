@@ -70,10 +70,14 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 - PUT/GET consensus
 - WAL
 - WAL replication
+- WAL persistance
+- Store persistance
 - OOriented API to send messages (e.g FIXME #1)
 - Abstract a frontend interaction (fetch states, monitoring, ...)
 - Network partitions
 - Network latency
+- MVCC
+- WASI
 
 # Known issues
 
