@@ -63,17 +63,19 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 > The cluster is able to store a value in memory with consensus after a qorum has been reached
 
+- UI can start / stop the nodes
+- Leader will append ILog to the WAL when setValue, with commited = false
+- Heartbeat contains the WAL
+- Peer receiving a leader WAL syncs commited changes not already in the local WAL
+- Peer receiving a leader WAL registers uncommited changes & returns a vote
+- Peer connecting to the cluster will sync the WAL & store of data successfuly
+
+> Settings a key value on the leader will append a commited log in WAL only after consensus
+
 # Next steps
 
-- Implement a frontend
-- PUT/GET keys
-- PUT/GET consensus
-- WAL
-- WAL replication
 - WAL persistance
 - Store persistance
-- OOriented API to send messages (e.g FIXME #1)
-- Abstract a frontend interaction (fetch states, monitoring, ...)
 - Network partitions
 - Network latency
 - MVCC
