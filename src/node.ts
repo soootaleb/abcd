@@ -188,10 +188,10 @@ export default class Node {
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected
 
-          this.store.set(message.payload.key, message.payload.value);
+          const log = this.store.set(message.payload.key, message.payload.value);
 
           if (this.net.quorum == 1) {
-            this.store.commit(message.payload.key);
+            this.store.commit(log);
             this.messages.setValue({
               type: "setKVRequestComplete",
               source: "node",

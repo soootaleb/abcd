@@ -37,7 +37,6 @@ export default class Store {
     this._votes = {};
   }
 
-
   public get wal(): IWal {
     return this._wal;
   }
@@ -160,10 +159,11 @@ export default class Store {
    * @param key 
    * @param val 
    */
-  public set(key: string, val: string | number): Boolean {
+  public set(key: string, val: string | number): ILog {
     this._votes[key] = 1;
-    this.wget(key).push({
-      action: "put",
+    
+    const log = {
+      action: "put" as "put",
       commited: false,
       timestamp: new Date().getTime(),
       previous: this.get(key),
@@ -171,7 +171,9 @@ export default class Store {
         key: key,
         value: val,
       },
-    });
+    };
+
+    this.wget(key).push(log);
 
     this.messages.setValue({
       type: "setValueCall",
@@ -183,6 +185,6 @@ export default class Store {
       },
     });
 
-    return true;
+    return log;
   }
 }
