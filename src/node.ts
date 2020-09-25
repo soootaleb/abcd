@@ -7,6 +7,8 @@ import Store from "./store.ts";
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
+  private run: Boolean = true;
+
   private uiRefreshTimeout: number = 500;
   private messages: Observe<IMessage>;
 
@@ -51,6 +53,7 @@ export default class Node {
         source: "node",
         destination: "log",
         payload: {
+          run: this.run,
           port: this.net.port,
           state: this.state,
           peers: Object.keys(this.net.peers),
@@ -76,7 +79,9 @@ export default class Node {
     switch (to) {
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
+          if (this.run) {
           this.transitionFunction("candidate");
+          }
         }, this.electionTimeout);
 
         this.state = "follower";
@@ -93,6 +98,7 @@ export default class Node {
         break;
       case "leader":
         this.heartBeatIntervalId = setInterval(() => {
+          if (this.run) {
           for (const peerPort of Object.keys(this.net.peers)) {
             this.messages.setValue({
               type: "heartBeat",
@@ -104,6 +110,7 @@ export default class Node {
               }
             });
             this.heartBeatCounter += 1;
+          }
           }
         }, this.heartBeatInterval);
 
@@ -173,6 +180,9 @@ export default class Node {
       case "setState":
         this.transitionFunction(message.payload.state);
         break;
+      case "runStop":
+        this.run = !this.run;
+        break;
       case "setKeyValueRequest":
         if (this.state == "leader") {
           // Later we'll need to verify the kv is not in process
@@ -222,7 +232,9 @@ export default class Node {
         clearTimeout(this.electionTimeoutId);
 
         this.electionTimeoutId = setTimeout(() => {
+          if (this.run) {
           this.transitionFunction("candidate");
+          }
         }, this.electionTimeout);
 
         const requests: { [key: string]: ILog } = message.payload.pendingSetKeyValueRequests
