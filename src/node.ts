@@ -80,7 +80,7 @@ export default class Node {
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
           if (this.run) {
-          this.transitionFunction("candidate");
+            this.transitionFunction("candidate");
           }
         }, this.electionTimeout);
 
@@ -99,18 +99,18 @@ export default class Node {
       case "leader":
         this.heartBeatIntervalId = setInterval(() => {
           if (this.run) {
-          for (const peerPort of Object.keys(this.net.peers)) {
-            this.messages.setValue({
-              type: "heartBeat",
-              source: this.net.port,
-              destination: peerPort,
-              payload: {
-                pendingSetKeyValueRequests: this.store.pending,
-                heartBeatCounter: this.heartBeatCounter,
-              }
-            });
-            this.heartBeatCounter += 1;
-          }
+            for (const peerPort of Object.keys(this.net.peers)) {
+              this.messages.setValue({
+                type: "heartBeat",
+                source: this.net.port,
+                destination: peerPort,
+                payload: {
+                  wal: this.store.wal,
+                  heartBeatCounter: this.heartBeatCounter,
+                }
+              });
+              this.heartBeatCounter += 1;
+            }
           }
         }, this.heartBeatInterval);
 
@@ -189,7 +189,7 @@ export default class Node {
           // Otherwise, the request will have to be delayed or rejected
 
           this.store.set(message.payload.key, message.payload.value);
-          
+
           if (this.net.quorum == 1) {
             this.store.commit(message.payload.key);
             this.messages.setValue({
@@ -233,32 +233,38 @@ export default class Node {
 
         this.electionTimeoutId = setTimeout(() => {
           if (this.run) {
-          this.transitionFunction("candidate");
+            this.transitionFunction("candidate");
           }
         }, this.electionTimeout);
 
-        const requests: { [key: string]: ILog } = message.payload.pendingSetKeyValueRequests
-        for (const [key, kv] of Object.entries<ILog>(requests)) {
-          this.messages.setValue({
-            type: "heartBeatContainsSetKV",
-            source: "node",
-            destination: "log",
-            payload: message.payload,
-          });
+        this.store.sync(message.payload.wal);
 
-          this.store.set(kv.next.key, kv.next.value);
+        for (const key in message.payload.wal) {
+          const uncommited: ILog[] = message.payload.wal[key].filter((
+            log: ILog,
+          ) => !log.commited);
+          for (const log of uncommited) {
+            this.messages.setValue({
+              type: "receivedUncommitedLog",
+              source: "node",
+              destination: "log",
+              payload: log,
+            });
 
-          this.messages.setValue({
-            type: "setKVAccepted",
-            source: this.net.port,
-            destination: message.source,
-            payload: kv,
-          });
+            this.store.set(log.next.key, log.next.value);
+
+            this.messages.setValue({
+              type: "setKVAccepted",
+              source: this.net.port,
+              destination: message.source,
+              payload: log,
+            });
+          }
         }
         break;
       case "setKVAccepted":
 
-      const log: ILog = message.payload;
+        const log: ILog = message.payload;
 
         const votes: number = this.store.voteFor(log.next.key);
 

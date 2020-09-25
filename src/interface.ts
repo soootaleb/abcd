@@ -12,6 +12,7 @@ export interface IKeyValue<T = string | number> {
 
 export interface ILog<T = string | number> {
   action: "put";
+  commited: Boolean;
   timestamp: number;
   previous?: IKeyValue<T>;
   next: IKeyValue<T>;

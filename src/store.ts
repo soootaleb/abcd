@@ -7,7 +7,6 @@ export default class Store {
   private _wal: IWal = {};
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
-  private _pending: { [key: string]: ILog } = {};
 
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
@@ -21,15 +20,6 @@ export default class Store {
 
   private handleMessage(message: IMessage) {
     switch (message.type) {
-      // case "newConnection":
-      //   this._peers[message.payload.peerPort] = message.payload;
-      //   this.messages.setValue({
-      //     type: message.type,
-      //     source: "net",
-      //     destination: "node",
-      //     payload: message.payload,
-      //   });
-      //   break;
       default:
         this.messages.setValue({
           type: "invalidMessageType",
@@ -45,12 +35,8 @@ export default class Store {
 
   public reset() {
     this._votes = {};
-    this._pending = {};
   }
 
-  public get pending(): { [key: string]: ILog } {
-    return this._pending;
-  }
 
   public get wal(): IWal {
     return this._wal;
@@ -65,7 +51,6 @@ export default class Store {
   }
 
   public voteFor(key: string): number {
-
     let outcome: number = -1;
 
     if (Object.keys(this._votes).includes(key)) {
@@ -79,11 +64,18 @@ export default class Store {
       destination: "log",
       payload: {
         key: key,
-        votes: outcome
-      }
-    })
+        votes: outcome,
+      },
+    });
 
     return outcome;
+  }
+
+  public wget(key: string): ILog[] {
+    if (!(key in this.wal)) {
+      this.wal[key] = [];
+    }
+    return this.wal[key];
   }
 
   public get(key: string): IKeyValue {
@@ -91,33 +83,75 @@ export default class Store {
   }
 
   public commit(log: ILog): Boolean {
-
     const key: string = log.next.key;
     // Now in memory useless
     // But wall append should be largely faster when files i/o are involved
-    if (!Object.keys(this._wal).includes(key)) {
-        this._wal[key] = [];
-    }
-    this._wal[key].push(this._pending[key]);
-    this._store[key] = this._pending[key].next;
-    delete this._pending[key];
-    delete this._votes[key];
 
+    this.wal[key] = [
+      ...this.wget(key).filter((o: ILog) => o.timestamp !== log.timestamp),
+      { ...log, commited: true },
+    ];
+
+    this._store[key] = log.next;
+    delete this._votes[key];
 
     this.messages.setValue({
       type: "commitCall",
       source: "store",
       destination: "log",
       payload: {
-        key: key
-      }
-    })
+        key: key,
+      },
+    });
 
     return true;
   }
 
   public contains(key: string): Boolean {
     return Object.keys(this._store).includes(key);
+  }
+
+  public sync(wal: IWal): Boolean {
+    // For each key of the store
+    for (const key in wal) {
+      // Remove uncommited staged logs
+      this.wal[key] = this.wget(key).filter((log) => log.commited);
+
+      // We sort comming the logs chrono
+      const logs = wal[key]
+        .filter((log) => log.commited)
+        .sort((a, b) => a.timestamp < b.timestamp ? -1 : 1);
+
+      // We sort the stagged logs chrono
+      const stagged = this.wget(key).sort((a, b) =>
+        a.timestamp < b.timestamp ? -1 : 1
+      );
+
+      let unstagged: ILog[] = logs;
+
+      // We may find the latest & filter the comming logs
+      if (stagged.length) {
+        const latest = stagged.reverse()[0];
+        unstagged = logs.filter((log) => log.timestamp > latest.timestamp);
+      }
+
+      // Finally we commit all unstagged
+      for (const log of unstagged) {
+        this.messages.setValue({
+          type: "commitUnstaggedLog",
+          source: "store",
+          destination: "log",
+          payload: {
+            unstagged: log,
+            previous: this.wal,
+          },
+        });
+
+        this.commit(log);
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -128,15 +162,16 @@ export default class Store {
    */
   public set(key: string, val: string | number): Boolean {
     this._votes[key] = 1;
-    this._pending[key] = {
+    this.wget(key).push({
       action: "put",
+      commited: false,
       timestamp: new Date().getTime(),
-      previous: this._store[key],
+      previous: this.get(key),
       next: {
         key: key,
         value: val,
       },
-    };
+    });
 
     this.messages.setValue({
       type: "setValueCall",
@@ -144,9 +179,9 @@ export default class Store {
       destination: "log",
       payload: {
         key: key,
-        value: val
-      }
-    })
+        value: val,
+      },
+    });
 
     return true;
   }
