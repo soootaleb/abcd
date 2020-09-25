@@ -3,14 +3,14 @@ import {
   serve,
   ServerRequest,
   Server,
-} from "https://deno.land/std/http/server.ts";
+} from "https://deno.land/std@0.65.0/http/server.ts";
 import {
   acceptWebSocket,
   isWebSocketCloseEvent,
   isWebSocketPingEvent,
   WebSocket,
   connectWebSocket,
-} from "https://deno.land/std/ws/mod.ts";
+} from "https://deno.land/std@0.65.0/ws/mod.ts";
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import type { IMessage } from "./interface.ts";
 
