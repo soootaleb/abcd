@@ -83,5 +83,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 # Known issues
 
-1. electionTimeout random set is not precise enought and creates simultaneous callForVoteRequests (OK if not even qorum)
-2. grant vote only one time before getting a heartbeat (with 5 nodes, got 3-4 terms before stabilizing a leader); due to #1 ?
+1. follower nodes should not use this.store.set() that creates a new logs (not legitimate since operations are always initiated by the leader). Instead, when receiving a heartBeat with uncommited logs, the follower should only append them to the WAL
+2. Upgrade the voting strategy:
+ - grant vote only one time before getting a heartbeat (with 5 nodes, got 3-4 terms before stabilizing a leader); due to #1 ?
+ - grant vote only if term is higher than node's current one

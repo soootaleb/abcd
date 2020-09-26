@@ -236,6 +236,10 @@ export default class Node {
           }
         }, this.electionTimeout);
 
+        /**
+         * The store.sync() may also return the uncommited & appended logs
+         * (And use the store.set() or store.append() alternative itself)
+         */
         this.store.sync(message.payload.wal);
 
         for (const key in message.payload.wal) {
