@@ -90,6 +90,13 @@ export default class Store {
     // [TODO] Append commit to WAL on disk befre stting commited = true]
     // Wall append should be much faster when files i/o are involved
     // [TODO] Commit only if the timestamp is the highest regarding the key (later use MVCC)
+
+    // Need to place / replace in WAL since the log may or not already be in
+    this.wal[key] = [
+      ...this.wget(key).filter((o: ILog) => o.timestamp !== log.timestamp),
+      log
+    ]
+
     log.commited = true;
 
     this._store[key] = log.next;
