@@ -83,15 +83,14 @@ export default class Store {
     return this._store[key];
   }
 
-  public commit(log: ILog): Boolean {
+  public commit(log: ILog): ILog {
     const key: string = log.next.key;
-    // Now in memory useless
-    // But wall append should be largely faster when files i/o are involved
 
-    this.wal[key] = [
-      ...this.wget(key).filter((o: ILog) => o.timestamp !== log.timestamp),
-      { ...log, commited: true },
-    ];
+    // Now in memory useless
+    // [TODO] Append commit to WAL on disk befre stting commited = true]
+    // Wall append should be much faster when files i/o are involved
+    // [TODO] Commit only if the timestamp is the highest regarding the key (later use MVCC)
+    log.commited = true;
 
     this._store[key] = log.next;
     delete this._votes[key];
@@ -101,11 +100,11 @@ export default class Store {
       source: "store",
       destination: "log",
       payload: {
-        key: key,
+        log: log,
       },
     });
 
-    return true;
+    return log;
   }
 
   public contains(key: string): Boolean {
