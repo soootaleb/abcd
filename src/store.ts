@@ -162,8 +162,10 @@ export default class Store {
   }
 
   /**
-   * Puts in pending & initializes votes
-   * Call .commit() in order to persist in the store
+   * Set creates the log associated with the definition of a value for a given key
+   * Initializes the votes to 0 & adds it to the WAL
+   * The log is created with commited = false
+   * Need to call .commit() in order to persist in the store
    * @param key 
    * @param val 
    */

@@ -191,10 +191,12 @@ export default class Node {
           let log = this.store.set(message.payload.key, message.payload.value);
 
             this.messages.setValue({
-            type: "setKVAccepted",
+              type: "setKVAccepted",
               source: "node",
-            destination: "node",
-            payload: log,
+              destination: "node",
+              payload: {
+                log: log
+              },
             });
         } else {
           this.messages.setValue({
@@ -248,20 +250,29 @@ export default class Node {
               payload: log,
             });
 
+            /**
+             * this.store.set will create a log
+             * [FIXME] Use store.wal.push(log)
+             * In this case the node is a follower, hence the log has no value (requests are made one the leader)
+             * The follower should instead use the leader's provided log & push it to the WAL
+             * One the leader will provide the same log with commited, the follower will eventually .commit() it in .sync()
+             */
             this.store.set(log.next.key, log.next.value);
 
             this.messages.setValue({
               type: "setKVAccepted",
               source: this.net.port,
               destination: message.source,
-              payload: log,
+              payload: {
+                log: log
+              },
             });
           }
         }
         break;
       case "setKVAccepted":
 
-        let log: ILog = message.payload;
+        let log: ILog = message.payload.log;
 
         const votes: number = this.store.voteFor(log.next.key);
 
