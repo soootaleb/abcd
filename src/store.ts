@@ -161,7 +161,7 @@ export default class Store {
    * @param val 
    */
   public set(key: string, val: string | number): ILog {
-    this._votes[key] = 1;
+    this._votes[key] = 0;
     
     const log = {
       action: "put" as "put",

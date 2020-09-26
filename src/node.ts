@@ -186,19 +186,16 @@ export default class Node {
       case "setKeyValueRequest":
         if (this.state == "leader") {
           // Later we'll need to verify the kv is not in process
-          // Otherwise, the request will have to be delayed or rejected
+          // Otherwise, the request will have to be delayed or rejected (or use MVCC)
 
-          const log = this.store.set(message.payload.key, message.payload.value);
+          let log = this.store.set(message.payload.key, message.payload.value);
 
-          if (this.net.quorum == 1) {
-            this.store.commit(log);
             this.messages.setValue({
-              type: "setKVRequestComplete",
+            type: "setKVAccepted",
               source: "node",
-              destination: "log",
-              payload: message.payload,
+            destination: "node",
+            payload: log,
             });
-          }
         } else {
           this.messages.setValue({
             type: "setValueRequestReceivedButNotLeader",
@@ -264,7 +261,7 @@ export default class Node {
         break;
       case "setKVAccepted":
 
-        const log: ILog = message.payload;
+        let log: ILog = message.payload;
 
         const votes: number = this.store.voteFor(log.next.key);
 
@@ -277,7 +274,7 @@ export default class Node {
           });
         } else if (votes >= this.net.quorum) {
 
-          this.store.commit(log);
+          log = this.store.commit(log);
 
           this.messages.setValue({
             type: "setKVRequestComplete",
