@@ -77,6 +77,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 - Candidate timeout for new callForVote
 - Candidate becoming follower on heartBeat
 - Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
+- Partial WAL replication (in theory send all uncommited along with the latest commited only => requires logic in case of missing logs in follower)
 - WAL persistance
 - Store persistance
 - Network partitions
