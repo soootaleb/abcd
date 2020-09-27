@@ -78,6 +78,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 - Candidate becoming follower on heartBeat
 - Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
 - Partial WAL replication (in theory send all uncommited along with the latest commited only => requires logic in case of missing logs in follower)
+- Atomic WAL replication (send only one log along with latest commited like https://youtu.be/RHDP_KCrjUc?t=892 => need to queue logs replication)
 - WAL persistance
 - Store persistance
 - Network partitions
