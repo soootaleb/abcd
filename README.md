@@ -77,6 +77,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 - Candidate timeout for new callForVote
 - Candidate becoming follower on heartBeat
 - Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
+- Upgrade voting strategy (known issue #2)
 - Partial WAL replication (in theory send all uncommited along with the latest commited only => requires logic in case of missing logs in follower)
 - Atomic WAL replication (send only one log along with latest commited like https://youtu.be/RHDP_KCrjUc?t=892 => need to queue logs replication)
 - WAL persistance
@@ -92,3 +93,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 2. Upgrade the voting strategy:
  - grant vote only one time before getting a heartbeat (with 5 nodes, got 3-4 terms before stabilizing a leader); due to #1 ?
  - grant vote only if term is higher than node's current one
+ - grant vote only if latest log is before latest log from candidate calling for vote (https://youtu.be/RHDP_KCrjUc?t=1063)
+3. Upgrade log commitment safety (https://youtu.be/RHDP_KCrjUc?t=1157)
+ - Accept a log only if it's from the current term ?
+ - Commit a log only if it's from the current term
