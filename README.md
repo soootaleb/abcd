@@ -76,6 +76,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 - Candidate timeout for new callForVote
 - Candidate becoming follower on heartBeat
+- Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
 - WAL persistance
 - Store persistance
 - Network partitions
