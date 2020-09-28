@@ -354,16 +354,6 @@ export default class Node {
           if (
             this.votesCounter >= this.net.quorum
           ) {
-            this.messages.setValue({
-              type: "canditateToLeaderLog",
-              source: "node",
-              destination: "log",
-              payload: {
-                votes: this.votesCounter,
-                message: message,
-                quorum: this.net.quorum
-              }
-            })
             this.votesCounter = 0;
             this.transitionFunction("leader");
           }
