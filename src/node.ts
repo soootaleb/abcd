@@ -142,7 +142,7 @@ export default class Node {
         break;
       case "candidate":
         this.state = "candidate";
-        this.votesCounter += 1;
+        this.votesCounter = 1;
         this.messages.setValue({
           type: "newState",
           source: "node",
@@ -227,6 +227,12 @@ export default class Node {
   private handleMessage(message: IMessage<any>) {
     switch (message.type) {
       case "heartBeat":
+
+        if (this.state === "candidate") {
+          this.transitionFunction("follower");
+          break;
+        }
+
         this.heartBeatCounter += 1;
 
         clearTimeout(this.electionTimeoutId);
@@ -348,6 +354,16 @@ export default class Node {
           if (
             this.votesCounter >= this.net.quorum
           ) {
+            this.messages.setValue({
+              type: "canditateToLeaderLog",
+              source: "node",
+              destination: "log",
+              payload: {
+                votes: this.votesCounter,
+                message: message,
+                quorum: this.net.quorum
+              }
+            })
             this.votesCounter = 0;
             this.transitionFunction("leader");
           }
