@@ -56,7 +56,7 @@ export default class Store {
       this._votes[key] += 1;
       outcome = this.getVotes(key);
     } else {
-      this.wal[key] = this.wget(key).filter((log) => log.commited)
+      this.wal[key] = this.wget(key).filter((log) => log.commited);
     }
 
     this.messages.setValue({
@@ -94,8 +94,8 @@ export default class Store {
     // Need to place / replace in WAL since the log may or not already be in
     this.wal[key] = [
       ...this.wget(key).filter((o: ILog) => o.timestamp !== log.timestamp),
-      log
-    ]
+      log,
+    ];
 
     log.commited = true;
 
@@ -118,47 +118,85 @@ export default class Store {
     return Object.keys(this._store).includes(key);
   }
 
-  public sync(wal: IWal): Boolean {
+  /**
+   * Removes uncommited logs for a given key & returns the remaining logs (commited)
+   * @param key The key to clear
+   * @returns The remaining commited logs for the given key
+   */
+  private clear(key: string): ILog[] {
+    this.wal[key] = this.wget(key).filter((log) => log.commited);
+    return this.wal[key];
+  }
+
+  /**
+   * Returns the latest entry in a log list
+   * @param logs the logs to search in
+   * @returns the latest log or undefined if logs are empty
+   */
+  private latest(logs: ILog[]): ILog | undefined {
+    if (logs.length) {
+      return logs.sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)
+        .reverse()[0];
+    } else {
+      return undefined;
+    }
+  }
+
+  /**
+   * Synchronizes the node's wall with the incoming wal from leader. On the node's wal (leader has the truth)
+   * - Removes uncommited logs
+   * - Commits incoming logs with a higher timestamp that the latest commited log
+   * - Appends uncommited logs
+   * @param wal the incoming wal from which to sync the current node's wall
+   * @returns a report listing the logs that have been commited & the ones appended only (for the node to notify the leader)
+   */
+  public sync(wal: IWal): {
+    commited: ILog[];
+    appended: ILog[];
+  } {
+    const report: {
+      commited: ILog[];
+      appended: ILog[];
+    } = {
+      commited: [],
+      appended: [],
+    };
+
     // For each key of the store
     for (const key in wal) {
-      // Remove uncommited staged logs
-      this.wal[key] = this.wget(key).filter((log) => log.commited);
+      // Remove uncommited logs
+      this.clear(key);
 
-      // We sort comming the logs chrono
-      const logs = wal[key]
-        .filter((log) => log.commited)
+      // Get latest log (if any, otherwise undefined)
+      const latest: ILog | undefined = this.latest(this.wget(key));
+
+      // Keep only incoming logs with higher timestamp
+      // than the latest (or all if latest === undefined)
+      // [TODO] Filter logs from current term (c.f README)
+      // We need to sort() in order to commit in the right order later
+      const incoming: ILog[] = wal[key]
+        .filter((log) => latest ? log.timestamp > latest.timestamp : true)
         .sort((a, b) => a.timestamp < b.timestamp ? -1 : 1);
 
-      // We sort the stagged logs chrono
-      const stagged = this.wget(key).sort((a, b) =>
-        a.timestamp < b.timestamp ? -1 : 1
-      );
+      // For all incoming logs, in the correct order
+      for (const log of incoming) {
+        // We commit if the log is commited
+        if (log.commited) {
+          // It's important to call .commit() instead of just .append() with log.commited = true
+          // That's because latest .commit() will actually perform I/O operations that .append() won't
+          this.commit(log);
 
-      let unstagged: ILog[] = logs;
+          report.commited.push(log);
+        } else {
+          // We simple .append() the log if it's not commited
+          this.append(log);
 
-      // We may find the latest & filter the comming logs
-      if (stagged.length) {
-        const latest = stagged.reverse()[0];
-        unstagged = logs.filter((log) => log.timestamp > latest.timestamp);
-      }
-
-      // Finally we commit all unstagged
-      for (const log of unstagged) {
-        this.messages.setValue({
-          type: "commitUnstaggedLog",
-          source: "store",
-          destination: "log",
-          payload: {
-            unstagged: log,
-            previous: this.wal,
-          },
-        });
-
-        this.commit(log);
+          report.appended.push(log);
+        }
       }
     }
 
-    return true;
+    return report;
   }
 
   /**
@@ -171,7 +209,7 @@ export default class Store {
    */
   public set(key: string, val: string | number): ILog {
     this._votes[key] = 0;
-    
+
     const log = {
       action: "put" as "put",
       commited: false,
@@ -196,5 +234,17 @@ export default class Store {
     });
 
     return log;
+  }
+
+  /**
+   * Append adds a log to the WAL
+   * It's used by followers that need to sync the WAL without creating a new log (.set() creates a log entry)
+   * 
+   * Returns true if the log has been appended, false otherwise
+   * [TODO] Upgrade the append strategy (c.f README)
+   */
+  private append(log: ILog): Boolean {
+    this.wget(log.next.key).push(log);
+    return true;
   }
 }

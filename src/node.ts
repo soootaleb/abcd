@@ -19,9 +19,9 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = 100;
+  private heartBeatInterval: number = 500;
   private heartBeatIntervalId: number | undefined;
-  private electionTimeout: number = (Math.random() + 0.125) * 1000;
+  private electionTimeout: number = (Math.random() + 0.125) * 10000;
   private electionTimeoutId: number | undefined;
 
 
@@ -236,42 +236,33 @@ export default class Node {
           }
         }, this.electionTimeout);
 
-        /**
-         * The store.sync() may also return the uncommited & appended logs
-         * (And use the store.set() or store.append() alternative itself)
-         */
-        this.store.sync(message.payload.wal);
+        const report: {
+          commited: ILog[],
+          appended: ILog[]
+        } = this.store.sync(message.payload.wal);
 
-        for (const key in message.payload.wal) {
-          const uncommited: ILog[] = message.payload.wal[key].filter((
-            log: ILog,
-          ) => !log.commited);
-          for (const log of uncommited) {
-            this.messages.setValue({
-              type: "receivedUncommitedLog",
-              source: "node",
-              destination: "log",
-              payload: log,
-            });
+        // Commited logs are logged locally
+        for (const log of report.commited) {
+          this.messages.setValue({
+            type: "commitedUnstaggedLog",
+            source: "node",
+            destination: "log",
+            payload: {
+              log: log
+            },
+          });
+        }
 
-            /**
-             * this.store.set will create a log
-             * [FIXME] Use store.wal.push(log)
-             * In this case the node is a follower, hence the log has no value (requests are made one the leader)
-             * The follower should instead use the leader's provided log & push it to the WAL
-             * One the leader will provide the same log with commited, the follower will eventually .commit() it in .sync()
-             */
-            this.store.set(log.next.key, log.next.value);
-
-            this.messages.setValue({
-              type: "setKVAccepted",
-              source: this.net.port,
-              destination: message.source,
-              payload: {
-                log: log
-              },
-            });
-          }
+        // Appended logs are notified to the leader
+        for (const log of report.appended) {
+          this.messages.setValue({
+            type: "setKVAccepted",
+            source: this.net.port,
+            destination: message.source,
+            payload: {
+              log: log
+            },
+          });
         }
         break;
       case "setKVAccepted":
