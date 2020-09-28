@@ -162,6 +162,7 @@ export default class Node {
               source: this.net.port,
               destination: peerPort,
               payload: {
+                term: this.term,
                 peerPort: peerPort,
                 sourcePort: this.net.port,
               },
@@ -334,7 +335,7 @@ export default class Node {
           source: this.net.port,
           destination: message.source,
           payload: {
-            voteGranted: this.state != "leader",
+            voteGranted: this.state != "leader" && message.payload.term >= this.term,
           },
         });
         break;
