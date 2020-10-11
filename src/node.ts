@@ -9,7 +9,7 @@ export type TState = "leader" | "follower" | "candidate";
 export default class Node {
   private run: Boolean = true;
 
-  private uiRefreshTimeout: number = 500;
+  private uiRefreshTimeout: number = 100;
   private messages: Observe<IMessage>;
 
   private net: Net;
@@ -183,6 +183,9 @@ export default class Node {
         break;
       case "runStop":
         this.run = !this.run;
+        break;
+      case "clearStore":
+        this.store.empty();
         break;
       case "setKeyValueRequest":
         if (this.state == "leader") {

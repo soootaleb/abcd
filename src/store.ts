@@ -128,6 +128,12 @@ export default class Store {
     return this.wal[key];
   }
 
+  public empty() {
+    this._store = {};
+    this._wal = {};
+    this._votes = {};
+  }
+
   /**
    * Returns the latest entry in a log list
    * @param logs the logs to search in
