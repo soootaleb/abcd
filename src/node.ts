@@ -1,5 +1,6 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import Observe from "https://deno.land/x/Observe/Observe.ts";
+import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 import type { IKeyValue, ILog, IMessage } from "./interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
@@ -24,6 +25,8 @@ export default class Node {
   private electionTimeout: number = (Math.random() + 0.125) * 10000;
   private electionTimeoutId: number | undefined;
 
+  private args: Args = parse(Deno.args);
+
 
   constructor() {
     this.messages = new Observe<IMessage>({
@@ -35,9 +38,7 @@ export default class Node {
 
     this.messages.bind((message: IMessage<any>) => {
       this.log(message);
-      if (
-        message.destination == "node" || message.destination == this.net.port
-      ) {
+      if (message.destination == "node") {
         message.source == "ui"
           ? this.handleUiMessage(message)
           : this.handleMessage(message);
@@ -54,7 +55,6 @@ export default class Node {
         destination: "log",
         payload: {
           run: this.run,
-          port: this.net.port,
           state: this.state,
           peers: Object.keys(this.net.peers),
           electionTimeout: this.electionTimeout,
@@ -99,11 +99,11 @@ export default class Node {
       case "leader":
         this.heartBeatIntervalId = setInterval(() => {
           if (this.run) {
-            for (const peerPort of Object.keys(this.net.peers)) {
+            for (const peerIp of Object.keys(this.net.peers)) {
               this.messages.setValue({
                 type: "heartBeat",
-                source: this.net.port,
-                destination: peerPort,
+                source: "node",
+                destination: peerIp,
                 payload: {
                   wal: this.store.wal,
                   heartBeatCounter: this.heartBeatCounter,
@@ -127,11 +127,11 @@ export default class Node {
           },
         });
 
-        for (const peerPort of Object.keys(this.net.peers)) {
+        for (const peerIp of Object.keys(this.net.peers)) {
           this.messages.setValue({
             type: "newTerm",
-            source: this.net.port,
-            destination: peerPort,
+            source: "node",
+            destination: peerIp,
             payload: {
               term: this.term,
             },
@@ -156,15 +156,14 @@ export default class Node {
         if (Object.keys(this.net.peers).length == 0) {
           this.transitionFunction("leader");
         } else {
-          for (const peerPort of Object.keys(this.net.peers)) {
+          for (const peerIp of Object.keys(this.net.peers)) {
             this.messages.setValue({
               type: "callForVoteRequest",
-              source: this.net.port,
-              destination: peerPort,
+              source: "node",
+              destination: peerIp,
               payload: {
                 term: this.term,
-                peerPort: peerPort,
-                sourcePort: this.net.port,
+                peerIp: peerIp
               },
             });
           }
@@ -205,7 +204,7 @@ export default class Node {
         } else {
           this.messages.setValue({
             type: "setValueRequestReceivedButNotLeader",
-            source: this.net.port,
+            source: "node",
             destination: "log",
             payload: {
               key: message.payload.key,
@@ -267,7 +266,7 @@ export default class Node {
         for (const log of report.appended) {
           this.messages.setValue({
             type: "setKVAccepted",
-            source: this.net.port,
+            source: "node",
             destination: message.source,
             payload: {
               log: log
@@ -330,7 +329,7 @@ export default class Node {
         } else {
           this.messages.setValue({
             type: "newTermRejected",
-            source: this.net.port,
+            source: "node",
             destination: message.source,
             payload: {
               term: this.term,
@@ -341,7 +340,7 @@ export default class Node {
       case "callForVoteRequest":
         this.messages.setValue({
           type: "callForVoteReply",
-          source: this.net.port,
+          source: "node",
           destination: message.source,
           payload: {
             voteGranted: this.state != "leader" && message.payload.term >= this.term,
@@ -372,10 +371,10 @@ export default class Node {
           });
         }
         break;
-      case "connectionAccepted":
+      case "peerConnectionAccepted":
         this.term = message.payload.term;
         this.messages.setValue({
-          type: "peerConnectionComplete",
+          type: "openPeerConnectionComplete",
           source: "node",
           destination: "net",
           payload: {
@@ -383,20 +382,20 @@ export default class Node {
           },
         });
 
-        for (const peerPort of Object.keys(message.payload.knownPeers)) {
-          if (!Object.keys(this.net.peers).includes(peerPort)) {
+        for (const peerIp of Object.keys(message.payload.knownPeers)) {
+          if (!Object.keys(this.net.peers).includes(peerIp)) {
             this.messages.setValue({
-              type: "connectToPeer",
+              type: "openPeerConnectionRequest",
               source: "node",
               destination: "net",
               payload: {
-                peerPort: peerPort,
+                peerIp: peerIp,
               },
             });
           }
         }
         break;
-      case "newPeer":
+      case "peerConnectionOpen":
         // Duplicate known peers before adding the new one (it already knows itself...)
         const knownPeers = { ...this.net.peers };
 
@@ -406,42 +405,42 @@ export default class Node {
         // another peer replies with the same knownPeer.
         // Duplicate conn are not a problem but duplicate newPeers will
         // send the peer to itself, thus making it create a self-loop
-        delete knownPeers[message.payload.peerPort];
+        delete knownPeers[message.payload.peerIp];
 
         this.messages.setValue({
-          type: "connectionAccepted",
-          source: this.net.port,
-          destination: message.payload.peerPort,
+          type: "peerConnectionAccepted",
+          source: "node",
+          destination: message.payload.peerIp,
           payload: {
             term: this.term,
-            connectedTo: {
-              peerPort: this.net.port,
-            },
             knownPeers: knownPeers,
           },
         });
         break;
-      case "peerConnectionLost":
+      case "peerConnectionClose":
         this.messages.setValue({
-          type: "peerConnectionLost",
+          type: message.type,
           source: "node",
           destination: "log",
           payload: {
-            peerPort: message.payload.peerPort,
+            peerIp: message.payload.peerIp,
           },
         });
         break;
       case "serverStarted":
-        this.transitionFunction("follower");
-        if (message.payload.port != "8080") {
+        if (this.args['join']) {
+          this.transitionFunction("follower");
           this.messages.setValue({
-            type: "connectToPeer",
+            type: "openPeerConnectionRequest",
             source: "node",
             destination: "net",
             payload: {
-              peerPort: Deno.args[0] ? Deno.args[0] : "8080",
+              // [TODO] Implement proper arguments to get leader addr
+              peerIp: this.args['join']
             },
           });
+        } else {
+          this.transitionFunction("leader");
         }
         break;
       default:
@@ -471,7 +470,7 @@ export default class Node {
        */
       this.messages.setValue({
         type: "uiLogMessage",
-        source: this.net.port,
+        source: "node",
         destination: "ui",
         payload: {
           message: message,

@@ -3,8 +3,8 @@ import type { IMessage } from "./interface.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 
 export default class Net {
-  private _peers: { [key: string]: { peerPort: string } } = {};
-  private _port: string = Deno.args[0] ? Deno.args[0] : "0";
+  private _peers: { [key: string]: { peerIp: string } } = {};
+  private _clients: { [key: string]: { clientIp: string } } = {};
   private worker: Worker;
   private messages: Observe<IMessage>;
 
@@ -12,12 +12,12 @@ export default class Net {
     return this._peers;
   }
 
-  public get quorum(): number {
-    return Math.floor((Object.keys(this.peers).length + 1) / 2) + 1
+  public get clients() {
+    return this._clients;
   }
 
-  public get port() {
-    return this._port;
+  public get quorum(): number {
+    return Math.floor((Object.keys(this.peers).length + 1) / 2) + 1
   }
 
   constructor(messages: Observe<IMessage>) {
@@ -29,30 +29,24 @@ export default class Net {
       deno: true,
     });
 
-    // MESSAGE RECEIVED FROM WORKER WILL GO EITHER TO
-    // handleMessage if destination is NET
-    // this.messages otherwise
+    // Push worker messages to queue
+    // If destination is Net, message will be handled by messages.bind()
     this.worker.onmessage = (e: MessageEvent) => {
-      const message: IMessage<any> = e.data;
-      if (message.destination == "net") {
-        this.handleMessage(message);
-      } else if (Object.keys(this._peers).includes(message.destination)) {
-        this.messages.setValue(e.data);
-      } else if (this.port == message.destination) {
-        this.messages.setValue(message);
-      }
+      this.messages.setValue(e.data);
     };
 
     // MESSAGES RECEIVED FROM QUEUE WILL GO EITHER TO
     // handleMessage if destination is NET
-    // this.worker.postMessage if destination is a peer
-    // Nowhere otherwise
+    // this.worker.postMessage if it's a peer, a client or "ui"
     this.messages.bind((message: IMessage<any>) => {
       if (message.destination == "net") {
+
+        // Worker should no longer send messages to net
         this.handleMessage(message);
       } else if (
-        Object.keys(this._peers).includes(message.destination) ||
-        message.destination == "ui"
+        Object.keys(this.peers).includes(message.destination) ||
+        Object.keys(this.clients).includes(message.destination) ||
+        message.destination === "ui"
       ) {
         this.worker.postMessage(message);
       }
@@ -65,14 +59,14 @@ export default class Net {
    */
   private handleMessage(
     message: IMessage<{
-      port: string;
-      connectedTo: { peerPort: string };
-      peerPort: string;
+      clientIp: string,
+      connectedTo: { peerIp: string };
+      peerIp: string;
     }>, 
   ) {
     switch (message.type) {
-      case "newPeer":
-        this._peers[message.payload.peerPort] = message.payload;
+      case "peerConnectionOpen":
+        this.peers[message.payload.peerIp] = message.payload;
         this.messages.setValue({
           type: message.type,
           source: "net",
@@ -80,8 +74,8 @@ export default class Net {
           payload: message.payload,
         });
         break;
-      case "peerConnectionLost":
-        delete this.peers[message.payload.peerPort];
+      case "peerConnectionClose":
+        delete this.peers[message.payload.peerIp];
         this.messages.setValue({
           type: message.type,
           source: "net",
@@ -89,8 +83,8 @@ export default class Net {
           payload: message.payload,
         });
         break;
-      case "serverStarted":
-        this._port = message.payload.port.toString();
+      case "clientConnectionOpen":
+        this.clients[message.payload.clientIp] = message.payload;
         this.messages.setValue({
           type: message.type,
           source: "net",
@@ -98,39 +92,31 @@ export default class Net {
           payload: message.payload,
         });
         break;
-      case "connectToPeer":
+      case "clientConnectionClose":
+        delete this.clients[message.payload.peerIp];
+        this.messages.setValue({
+          type: message.type,
+          source: "net",
+          destination: "node",
+          payload: message.payload,
+        });
+        break;
+      case "openPeerConnectionRequest":
         this.worker.postMessage({
-          type: "connectToPeer",
+          type: "openPeerConnectionRequest",
           source: "net",
-          destination: "worker",
+          destination: "net.worker",
           payload: message.payload,
         });
         break;
-      case "peerConnectionComplete":
-        this._peers[message.payload.connectedTo.peerPort] =
+      case "openPeerConnectionComplete":
+        this._peers[message.payload.connectedTo.peerIp] =
           message.payload.connectedTo;
         this.messages.setValue({
           type: "peerAdded",
           source: "net",
           destination: "log",
           payload: message.payload,
-        });
-        break;
-      case "invalidMessageDestination":
-        this.messages.setValue({
-          ...message,
-          source: "net",
-          destination: "log",
-        });
-        break;
-      case "peerConnectionExists":
-        this.messages.setValue({
-          type: "peerConnectionExists",
-          source: "net",
-          destination: "log",
-          payload: {
-            peerPort: message.payload.peerPort,
-          },
         });
         break;
       default:

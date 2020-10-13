@@ -27,8 +27,8 @@ let clients: { [key: string]: WebSocket } = {};
 
 self.postMessage({
   type: "serverStarted",
-  source: "worker",
-  destination: "net",
+  source: "net.worker",
+  destination: "log",
   payload: server.listener.addr,
 });
 
@@ -36,16 +36,17 @@ async function handleMessage(
   message: IMessage<any>,
 ): Promise<IMessage> {
   switch (message.type) {
-    case "connectToPeer":
+    case "openPeerConnectionRequest":
       if (
         peers[message.payload.peerIp] &&
         !peers[message.payload.peerIp].isClosed
       ) {
         return {
-          type: "peerConnectionExists",
-          source: "worker",
-          destination: "net",
+          type: "openPeerConnectionFail",
+          source: "net.worker",
+          destination: "log",
           payload: {
+            reason: "peer connection already exists",
             peerIp: message.payload.peerIp,
           },
         };
@@ -60,7 +61,11 @@ async function handleMessage(
 
         for await (const msg of sock) {
           if (typeof msg == "string") {
-            self.postMessage(JSON.parse(msg));
+            self.postMessage({
+              ...JSON.parse(msg),
+              source: message.payload.peerIp,
+              destination: "node"
+            });
           }
         }
 
@@ -68,8 +73,8 @@ async function handleMessage(
 
         return {
           type: "peerConnectionLost",
-          source: "worker",
-          destination: "net",
+          source: "net.worker",
+          destination: "node",
           payload: {
             peerIp: message.payload.peerIp,
           },
@@ -77,8 +82,8 @@ async function handleMessage(
       } else {
         return {
           type: "peerConnectionFailed",
-          source: "worker",
-          destination: "net",
+          source: "net.worker",
+          destination: "node",
           payload: {
             peerIp: message.payload.peerIp,
           },
@@ -87,8 +92,8 @@ async function handleMessage(
     default:
       return {
         type: "invalidMessageType",
-        source: "worker",
-        destination: "net",
+        source: "net.worker",
+        destination: "log",
         payload: {
           message: message,
         },
@@ -114,7 +119,7 @@ self.onmessage = async (e: MessageEvent) => {
     clients[destination].send(JSON.stringify(message));
 
   // If it's "worker", handle message here
-  } else if (destination == "worker") {
+  } else if (destination == "net.worker") {
     self.postMessage(await handleMessage(message));
 
   // If it's "ui" send it to all UIs connected
@@ -129,8 +134,8 @@ self.onmessage = async (e: MessageEvent) => {
   } else {
     self.postMessage({
       type: "invalidMessageDestination",
-      source: "worker",
-      destination: "net",
+      source: "net.worker",
+      destination: "log",
       payload: {
         invalidMessageDestination: destination,
         availablePeers: Object.keys(peers),
@@ -150,16 +155,17 @@ for await (const request of server) {
     headers,
   }).then(async (sock: WebSocket) => {
     const remoteAddr: Deno.NetAddr = request.conn.remoteAddr as Deno.NetAddr;
-    const peerIp: string = remoteAddr.hostname;
+    const hostname: string = remoteAddr.hostname;
 
     if (request.url === "/client") {
-      clients[peerIp] = sock;
+      clients[hostname] = sock;
 
       self.postMessage({
-        type: "newClient",
-        source: "worker",
-        destination: "log",
+        type: "clientConnectionOpen",
+        source: "net.worker",
+        destination: "net",
         payload: {
+          clientIp: hostname,
           remoteAddr: remoteAddr,
           clientId: request.conn.rid,
         },
@@ -167,18 +173,22 @@ for await (const request of server) {
 
       for await (const ev of sock) {
         if (typeof ev === "string") {
-          self.postMessage(JSON.parse(ev));
+          self.postMessage({
+            ...JSON.parse(ev),
+            source: hostname,
+            destination: "node"
+          });
         }
       }
 
-      delete clients[peerIp];
+      delete clients[hostname];
 
       self.postMessage({
-        type: "clientConnectionLost",
-        source: "worker",
+        type: "clientConnectionClose",
+        source: "net.worker",
         destination: "net",
         payload: {
-          peerIp: peerIp,
+          clientIp: hostname,
         },
       });
     } else if (request.url === "/ui") {
@@ -186,47 +196,48 @@ for await (const request of server) {
 
       for await (const ev of sock) {
         if (typeof ev === "string") {
-          self.postMessage(JSON.parse(ev));
+          self.postMessage({
+            ...JSON.parse(ev),
+            source: "ui",
+            destination: "node"
+          });
         }
       }
 
       uis = uis.filter((ui) => ui.conn.rid === sock.conn.rid);
 
-      self.postMessage({
-        type: "uiConnectionLost",
-        source: "worker",
-        destination: "net",
-        payload: {},
-      });
     } else if (request.url === "/peer") {
-      const remoteAddr = request.conn.remoteAddr as Deno.NetAddr;
-      const peerIp: string = remoteAddr.hostname;
 
-      peers[peerIp] = sock;
+      peers[hostname] = sock;
 
       self.postMessage({
-        type: "newPeer",
-        source: "worker",
+        type: "peerConnectionOpen",
+        source: "net.worker",
         destination: "net",
         payload: {
-          peerIp: peerIp,
+          peerIp: hostname,
         },
       });
 
       for await (const ev of sock) {
         if (typeof ev === "string") {
-          self.postMessage(JSON.parse(ev));
+          self.postMessage({
+            ...JSON.parse(ev),
+            source: hostname
+          });
         }
       }
 
-      delete peers[peerIp];
+      delete peers[hostname];
 
       self.postMessage({
-        type: "peerConnectionLost",
-        source: "worker",
+        type: "peerConnectionClose",
+        source: "net.worker",
         destination: "net",
         payload: {
-          peerIp: peerIp,
+          peerIp: hostname,
+          remoteAddr: remoteAddr,
+          peerId: request.conn.rid,
         },
       });
     }
