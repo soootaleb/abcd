@@ -97,7 +97,7 @@ ws.onopen = (ev: Event) => {
 
 ws.onmessage = (ev) => {
   const message: IMessage<ILog> = JSON.parse(ev.data);
-  if (message.type === "setKVRequestComplete") {
+  if (message.type === "KVOpRequestComplete") {
     const request = mon.requests.all.find((o) =>
       o.key === message.payload.next.key
     );
