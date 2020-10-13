@@ -1,5 +1,5 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import { ILog, IMessage } from "../src/interface.ts";
+import type { ILog, IMessage } from "../src/interface.ts";
 
 const ARGS = parse(Deno.args);
 
