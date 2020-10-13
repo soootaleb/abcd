@@ -71,7 +71,7 @@ export default class Net {
     }>, 
   ) {
     switch (message.type) {
-      case "newConnection":
+      case "newPeer":
         this._peers[message.payload.peerPort] = message.payload;
         this.messages.setValue({
           type: message.type,

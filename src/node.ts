@@ -396,15 +396,15 @@ export default class Node {
           }
         }
         break;
-      case "newConnection":
+      case "newPeer":
         // Duplicate known peers before adding the new one (it already knows itself...)
         const knownPeers = { ...this.net.peers };
 
-        // newConnection can be received twice from same peer
+        // newPeer can be received twice from same peer
         // That's because knownPeers are added in parallel
         // Hence, a peer can connect a second time because its first co didn't make it before
         // another peer replies with the same knownPeer.
-        // Duplicate conn are not a problem but duplicate newConnections will
+        // Duplicate conn are not a problem but duplicate newPeers will
         // send the peer to itself, thus making it create a self-loop
         delete knownPeers[message.payload.peerPort];
 
