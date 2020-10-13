@@ -11,4 +11,4 @@ RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 
 ENV PATH="/root/.deno/bin:${PATH}"
 
-CMD deno run --unstable --allow-write --allow-net --allow-read main.ts 8080
+CMD deno run --unstable --allow-write --allow-net --allow-read main.ts
