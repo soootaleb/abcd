@@ -9,7 +9,10 @@ export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
   private run: Boolean = true;
+  private consoleLog: Boolean = true;
 
+  private uiMessagesActivated: Boolean = true;
+  private uiRefreshActivated: Boolean = true;
   private uiRefreshTimeout: number = 100;
   private messages: Observe<IMessage>;
 
@@ -49,22 +52,24 @@ export default class Node {
     this.store = new Store(this.messages);
 
     setInterval(() => {
-      this.messages.setValue({
-        type: "uiStateUpdate",
-        source: "node",
-        destination: "log",
-        payload: {
-          run: this.run,
-          state: this.state,
-          peers: Object.keys(this.net.peers),
-          electionTimeout: this.electionTimeout,
-          term: this.term,
-          store: {
-            store: this.store.store
+      if (this.uiRefreshActivated) {
+        this.messages.setValue({
+          type: "uiStateUpdate",
+          source: "node",
+          destination: "log",
+          payload: {
+            run: this.run,
+            state: this.state,
+            peers: Object.keys(this.net.peers),
+            electionTimeout: this.electionTimeout,
+            term: this.term,
+            store: {
+              store: this.store.store
+            },
+            heartBeatCounter: this.heartBeatCounter,
           },
-          heartBeatCounter: this.heartBeatCounter,
-        },
-      });
+        });
+      }
     }, this.uiRefreshTimeout);
   }
 
@@ -274,17 +279,46 @@ export default class Node {
           });
         }
         break;
-      case "setKVAccepted":
+      case "clearStore":
+        this.store.empty();
+        break;
+      case "KVOpRequest":
+        if (this.state == "leader") {
+          // Later we'll need to verify the kv is not in process
+          // Otherwise, the request will have to be delayed or rejected (or use MVCC)
 
+          let log = this.store.set(message.payload.key, message.payload.value);
+
+            this.messages.setValue({
+              type: "KVOpAccepted",
+              source: "node",
+              destination: "node",
+              payload: {
+                log: log
+              },
+            });
+        } else {
+          this.messages.setValue({
+            type: "KVOpReceivedButNotLeader",
+            source: "node",
+            destination: "log",
+            payload: {
+              key: message.payload.key,
+              value: message.payload.value,
+            },
+          });
+        }
+        break;
+      case "KVOpAccepted":
         let log: ILog = message.payload.log;
 
         const votes: number = this.store.voteFor(log.next.key);
 
         if (votes === -1) { // Key is not currently under vote
           this.messages.setValue({
-            type: "setKVAcceptedReceivedButCommited",
+            type: "KVOpAcceptedReceivedButCommited",
             source: "node",
-            destination: "log",
+            destination: message.source,
             payload: log,
           });
         } else if (votes >= this.net.quorum) {
@@ -292,16 +326,16 @@ export default class Node {
           log = this.store.commit(log);
 
           this.messages.setValue({
-            type: "setKVRequestComplete",
+            type: "KVOpRequestComplete",
             source: "node",
-            destination: "log",
+            destination: message.source,
             payload: log,
           });
         } else {
           this.messages.setValue({
-            type: "setKVAcceptedReceived",
+            type: "KVOpAcceptedReceived",
             source: "node",
-            destination: "log",
+            destination: message.source,
             payload: {
               message: message,
               votes: this.store.getVotes(log.next.key)
@@ -419,7 +453,7 @@ export default class Node {
         break;
       case "peerConnectionClose":
         this.messages.setValue({
-          type: message.type,
+          type: "peerConnectionClose",
           source: "node",
           destination: "log",
           payload: {
@@ -467,17 +501,19 @@ export default class Node {
        * in the application coupled the ui logging logic & created complexity
        * This way, the application has no messages with destination ui, only this log function
        */
-      this.messages.setValue({
-        type: "uiLogMessage",
-        source: "node",
-        destination: "ui",
-        payload: {
-          message: message,
-        },
-      });
+      if (this.uiMessagesActivated || message.type === "uiStateUpdate") {
+        this.messages.setValue({
+          type: "uiLogMessage",
+          source: "node",
+          destination: "ui",
+          payload: {
+            message: message,
+          },
+        });
+      }
     }
 
-    if (!["heartBeat", "uiLogMessage"].includes(message.type)) {
+    if (this.consoleLog && !!["heartBeat", "uiLogMessage"].includes(message.type)) {
       console.log(
         c.bgWhite(
           "                                                                                   ",
