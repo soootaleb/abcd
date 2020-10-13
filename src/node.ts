@@ -23,7 +23,7 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = 10;
+  private heartBeatInterval: number = 50;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
@@ -270,7 +270,7 @@ export default class Node {
         // Appended logs are notified to the leader
         for (const log of report.appended) {
           this.messages.setValue({
-            type: "setKVAccepted",
+            type: "KVOpAccepted",
             source: "node",
             destination: message.source,
             payload: {
