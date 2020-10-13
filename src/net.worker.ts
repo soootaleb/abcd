@@ -17,7 +17,7 @@ import type { IMessage } from "./interface.ts";
 declare const self: Worker;
 
 const server = serve({
-  hostname: "127.0.0.1",
+  hostname: "0.0.0.0",
   port: Deno.args[0] == "8080" ? 8080 : 0,
 });
 
