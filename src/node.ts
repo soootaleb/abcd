@@ -435,7 +435,6 @@ export default class Node {
             source: "node",
             destination: "net",
             payload: {
-              // [TODO] Implement proper arguments to get leader addr
               peerIp: this.args['join']
             },
           });
