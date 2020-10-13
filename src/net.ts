@@ -68,7 +68,7 @@ export default class Net {
       case "peerConnectionOpen":
         this.peers[message.payload.peerIp] = message.payload;
         this.messages.setValue({
-          type: message.type,
+          type: "peerConnectionOpen",
           source: "net",
           destination: "node",
           payload: message.payload,
@@ -78,7 +78,7 @@ export default class Net {
       case "peerConnectionClose":
         delete this.peers[message.payload.peerIp];
         this.messages.setValue({
-          type: message.type,
+          type: "peerConnectionClose",
           source: "net",
           destination: "node",
           payload: message.payload,
@@ -87,7 +87,7 @@ export default class Net {
       case "clientConnectionOpen":
         this.clients[message.payload.clientIp] = message.payload;
         this.messages.setValue({
-          type: message.type,
+          type: "clientConnectionOpen",
           source: "net",
           destination: "node",
           payload: message.payload,
@@ -96,7 +96,7 @@ export default class Net {
       case "clientConnectionClose":
         delete this.clients[message.payload.peerIp];
         this.messages.setValue({
-          type: message.type,
+          type: "clientConnectionClose",
           source: "net",
           destination: "node",
           payload: message.payload,
@@ -104,7 +104,7 @@ export default class Net {
         break;
       case "openPeerConnectionRequest":
         this.messages.setValue({
-          type: message.type,
+          type: "openPeerConnectionRequest",
           source: "net",
           destination: "net.worker",
           payload: message.payload,
