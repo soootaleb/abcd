@@ -461,6 +461,16 @@ export default class Node {
           },
         });
         break;
+      case "clientConnectionClose":
+        this.messages.setValue({
+          type: "clientConnectionClose",
+          source: "node",
+          destination: "log",
+          payload: {
+            clientIp: message.payload.clientIp,
+          },
+        });
+        break;
       case "serverStarted":
         if (this.args['join']) {
           this.transitionFunction("follower");
