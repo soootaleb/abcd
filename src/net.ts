@@ -46,7 +46,8 @@ export default class Net {
       } else if (
         Object.keys(this.peers).includes(message.destination) ||
         Object.keys(this.clients).includes(message.destination) ||
-        message.destination === "ui"
+        message.destination === "ui" ||
+        message.destination === "net.worker"
       ) {
         this.worker.postMessage(message);
       }
@@ -60,7 +61,6 @@ export default class Net {
   private handleMessage(
     message: IMessage<{
       clientIp: string,
-      connectedTo: { peerIp: string };
       peerIp: string;
     }>, 
   ) {
@@ -74,6 +74,7 @@ export default class Net {
           payload: message.payload,
         });
         break;
+      case "peerConnectionFailed":
       case "peerConnectionClose":
         delete this.peers[message.payload.peerIp];
         this.messages.setValue({
@@ -102,16 +103,17 @@ export default class Net {
         });
         break;
       case "openPeerConnectionRequest":
-        this.worker.postMessage({
-          type: "openPeerConnectionRequest",
+        this.messages.setValue({
+          type: message.type,
           source: "net",
           destination: "net.worker",
           payload: message.payload,
         });
         break;
       case "openPeerConnectionComplete":
-        this._peers[message.payload.connectedTo.peerIp] =
-          message.payload.connectedTo;
+        this._peers[message.payload.peerIp] = {
+          peerIp: message.payload.peerIp
+        };
         this.messages.setValue({
           type: "peerAdded",
           source: "net",

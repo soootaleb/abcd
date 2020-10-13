@@ -20,9 +20,9 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = 500;
+  private heartBeatInterval: number = 10;
   private heartBeatIntervalId: number | undefined;
-  private electionTimeout: number = (Math.random() + 0.125) * 10000;
+  private electionTimeout: number = (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
 
   private args: Args = parse(Deno.args);
@@ -378,7 +378,7 @@ export default class Node {
           source: "node",
           destination: "net",
           payload: {
-            connectedTo: message.payload.connectedTo,
+            peerIp: message.source
           },
         });
 

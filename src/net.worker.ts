@@ -28,7 +28,7 @@ let clients: { [key: string]: WebSocket } = {};
 self.postMessage({
   type: "serverStarted",
   source: "net.worker",
-  destination: "log",
+  destination: "node",
   payload: server.listener.addr,
 });
 
@@ -72,9 +72,9 @@ async function handleMessage(
         delete peers[message.payload.peerIp];
 
         return {
-          type: "peerConnectionLost",
+          type: "peerConnectionClose",
           source: "net.worker",
-          destination: "node",
+          destination: "net",
           payload: {
             peerIp: message.payload.peerIp,
           },
@@ -83,12 +83,13 @@ async function handleMessage(
         return {
           type: "peerConnectionFailed",
           source: "net.worker",
-          destination: "node",
+          destination: "net",
           payload: {
             peerIp: message.payload.peerIp,
           },
         };
       }
+      break;
     default:
       return {
         type: "invalidMessageType",
@@ -139,6 +140,7 @@ self.onmessage = async (e: MessageEvent) => {
       payload: {
         invalidMessageDestination: destination,
         availablePeers: Object.keys(peers),
+        availableClients: Object.keys(clients),
         message: message,
       },
     } as IMessage);
