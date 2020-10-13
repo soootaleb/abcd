@@ -11,8 +11,8 @@ export default class Node {
   private run: Boolean = true;
   private consoleLog: Boolean = true;
 
-  private uiMessagesActivated: Boolean = true;
-  private uiRefreshActivated: Boolean = true;
+  private uiMessagesActivated: Boolean = false;
+  private uiRefreshActivated: Boolean = false;
   private uiRefreshTimeout: number = 100;
   private messages: Observe<IMessage>;
 
@@ -513,7 +513,7 @@ export default class Node {
       }
     }
 
-    if (this.consoleLog && !!["heartBeat", "uiLogMessage"].includes(message.type)) {
+    if (this.consoleLog && !["heartBeat", "uiLogMessage"].includes(message.type)) {
       console.log(
         c.bgWhite(
           "                                                                                   ",
