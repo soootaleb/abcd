@@ -108,6 +108,10 @@ self.onmessage = async (e: MessageEvent) => {
   // If it's a peer, send it to peer
   if (Object.keys(peers).includes(destination)) {
     peers[destination].send(JSON.stringify(message));
+  
+  // If it's a client, send it to client
+  } else if (Object.keys(clients).includes(destination)) {
+    clients[destination].send(JSON.stringify(message));
 
   // If it's "worker", handle message here
   } else if (destination == "worker") {
