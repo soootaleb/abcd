@@ -294,6 +294,7 @@ export default class Node {
               source: "node",
               destination: "node",
               payload: {
+                client: message.source,
                 log: log
               },
             });
@@ -328,14 +329,14 @@ export default class Node {
           this.messages.setValue({
             type: "KVOpRequestComplete",
             source: "node",
-            destination: message.source,
+            destination: message.payload.client,
             payload: log,
           });
         } else {
           this.messages.setValue({
             type: "KVOpAcceptedReceived",
             source: "node",
-            destination: message.source,
+            destination: message.payload.client,
             payload: {
               message: message,
               votes: this.store.getVotes(log.next.key)
