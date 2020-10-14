@@ -21,7 +21,7 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = 5;
+  private heartBeatInterval: number = 30;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
