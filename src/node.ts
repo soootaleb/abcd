@@ -1,23 +1,20 @@
-import * as c from "https://deno.land/std/fmt/colors.ts";
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 import type { IKeyValue, ILog, IMessage } from "./interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
+import Logger from "./logger.ts";
 
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
   private run: Boolean = true;
-  private consoleLog: Boolean = true;
 
-  private uiMessagesActivated: Boolean = false;
-  private uiRefreshActivated: Boolean = false;
-  private uiRefreshTimeout: number = 100;
   private messages: Observe<IMessage>;
 
   private net: Net;
   private store: Store;
+  private logger: Logger;
   private state: TState = "follower";
 
   private term: number = 0;
@@ -30,7 +27,6 @@ export default class Node {
 
   private args: Args = parse(Deno.args);
 
-
   constructor() {
     this.messages = new Observe<IMessage>({
       type: "initialMessage",
@@ -40,7 +36,6 @@ export default class Node {
     });
 
     this.messages.bind((message: IMessage<any>) => {
-      this.log(message);
       if (message.destination == "node") {
         message.source == "ui"
           ? this.handleUiMessage(message)
@@ -50,27 +45,7 @@ export default class Node {
 
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
-
-    setInterval(() => {
-      if (this.uiRefreshActivated) {
-        this.messages.setValue({
-          type: "uiStateUpdate",
-          source: "node",
-          destination: "log",
-          payload: {
-            run: this.run,
-            state: this.state,
-            peers: Object.keys(this.net.peers),
-            electionTimeout: this.electionTimeout,
-            term: this.term,
-            store: {
-              store: this.store.store
-            },
-            heartBeatCounter: this.heartBeatCounter,
-          },
-        });
-      }
-    }, this.uiRefreshTimeout);
+    this.logger = new Logger(this.messages)
   }
 
   private transitionFunction(to: TState) {
@@ -513,60 +488,6 @@ export default class Node {
           },
         });
         break;
-    }
-  }
-
-  private log(message: IMessage) {
-    if (message.destination != "ui" && message.type != "heartBeat") {
-      /**
-       * We wrap the messages for UI in another messages
-       * - source is the current node sending the messages (so the UI can know it & deal with multiple nodes)
-       * - destination is "ui" so there is no ambiguity for the network layer
-       * - payload contains the log message we want to forward
-       * 
-       * This approach has been implemented because using messages with destination "ui"
-       * in the application coupled the ui logging logic & created complexity
-       * This way, the application has no messages with destination ui, only this log function
-       */
-      if (this.uiMessagesActivated || message.type === "uiStateUpdate") {
-        this.messages.setValue({
-          type: "uiLogMessage",
-          source: "node",
-          destination: "ui",
-          payload: {
-            message: message,
-          },
-        });
-      }
-    }
-
-    if (this.consoleLog && !["heartBeat", "uiLogMessage"].includes(message.type)) {
-      console.log(
-        c.bgWhite(
-          "                                                                                   ",
-        ),
-      );
-      if (message.type == "serverStarted") {
-        console.log(
-          c.bgBrightMagenta(
-            c.brightYellow(
-              c.bold(
-                `[${message.source}]->[${message.destination}][${message.type}]${
-                  JSON.stringify(message.payload)
-                }`,
-              ),
-            ),
-          ),
-        );
-      } else {
-        console.log(
-          c.gray(
-            `[${message.source}]->[${message.destination}][${message.type}]${
-              JSON.stringify(message.payload)
-            }`,
-          ),
-        );
-      }
     }
   }
 }
