@@ -11,6 +11,7 @@ export default class Node {
   private run: Boolean = true;
 
   private messages: Observe<IMessage>;
+  private requests: {[key: string]: string} = {};
 
   private net: Net;
   private store: Store;
@@ -35,6 +36,9 @@ export default class Node {
       payload: {},
     });
 
+    // Register logger first since messages.bind() is called in the subscription order
+    this.logger = new Logger(this.messages);
+
     this.messages.bind((message: IMessage<any>) => {
       if (message.destination == "node") {
         if (Object.keys(this.net.clients).includes(message.source)) {
@@ -49,7 +53,6 @@ export default class Node {
 
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
-    this.logger = new Logger(this.messages);
   }
 
   private transitionFunction(to: TState) {
@@ -217,16 +220,18 @@ export default class Node {
         break;
       case "KVOpRequest":
         if (this.state == "leader") {
+
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected (or use MVCC)
           let log = this.store.set(message.payload.key, message.payload.value);
+
+          this.requests[log.timestamp + log.action + log.next.key] = message.source;
 
           this.messages.setValue({
             type: "KVOpAccepted",
             source: "node",
             destination: "node",
             payload: {
-              client: message.source,
               log: log,
             },
           });
@@ -320,7 +325,7 @@ export default class Node {
           this.messages.setValue({
             type: "KVOpRequestComplete",
             source: "node",
-            destination: message.payload.client,
+            destination: "node",
             payload: {
               log: log,
               votes: votes,
@@ -331,13 +336,39 @@ export default class Node {
           this.messages.setValue({
             type: "KVOpAcceptedReceived",
             source: "node",
-            destination: message.payload.client,
+            destination: "log",
             payload: {
               message: message,
               qorum: this.net.quorum,
               votes: votes,
             },
           });
+        }
+        break;
+      case "KVOpRequestComplete":
+        const l: ILog = message.payload.log
+        const key: string = l.timestamp + l.action + l.next.key;
+        if (Object.keys(this.requests).includes(key)){
+          const client = this.requests[key]
+          delete this.requests[key]
+          this.messages.setValue({
+            type: "KVOpResponse",
+            source: "node",
+            destination: client,
+            payload: {
+              log: l
+            }
+          })
+        } else {
+          this.messages.setValue({
+            type: "KVOpRequestCompleteWithoutInitiator",
+            source: "node",
+            destination: "log",
+            payload: {
+              requests: this.requests,
+              message: message
+            }
+          })
         }
         break;
       case "newTerm":

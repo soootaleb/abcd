@@ -73,6 +73,8 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 > Settings a key value on the leader will append a commited log in WAL only after consensus
 
 - Node use IPs instead of ports (needs to be Docker containers on a single machine)
+- Multiple clients can connect to the leaders
+- The leader can send KVOpResponse to precise clients once a KVOpRequest has complete
 
 # Next steps
 
