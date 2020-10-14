@@ -284,20 +284,21 @@ export default class Node {
         break;
       case "KVOpRequest":
         if (this.state == "leader") {
+
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected (or use MVCC)
-
           let log = this.store.set(message.payload.key, message.payload.value);
 
-            this.messages.setValue({
-              type: "KVOpAccepted",
-              source: "node",
-              destination: "node",
-              payload: {
-                client: message.source,
-                log: log
-              },
-            });
+          this.messages.setValue({
+            type: "KVOpAccepted",
+            source: "node",
+            destination: "node",
+            payload: {
+              client: message.source,
+              log: log
+            },
+          });
+
         } else {
           this.messages.setValue({
             type: "KVOpReceivedButNotLeader",
@@ -330,7 +331,11 @@ export default class Node {
             type: "KVOpRequestComplete",
             source: "node",
             destination: message.payload.client,
-            payload: log,
+            payload: {
+              log: log,
+              votes: votes,
+              qorum: this.net.quorum
+            },
           });
         } else {
           this.messages.setValue({
@@ -339,7 +344,8 @@ export default class Node {
             destination: message.payload.client,
             payload: {
               message: message,
-              votes: this.store.getVotes(log.next.key)
+              qorum: this.net.quorum,
+              votes: votes
             },
           });
         }
@@ -459,6 +465,16 @@ export default class Node {
           destination: "log",
           payload: {
             peerIp: message.payload.peerIp,
+          },
+        });
+        break;
+      case "clientConnectionOpen":
+        this.messages.setValue({
+          type: "clientConnectionOpen",
+          source: "node",
+          destination: "log",
+          payload: {
+            clientIp: message.payload.clientIp,
           },
         });
         break;

@@ -96,10 +96,10 @@ ws.onopen = (ev: Event) => {
 };
 
 ws.onmessage = (ev) => {
-  const message: IMessage<ILog> = JSON.parse(ev.data);
+  const message: IMessage<{log: ILog}> = JSON.parse(ev.data);
   if (message.type === "KVOpRequestComplete") {
     const request = mon.requests.all.find((o) =>
-      o.key === message.payload.next.key
+      o.key === message.payload.log.next.key
     );
     if (request) {
       mon.requests.count++;

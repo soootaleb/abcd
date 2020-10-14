@@ -225,7 +225,8 @@ for await (const request of server) {
         if (typeof ev === "string") {
           self.postMessage({
             ...JSON.parse(ev),
-            source: hostname
+            source: hostname,
+            destination: "node"
           });
         }
       }

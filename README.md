@@ -78,6 +78,7 @@ An arg can be provided to specify a node port (can join a cluster by any node)
 
 ## Architecture
 
+- KVOpRequests tracing (mon, responses, ...)
 - Streamline commands names
 - Isolate logging
 - Isolate UI logics
