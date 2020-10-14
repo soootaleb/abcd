@@ -5,7 +5,7 @@ import { IMessage } from "./interface.ts";
 export default class Logger {
   private messages: Observe<IMessage>;
 
-  private consoleLog: Boolean = true;
+  private consoleLog: Boolean = false;
 
   private uiMessagesActivated: Boolean = false;
 //   private uiRefreshActivated: Boolean = false;

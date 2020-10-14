@@ -27,7 +27,7 @@ let mon = {
   },
 };
 
-const monInteval = setInterval(() => {
+const monInterval = setInterval(() => {
   if (
     (duration && new Date().getTime() > start + duration * 1000) ||
     (!duration && mon.objective === mon.requests.count)
@@ -40,12 +40,12 @@ const monInteval = setInterval(() => {
         payload: {}
       }))
     }
-    console.log({
+    console.log('[FINISHED]', {
       length: mon.requests.all.length,
       count: mon.requests.count,
       ...mon.requests.latency,
     });
-    clearInterval(monInteval);
+    clearInterval(monInterval);
   }
 }, 100);
 
@@ -97,7 +97,7 @@ ws.onopen = (ev: Event) => {
 
 ws.onmessage = (ev) => {
   const message: IMessage<{log: ILog}> = JSON.parse(ev.data);
-  if (message.type === "KVOpRequestComplete") {
+  if (message.type === "KVOpResponse") {
     const request = mon.requests.all.find((o) =>
       o.key === message.payload.log.next.key
     );
@@ -107,6 +107,12 @@ ws.onmessage = (ev) => {
       mon.requests.latency.total = new Date().getTime() - start;
       mon.requests.latency.average = mon.requests.latency.sum /
         mon.requests.count;
+
+      console.log('[ONGOING]', {
+        length: mon.requests.all.length,
+        count: mon.requests.count,
+        ...mon.requests.latency,
+      });
     }
   }
 };

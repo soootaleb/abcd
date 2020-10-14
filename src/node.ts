@@ -21,7 +21,7 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = 50;
+  private heartBeatInterval: number = 5;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
@@ -316,8 +316,10 @@ export default class Node {
           this.messages.setValue({
             type: "KVOpAcceptedReceivedButCommited",
             source: "node",
-            destination: message.source,
-            payload: log,
+            destination: "log",
+            payload: {
+              log: log
+            },
           });
         } else if (votes >= this.net.quorum) {
           log = this.store.commit(log);
