@@ -8,6 +8,9 @@ import Logger from "./logger.ts";
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
+
+  private args: Args = parse(Deno.args);
+
   private run: Boolean = true;
 
   private messages: Observe<IMessage>;
@@ -21,12 +24,10 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = 30;
+  private heartBeatInterval: number = this.args['hbi'] ? this.args['hbi'] : 30;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
-
-  private args: Args = parse(Deno.args);
 
   constructor() {
     this.messages = new Observe<IMessage>({
