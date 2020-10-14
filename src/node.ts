@@ -38,6 +38,9 @@ export default class Node {
 
     // Register logger first since messages.bind() is called in the subscription order
     this.logger = new Logger(this.messages);
+    if (this.args['debug']) {
+      this.logger.console = true;
+    }
 
     this.messages.bind((message: IMessage<any>) => {
       if (message.destination == "node") {

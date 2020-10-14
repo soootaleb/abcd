@@ -1,11 +1,15 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
-import { IMessage } from "./interface.ts";
+import type { IMessage } from "./interface.ts";
 
 export default class Logger {
   private messages: Observe<IMessage>;
 
-  private consoleLog: Boolean = false;
+  private _console: Boolean = false;
+
+  public set console(yes: Boolean) {
+    this._console = yes;
+  }
 
   private uiMessagesActivated: Boolean = false;
 //   private uiRefreshActivated: Boolean = false;
@@ -65,7 +69,7 @@ export default class Logger {
     }
 
     if (
-      this.consoleLog && !["heartBeat", "uiLogMessage"].includes(message.type)
+      this._console && !["heartBeat", "uiLogMessage"].includes(message.type)
     ) {
       console.log(
         c.bgWhite(
