@@ -4,24 +4,21 @@ Key Value Store with raft in TypeScript for Deno runtime (inspired by etcd, for 
 
 # Getting Started
 
-A leader needs to be started first, on port 8080
+Start a node without parameters so it'll enter directly in LEADER mode
 
 ## Starting the leader
 
-`deno run --unstable --allow-write --allow-net --allow-read main.ts 8080`
+`deno run --unstable --allow-write --allow-net --allow-read main.ts`
 
 ## Connecting a new node
 
-If no arg is provided, the node tries to reach the leader on port 8080
+Start another node and provide the `--join` argument specifying the LEADER IP so that the node enters FOLLOWER mode
 
-`deno run --unstable --allow-write --allow-net --allow-read main.ts`
-
-An arg can be provided to specify a node port (can join a cluster by any node)
-
-`deno run --unstable --allow-write --allow-net --allow-read main.ts 54886`
-
+`deno run --unstable --allow-write --allow-net --allow-read main.ts --join 178.12.0.2`
 
 # Implemented
+
+This list is a chronological feature implementation. Changes are not reflected backward but are only appended to this list. Hence some statements may be false.
 
 - Leader starts & listens on 8080 (if port 8080 is provided as args[0])
 - Follower starts & listens on random port (if no argv[0] is provided)
