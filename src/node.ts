@@ -37,15 +37,19 @@ export default class Node {
 
     this.messages.bind((message: IMessage<any>) => {
       if (message.destination == "node") {
-        message.source == "ui"
-          ? this.handleUiMessage(message)
-          : this.handleMessage(message);
+        if (Object.keys(this.net.clients).includes(message.source)) {
+          this.handleClientMessage(message);
+        } else if (message.source == "ui") {
+          this.handleUiMessage(message);
+        } else {
+          this.handleMessage(message);
+        }
       }
     });
 
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
-    this.logger = new Logger(this.messages)
+    this.logger = new Logger(this.messages);
   }
 
   private transitionFunction(to: TState) {
@@ -87,7 +91,7 @@ export default class Node {
                 payload: {
                   wal: this.store.wal,
                   heartBeatCounter: this.heartBeatCounter,
-                }
+                },
               });
               this.heartBeatCounter += 1;
             }
@@ -143,7 +147,7 @@ export default class Node {
               destination: peerIp,
               payload: {
                 term: this.term,
-                peerIp: peerIp
+                peerIp: peerIp,
               },
             });
           }
@@ -173,14 +177,14 @@ export default class Node {
 
           let log = this.store.set(message.payload.key, message.payload.value);
 
-            this.messages.setValue({
-              type: "setKVAccepted",
-              source: "node",
-              destination: "node",
-              payload: {
-                log: log
-              },
-            });
+          this.messages.setValue({
+            type: "setKVAccepted",
+            source: "node",
+            destination: "node",
+            payload: {
+              log: log,
+            },
+          });
         } else {
           this.messages.setValue({
             type: "setValueRequestReceivedButNotLeader",
@@ -206,10 +210,54 @@ export default class Node {
     }
   }
 
+  private handleClientMessage(message: IMessage<any>) {
+    switch (message.type) {
+      case "clearStore":
+        this.store.empty();
+        break;
+      case "KVOpRequest":
+        if (this.state == "leader") {
+          // Later we'll need to verify the kv is not in process
+          // Otherwise, the request will have to be delayed or rejected (or use MVCC)
+          let log = this.store.set(message.payload.key, message.payload.value);
+
+          this.messages.setValue({
+            type: "KVOpAccepted",
+            source: "node",
+            destination: "node",
+            payload: {
+              client: message.source,
+              log: log,
+            },
+          });
+        } else {
+          this.messages.setValue({
+            type: "KVOpReceivedButNotLeader",
+            source: "node",
+            destination: "log",
+            payload: {
+              key: message.payload.key,
+              value: message.payload.value,
+            },
+          });
+        }
+        break;
+      default:
+        this.messages.setValue({
+          type: "invalidClientMessageType",
+          source: "node",
+          destination: "log",
+          payload: {
+            message: message,
+          },
+        });
+        break;
+    }
+  }
+
   private handleMessage(message: IMessage<any>) {
     switch (message.type) {
       case "heartBeat":
-
         if (this.state === "candidate") {
           this.transitionFunction("follower");
           break;
@@ -226,8 +274,8 @@ export default class Node {
         }, this.electionTimeout);
 
         const report: {
-          commited: ILog[],
-          appended: ILog[]
+          commited: ILog[];
+          appended: ILog[];
         } = this.store.sync(message.payload.wal);
 
         // Commited logs are logged locally
@@ -237,7 +285,7 @@ export default class Node {
             source: "node",
             destination: "log",
             payload: {
-              log: log
+              log: log,
             },
           });
         }
@@ -249,39 +297,7 @@ export default class Node {
             source: "node",
             destination: message.source,
             payload: {
-              log: log
-            },
-          });
-        }
-        break;
-      case "clearStore":
-        this.store.empty();
-        break;
-      case "KVOpRequest":
-        if (this.state == "leader") {
-
-          // Later we'll need to verify the kv is not in process
-          // Otherwise, the request will have to be delayed or rejected (or use MVCC)
-          let log = this.store.set(message.payload.key, message.payload.value);
-
-          this.messages.setValue({
-            type: "KVOpAccepted",
-            source: "node",
-            destination: "node",
-            payload: {
-              client: message.source,
-              log: log
-            },
-          });
-
-        } else {
-          this.messages.setValue({
-            type: "KVOpReceivedButNotLeader",
-            source: "node",
-            destination: "log",
-            payload: {
-              key: message.payload.key,
-              value: message.payload.value,
+              log: log,
             },
           });
         }
@@ -299,7 +315,6 @@ export default class Node {
             payload: log,
           });
         } else if (votes >= this.net.quorum) {
-
           log = this.store.commit(log);
 
           this.messages.setValue({
@@ -309,7 +324,7 @@ export default class Node {
             payload: {
               log: log,
               votes: votes,
-              qorum: this.net.quorum
+              qorum: this.net.quorum,
             },
           });
         } else {
@@ -320,7 +335,7 @@ export default class Node {
             payload: {
               message: message,
               qorum: this.net.quorum,
-              votes: votes
+              votes: votes,
             },
           });
         }
@@ -359,7 +374,8 @@ export default class Node {
           source: "node",
           destination: message.source,
           payload: {
-            voteGranted: this.state != "leader" && message.payload.term >= this.term,
+            voteGranted: this.state != "leader" &&
+              message.payload.term >= this.term,
           },
         });
         break;
@@ -394,7 +410,7 @@ export default class Node {
           source: "node",
           destination: "net",
           payload: {
-            peerIp: message.source
+            peerIp: message.source,
           },
         });
 
@@ -464,14 +480,14 @@ export default class Node {
         });
         break;
       case "serverStarted":
-        if (this.args['join']) {
+        if (this.args["join"]) {
           this.transitionFunction("follower");
           this.messages.setValue({
             type: "openPeerConnectionRequest",
             source: "node",
             destination: "net",
             payload: {
-              peerIp: this.args['join']
+              peerIp: this.args["join"],
             },
           });
         } else {
