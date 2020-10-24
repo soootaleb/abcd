@@ -3,14 +3,13 @@ import {
   serve,
   ServerRequest,
   Server,
-} from "https://deno.land/std@0.65.0/http/server.ts";
+} from "https://deno.land/std/http/server.ts";
 import {
   acceptWebSocket,
   isWebSocketCloseEvent,
   isWebSocketPingEvent,
-  WebSocket,
-  connectWebSocket,
-} from "https://deno.land/std@0.65.0/ws/mod.ts";
+  WebSocket as DenoWS,
+} from "https://deno.land/std/ws/mod.ts";
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import type { IMessage } from "./interface.ts";
 
@@ -21,9 +20,9 @@ const server = serve({
   port: 8080,
 });
 
-let uis: WebSocket[] = [];
-let peers: { [key: string]: WebSocket } = {};
-let clients: { [key: string]: WebSocket } = {};
+let uis: DenoWS[] = [];
+let peers: { [key: string]: DenoWS | WebSocket } = {};
+let clients: { [key: string]: DenoWS } = {};
 
 self.postMessage({
   type: "serverStarted",
@@ -37,10 +36,7 @@ async function handleMessage(
 ): Promise<IMessage> {
   switch (message.type) {
     case "openPeerConnectionRequest":
-      if (
-        peers[message.payload.peerIp] &&
-        !peers[message.payload.peerIp].isClosed
-      ) {
+      if (peers[message.payload.peerIp]) {
         return {
           type: "openPeerConnectionFail",
           source: "net.worker",
@@ -52,25 +48,22 @@ async function handleMessage(
         };
       }
 
-      const sock = await connectWebSocket(
-        `ws://${message.payload.peerIp}:8080/peer`,
-      );
+      const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`)
 
-      if (!sock.isClosed) {
+      sock.onopen = () => {
         peers[message.payload.peerIp] = sock;
+      }
 
-        for await (const msg of sock) {
-          if (typeof msg == "string") {
-            self.postMessage({
-              ...JSON.parse(msg),
-              source: message.payload.peerIp,
-              destination: "node"
-            });
-          }
-        }
+      sock.onmessage = (ev: MessageEvent) => {
+        self.postMessage({
+          ...JSON.parse(ev.data),
+          source: message.payload.peerIp,
+          destination: "node"
+        });
+      }
 
+      sock.onclose = (ev: CloseEvent) => {
         delete peers[message.payload.peerIp];
-
         return {
           type: "peerConnectionClose",
           source: "net.worker",
@@ -79,16 +72,16 @@ async function handleMessage(
             peerIp: message.payload.peerIp,
           },
         };
-      } else {
-        return {
-          type: "peerConnectionFailed",
-          source: "net.worker",
-          destination: "net",
-          payload: {
-            peerIp: message.payload.peerIp,
-          },
-        };
       }
+
+      return {
+        type: "peerConnectionSuccess",
+        source: "net.worker",
+        destination: "log",
+        payload: {
+          peerIp: message.payload.peerIp,
+        },
+      };
       break;
     default:
       return {
@@ -155,7 +148,7 @@ for await (const request of server) {
     bufReader,
     bufWriter,
     headers,
-  }).then(async (sock: WebSocket) => {
+  }).then(async (sock: DenoWS) => {
     const remoteAddr: Deno.NetAddr = request.conn.remoteAddr as Deno.NetAddr;
     const hostname: string = remoteAddr.hostname;
 
