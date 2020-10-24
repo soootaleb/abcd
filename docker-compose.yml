@@ -4,6 +4,8 @@ services:
         image: deno
         volumes:
             - "~/Code/abcd/:/app"
+        ports:
+            - "8080:8080"
         command:
             - "deno"
             - "run"
@@ -13,7 +15,24 @@ services:
             - "--allow-read"
             - "main.ts"
             - "--debug"
-    follower:
+    first_follower:
+        image: deno
+        volumes:
+            - "~/Code/abcd/:/app"
+        depends_on:
+            - "master"
+        command:
+            - "deno"
+            - "run"
+            - "--unstable"
+            - "--allow-write"
+            - "--allow-net"
+            - "--allow-read"
+            - "main.ts"
+            - "--join"
+            - "master"
+            - "--debug"
+    second_follower:
         image: deno
         volumes:
             - "~/Code/abcd/:/app"
