@@ -1,0 +1,32 @@
+version: "3.8"
+services:
+    master:
+        image: deno
+        volumes:
+            - "~/Code/abcd/:/app"
+        command:
+            - "deno"
+            - "run"
+            - "--unstable"
+            - "--allow-write"
+            - "--allow-net"
+            - "--allow-read"
+            - "main.ts"
+            - "--debug"
+    follower:
+        image: deno
+        volumes:
+            - "~/Code/abcd/:/app"
+        depends_on:
+            - "master"
+        command:
+            - "deno"
+            - "run"
+            - "--unstable"
+            - "--allow-write"
+            - "--allow-net"
+            - "--allow-read"
+            - "main.ts"
+            - "--join"
+            - "master"
+            - "--debug"
