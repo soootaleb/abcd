@@ -113,6 +113,8 @@ export default class Store {
 
     log.commited = true;
 
+    this.bget(key).push(log);
+
     this._store[key] = log.next;
     delete this._votes[key];
 
