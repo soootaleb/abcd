@@ -192,33 +192,6 @@ export default class Node {
       case "clearStore":
         this.store.empty();
         break;
-      case "setKeyValueRequest":
-        if (this.state == "leader") {
-          // Later we'll need to verify the kv is not in process
-          // Otherwise, the request will have to be delayed or rejected (or use MVCC)
-
-          let log = this.store.set(message.payload.key, message.payload.value);
-
-          this.messages.setValue({
-            type: "setKVAccepted",
-            source: "node",
-            destination: "node",
-            payload: {
-              log: log,
-            },
-          });
-        } else {
-          this.messages.setValue({
-            type: "setValueRequestReceivedButNotLeader",
-            source: "node",
-            destination: "log",
-            payload: {
-              key: message.payload.key,
-              value: message.payload.value,
-            },
-          });
-        }
-        break;
       default:
         this.messages.setValue({
           type: "invalidUiMessageType",
