@@ -5,8 +5,15 @@ export default class Store {
   private messages: Observe<IMessage>;
 
   private _wal: IWal = {};
+  private _buffer: IWal = {};
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
+
+  public get buffer() {
+    const outcome = {...this._buffer};
+    this._buffer = {};
+    return outcome;
+  }
 
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
@@ -77,6 +84,13 @@ export default class Store {
       this.wal[key] = [];
     }
     return this.wal[key];
+  }
+
+  public bget(key: string): ILog[] {
+    if (!(key in this._buffer)) {
+      this._buffer[key] = [];
+    }
+    return this._buffer[key];
   }
 
   public get(key: string): IKeyValue {
@@ -228,6 +242,7 @@ export default class Store {
     };
 
     this.wget(key).push(log);
+    this.bget(key).push(log);
 
     this.messages.setValue({
       type: "setValueCall",

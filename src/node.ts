@@ -111,7 +111,7 @@ export default class Node {
                 source: "node",
                 destination: peerIp,
                 payload: {
-                  wal: this.store.wal,
+                  wal: this.store.buffer,
                   heartBeatCounter: this.heartBeatCounter,
                 },
               });
