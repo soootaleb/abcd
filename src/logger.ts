@@ -12,36 +12,14 @@ export default class Logger {
   }
 
   private uiMessagesActivated: Boolean = false;
-//   private uiRefreshActivated: Boolean = false;
-//   private uiRefreshTimeout: number = 100;
+  private uiRefreshActivated: Boolean = false;
 
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
 
     this.messages.bind((message: IMessage) => {
-        this.log(message);
+      this.log(message);
     });
-
-    // setInterval(() => {
-    //   if (this.uiRefreshActivated) {
-    //     this.messages.setValue({
-    //       type: "uiStateUpdate",
-    //       source: "node",
-    //       destination: "log",
-    //       payload: {
-    //         run: this.run,
-    //         state: this.state,
-    //         peers: Object.keys(this.net.peers),
-    //         electionTimeout: this.electionTimeout,
-    //         term: this.term,
-    //         store: {
-    //           store: this.store.store,
-    //         },
-    //         heartBeatCounter: this.heartBeatCounter,
-    //       },
-    //     });
-    //   }
-    // }, this.uiRefreshTimeout);
   }
 
   private log(message: IMessage) {
@@ -97,6 +75,17 @@ export default class Logger {
           ),
         );
       }
+    }
+  }
+
+  public ui(state: any) {
+    if (this.uiRefreshActivated) {
+      this.messages.setValue({
+        type: "uiStateUpdate",
+        source: "log",
+        destination: "ui",
+        payload: state,
+      });
     }
   }
 }

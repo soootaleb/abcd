@@ -12,6 +12,7 @@ export default class Node {
   private args: Args = parse(Deno.args);
 
   private run: Boolean = true;
+  private uiRefreshTimeout: number = this.args['ui'] ? this.args['ui'] : 100;
 
   private messages: Observe<IMessage>;
   private requests: {[key: string]: string} = {};
@@ -57,6 +58,20 @@ export default class Node {
 
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
+
+    setInterval(() => {
+      this.logger.ui({
+        run: this.run,
+        state: this.state,
+        peers: Object.keys(this.net.peers),
+        electionTimeout: this.electionTimeout,
+        term: this.term,
+        store: {
+          store: this.store.store,
+        },
+        heartBeatCounter: this.heartBeatCounter,
+      })
+    }, this.uiRefreshTimeout);
   }
 
   private transitionFunction(to: TState) {
