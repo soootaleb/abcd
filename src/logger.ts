@@ -11,8 +11,8 @@ export default class Logger {
     this._console = yes;
   }
 
-  private uiMessagesActivated: Boolean = false;
-  private uiRefreshActivated: Boolean = false;
+  private uiMessagesActivated: Boolean = true;
+  private uiRefreshActivated: Boolean = true;
 
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
