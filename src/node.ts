@@ -8,14 +8,13 @@ import Logger from "./logger.ts";
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
-
   private args: Args = parse(Deno.args);
 
   private run: Boolean = true;
-  private uiRefreshTimeout: number = this.args['ui'] ? this.args['ui'] : 100;
+  private uiRefreshTimeout: number = this.args["ui"] ? this.args["ui"] : 100;
 
   private messages: Observe<IMessage>;
-  private requests: {[key: string]: string} = {};
+  private requests: { [key: string]: string } = {};
 
   private net: Net;
   private store: Store;
@@ -25,7 +24,7 @@ export default class Node {
   private term: number = 0;
   private votesCounter: number = 0;
   private heartBeatCounter: number = 1;
-  private heartBeatInterval: number = this.args['hbi'] ? this.args['hbi'] : 30;
+  private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 30;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
@@ -40,7 +39,7 @@ export default class Node {
 
     // Register logger first since messages.bind() is called in the subscription order
     this.logger = new Logger(this.messages);
-    if (this.args['debug']) {
+    if (this.args["debug"]) {
       this.logger.console = true;
     }
 
@@ -70,7 +69,7 @@ export default class Node {
           store: this.store.store,
         },
         heartBeatCounter: this.heartBeatCounter,
-      })
+      });
     }, this.uiRefreshTimeout);
   }
 
@@ -212,12 +211,12 @@ export default class Node {
         break;
       case "KVOpRequest":
         if (this.state == "leader") {
-
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected (or use MVCC)
           let log = this.store.set(message.payload.key, message.payload.value);
 
-          this.requests[log.timestamp + log.action + log.next.key] = message.source;
+          this.requests[log.timestamp + log.action + log.next.key] =
+            message.source;
 
           this.messages.setValue({
             type: "KVOpAccepted",
@@ -310,7 +309,7 @@ export default class Node {
             source: "node",
             destination: "log",
             payload: {
-              log: log
+              log: log,
             },
           });
         } else if (votes >= this.net.quorum) {
@@ -340,19 +339,19 @@ export default class Node {
         }
         break;
       case "KVOpRequestComplete":
-        const l: ILog = message.payload.log
+        const l: ILog = message.payload.log;
         const key: string = l.timestamp + l.action + l.next.key;
-        if (Object.keys(this.requests).includes(key)){
-          const client = this.requests[key]
-          delete this.requests[key]
+        if (Object.keys(this.requests).includes(key)) {
+          const client = this.requests[key];
+          delete this.requests[key];
           this.messages.setValue({
             type: "KVOpResponse",
             source: "node",
             destination: client,
             payload: {
-              log: l
-            }
-          })
+              log: l,
+            },
+          });
         } else {
           this.messages.setValue({
             type: "KVOpRequestCompleteWithoutInitiator",
@@ -360,9 +359,9 @@ export default class Node {
             destination: "log",
             payload: {
               requests: this.requests,
-              message: message
-            }
-          })
+              message: message,
+            },
+          });
         }
         break;
       case "newTerm":
@@ -430,6 +429,11 @@ export default class Node {
         break;
       case "peerConnectionAccepted":
         this.term = message.payload.term;
+
+        if (message.payload.wal) {
+          this.store.sync(message.payload.wal);
+        }
+
         this.messages.setValue({
           type: "openPeerConnectionComplete",
           source: "node",
@@ -471,6 +475,7 @@ export default class Node {
           payload: {
             term: this.term,
             knownPeers: knownPeers,
+            wal: this.store.wal,
           },
         });
         break;

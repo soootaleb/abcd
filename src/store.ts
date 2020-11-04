@@ -205,7 +205,7 @@ export default class Store {
         // We commit if the log is commited
         if (log.commited) {
           // It's important to call .commit() instead of just .append() with log.commited = true
-          // That's because latest .commit() will actually perform I/O operations that .append() won't
+          // That's because later, .commit() will actually perform I/O operations that .append() won't
           this.commit(log);
 
           report.commited.push(log);
