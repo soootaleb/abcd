@@ -72,6 +72,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 - Node use IPs instead of ports (needs to be Docker containers on a single machine)
 - Multiple clients can connect to the leaders
 - The leader can send KVOpResponse to precise clients once a KVOpRequest has complete
+- Peer .sync() the WAL received from master on peerConnectionAccepted
 
 # Next steps
 
