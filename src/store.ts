@@ -52,19 +52,9 @@ export default class Store {
     return this._store;
   }
 
-  public getVotes(key: string): number {
-    return this._votes[key];
-  }
-
   public voteFor(key: string): number {
-    let outcome: number = -1;
 
-    if (Object.keys(this._votes).includes(key)) {
-      this._votes[key] += 1;
-      outcome = this.getVotes(key);
-    } else {
-      this.wal[key] = this.wget(key).filter((log) => log.commited);
-    }
+    this._votes[key] += 1;
 
     this.messages.setValue({
       type: "voteForCall",
@@ -72,11 +62,11 @@ export default class Store {
       destination: "log",
       payload: {
         key: key,
-        votes: outcome,
+        votes: this._votes[key],
       },
     });
 
-    return outcome;
+    return this._votes[key];
   }
 
   public wget(key: string): ILog[] {
@@ -105,11 +95,7 @@ export default class Store {
     // Wall append should be much faster when files i/o are involved
     // [TODO] Commit only if the timestamp is the highest regarding the key (later use MVCC)
 
-    // Need to replace in WAL since the log is already in (with log.commited == false)
-    this.wal[key] = [
-      ...this.wget(key).filter((o: ILog) => o.timestamp !== log.timestamp),
-      log,
-    ];
+    this.wget(key).push(log);
 
     log.commited = true;
 
@@ -128,10 +114,6 @@ export default class Store {
     });
 
     return log;
-  }
-
-  public contains(key: string): Boolean {
-    return Object.keys(this._store).includes(key);
   }
 
   public empty() {
