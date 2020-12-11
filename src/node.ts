@@ -26,7 +26,7 @@ export default class Node {
   private heartBeatCounter: number = 1;
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 30;
   private heartBeatIntervalId: number | undefined;
-  private electionTimeout: number = (Math.random() + 0.150) * 1000;
+  private electionTimeout: number = this.args["etimeout"] ? this.args["etimeout"] : (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
 
   constructor() {
