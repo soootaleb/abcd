@@ -101,11 +101,11 @@ export default class Store {
     const key: string = log.next.key;
 
     // Now in memory useless
-    // [TODO] Append commit to WAL on disk befre stting commited = true]
+    // [TODO] Append commit to WAL on disk befre setting commited = true
     // Wall append should be much faster when files i/o are involved
     // [TODO] Commit only if the timestamp is the highest regarding the key (later use MVCC)
 
-    // Need to place / replace in WAL since the log may or not already be in
+    // Need to replace in WAL since the log is already in (with log.commited == false)
     this.wal[key] = [
       ...this.wget(key).filter((o: ILog) => o.timestamp !== log.timestamp),
       log,
@@ -134,34 +134,10 @@ export default class Store {
     return Object.keys(this._store).includes(key);
   }
 
-  /**
-   * Removes uncommited logs for a given key & returns the remaining logs (commited)
-   * @param key The key to clear
-   * @returns The remaining commited logs for the given key
-   */
-  private clear(key: string): ILog[] {
-    this.wal[key] = this.wget(key).filter((log) => log.commited);
-    return this.wal[key];
-  }
-
   public empty() {
     this._store = {};
     this._wal = {};
     this._votes = {};
-  }
-
-  /**
-   * Returns the latest entry in a log list
-   * @param logs the logs to search in
-   * @returns the latest log or undefined if logs are empty
-   */
-  private latest(logs: ILog[]): ILog | undefined {
-    if (logs.length) {
-      return logs.sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)
-        .reverse()[0];
-    } else {
-      return undefined;
-    }
   }
 
   /**
@@ -186,32 +162,33 @@ export default class Store {
 
     // For each key of the store
     for (const key in wal) {
-      // Remove uncommited logs
-      this.clear(key);
+      // [DEPRECATED] Remove uncommited logs => no uncommited logs in WAL (.set() will only fill buffer for master to send)
 
-      // Get latest log (if any, otherwise undefined)
-      const latest: ILog | undefined = this.latest(this.wget(key));
+      // [DEPRECATED] Get latest log (if any, otherwise undefined)
 
-      // Keep only incoming logs with higher timestamp
-      // than the latest (or all if latest === undefined)
-      // [TODO] Filter logs from current term (c.f README)
-      // We need to sort() in order to commit in the right order later
-      const incoming: ILog[] = wal[key]
-        .filter((log) => latest ? log.timestamp > latest.timestamp : true)
-        .sort((a, b) => a.timestamp < b.timestamp ? -1 : 1);
+      // [DEPRECATED] Keep only incoming logs with higher timestamp => useless since logs are sent once
+      // /!\ This may be necessary in case of SPLIT BRAIN (old master / logs received)
 
-      // For all incoming logs, in the correct order
-      for (const log of incoming) {
+      // [TODO] Filter logs from current term (c.f README) => SPLIT BRAIN problem should be solved
+
+      // [DEPRECATED] We need to sort() in order to commit in the right order later
+
+      // For all incoming logs, in the correct order (sort)
+      for (const log of wal[key].sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)) {
+
         // We commit if the log is commited
         if (log.commited) {
+
           // It's important to call .commit() instead of just .append() with log.commited = true
           // That's because later, .commit() will actually perform I/O operations that .append() won't
           this.commit(log);
 
           report.commited.push(log);
         } else {
-          // We simple .append() the log if it's not commited
-          this.append(log);
+
+          // [DEPRECATED] We simple .append() the log if it's not commited
+          // Appended logs in report will be sent as KVOpAccepted
+          // [TODO] Some logic before appending (e.g check term for SPLIT BRAIN)
 
           report.appended.push(log);
         }
@@ -243,7 +220,6 @@ export default class Store {
       },
     };
 
-    this.wget(key).push(log);
     this.bget(key).push(log);
 
     this.messages.setValue({
@@ -259,15 +235,4 @@ export default class Store {
     return log;
   }
 
-  /**
-   * Append adds a log to the WAL
-   * It's used by followers that need to sync the WAL without creating a new log (.set() creates a log entry)
-   * 
-   * Returns true if the log has been appended, false otherwise
-   * [TODO] Upgrade the append strategy (c.f README)
-   */
-  private append(log: ILog): Boolean {
-    this.wget(log.next.key).push(log);
-    return true;
-  }
 }
