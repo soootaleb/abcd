@@ -341,28 +341,16 @@ export default class Node {
       case "KVOpRequestComplete":
         const l: ILog = message.payload.log;
         const key: string = l.timestamp + l.action + l.next.key;
-        if (Object.keys(this.requests).includes(key)) {
-          const client = this.requests[key];
-          delete this.requests[key];
-          this.messages.setValue({
-            type: "KVOpResponse",
-            source: "node",
-            destination: client,
-            payload: {
-              log: l,
-            },
-          });
-        } else {
-          this.messages.setValue({
-            type: "KVOpRequestCompleteWithoutInitiator",
-            source: "node",
-            destination: "log",
-            payload: {
-              requests: this.requests,
-              message: message,
-            },
-          });
-        }
+        const client = this.requests[key];
+        delete this.requests[key];
+        this.messages.setValue({
+          type: "KVOpResponse",
+          source: "node",
+          destination: client,
+          payload: {
+            log: l,
+          },
+        });
         break;
       case "newTerm":
         if (message.payload.term > this.term) {
