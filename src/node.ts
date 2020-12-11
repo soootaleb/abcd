@@ -277,7 +277,7 @@ export default class Node {
         // Commited logs are logged locally
         for (const log of report.commited) {
           this.messages.setValue({
-            type: "commitedUnstaggedLog",
+            type: "commitedLog",
             source: "node",
             destination: "log",
             payload: {
