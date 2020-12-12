@@ -1,6 +1,6 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
-import { Args } from "https://deno.land/std@0.74.0/flags/mod.ts";
+import { Args } from "https://deno.land/std/flags/mod.ts";
 import type { IMessage } from "./interface.ts";
 
 export default class Logger {
