@@ -1,21 +1,22 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
+import { Args } from "https://deno.land/std@0.74.0/flags/mod.ts";
 import type { IMessage } from "./interface.ts";
 
 export default class Logger {
   private messages: Observe<IMessage>;
 
-  private _console: Boolean = false;
-
-  public set console(yes: Boolean) {
-    this._console = yes;
-  }
+  private console: Boolean = false;
 
   private uiMessagesActivated: Boolean = false;
   private uiRefreshActivated: Boolean = false;
 
-  constructor(messages: Observe<IMessage>) {
+  constructor(messages: Observe<IMessage>, args: Args) {
     this.messages = messages;
+
+    this.console = Boolean(args["console-messages"]) || Boolean(args["debug"]);
+    this.uiMessagesActivated = Boolean(args["ui-messages"]) || Boolean(args["debug"]) || Boolean(args["ui-all"])
+    this.uiRefreshActivated = Boolean(args["ui-refresh"]) || Boolean(args["debug"]) || Boolean(args["ui-all"])
 
     this.messages.bind((message: IMessage) => {
       this.log(message);
@@ -47,7 +48,7 @@ export default class Logger {
     }
 
     if (
-      this._console && !["heartBeat", "uiLogMessage"].includes(message.type)
+      this.console && !["heartBeat", "uiLogMessage"].includes(message.type)
     ) {
       console.log(
         c.bgWhite(
