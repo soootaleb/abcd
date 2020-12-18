@@ -31,9 +31,9 @@ self.postMessage({
   payload: server.listener.addr,
 });
 
-async function handleMessage(
+function handleMessage(
   message: IMessage<any>,
-): Promise<IMessage> {
+): IMessage {
   switch (message.type) {
     case "openPeerConnectionRequest":
       if (peers[message.payload.peerIp]) {
@@ -95,7 +95,7 @@ async function handleMessage(
   }
 }
 
-self.onmessage = async (e: MessageEvent) => {
+self.onmessage = (e: MessageEvent) => {
   const message: IMessage<{
     peerIp: string;
     sourceId: string;
@@ -114,7 +114,7 @@ self.onmessage = async (e: MessageEvent) => {
 
   // If it's "worker", handle message here
   } else if (destination == "net.worker") {
-    self.postMessage(await handleMessage(message));
+    self.postMessage(handleMessage(message));
 
   // If it's "ui" send it to all UIs connected
   } else if (destination == "ui") {
