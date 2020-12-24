@@ -24,7 +24,7 @@ export default class Net {
     this.messages = messages;
 
     // START THE WORKER
-    this.worker = new Worker(new URL("./net.worker.ts", import.meta.url).href, {
+    this.worker = new Worker(new URL("net.worker.ts", import.meta.url).href, {
       type: "module",
       deno: true,
     });
