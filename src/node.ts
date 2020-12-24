@@ -26,7 +26,9 @@ export default class Node {
   private heartBeatCounter: number = 1;
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 30;
   private heartBeatIntervalId: number | undefined;
-  private electionTimeout: number = this.args["etimeout"] ? this.args["etimeout"] : (Math.random() + 0.150) * 1000;
+  private electionTimeout: number = this.args["etimeout"]
+    ? this.args["etimeout"]
+    : (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
 
   constructor() {
@@ -266,34 +268,49 @@ export default class Node {
           }
         }, this.electionTimeout);
 
-        const report: {
-          commited: ILog[];
-          appended: ILog[];
-        } = this.store.sync(message.payload.wal);
+        this.store.sync(message.payload.wal)
+          .then((report: {
+            commited: ILog[];
+            appended: ILog[];
+          }) => {
+            // Commited logs are logged locally
+            for (const log of report.commited) {
+              this.messages.setValue({
+                type: "commitedLog",
+                source: "node",
+                destination: "log",
+                payload: {
+                  log: log,
+                },
+              });
+            }
 
-        // Commited logs are logged locally
-        for (const log of report.commited) {
-          this.messages.setValue({
-            type: "commitedLog",
-            source: "node",
-            destination: "log",
-            payload: {
-              log: log,
-            },
-          });
-        }
+            // Appended logs are notified to the leader
+            for (const log of report.appended) {
+              this.messages.setValue({
+                type: "KVOpAccepted",
+                source: "node",
+                destination: message.source,
+                payload: {
+                  log: log,
+                },
+              });
+            }
 
-        // Appended logs are notified to the leader
-        for (const log of report.appended) {
-          this.messages.setValue({
-            type: "KVOpAccepted",
-            source: "node",
-            destination: message.source,
-            payload: {
-              log: log,
-            },
+            return report;
+          }).then((report: {
+            commited: ILog[];
+            appended: ILog[];
+          }) => {
+            this.messages.setValue({
+              type: "KVOpStoreSyncComplete",
+              source: "node",
+              destination: "log",
+              payload: {
+                report: report,
+              },
+            });
           });
-        }
         break;
       case "KVOpAccepted":
         let log: ILog = message.payload.log;
@@ -310,18 +327,34 @@ export default class Node {
             },
           });
         } else if (votes >= this.net.quorum) {
-          log = this.store.commit(log);
-
-          this.messages.setValue({
-            type: "KVOpRequestComplete",
-            source: "node",
-            destination: "node",
-            payload: {
-              log: log,
-              votes: votes,
-              qorum: this.net.quorum,
-            },
-          });
+          this.store.commit(log)
+            .then((commited: ILog) => {
+              if (commited.commited) {
+                this.messages.setValue({
+                  type: "KVOpRequestComplete",
+                  source: "node",
+                  destination: "node",
+                  payload: {
+                    log: commited,
+                    votes: votes,
+                    qorum: this.net.quorum,
+                    commited: false,
+                  },
+                });
+              } else {
+                this.messages.setValue({
+                  type: "KVOpRequestIncomplete",
+                  source: "node",
+                  destination: "log",
+                  payload: {
+                    log: log,
+                    votes: votes,
+                    qorum: this.net.quorum,
+                    commited: false,
+                  },
+                });
+              }
+            });
         } else {
           this.messages.setValue({
             type: "KVOpAcceptedReceived",

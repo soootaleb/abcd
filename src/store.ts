@@ -9,6 +9,9 @@ export default class Store {
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
 
+  private _fwal: Deno.File;
+  private _encoder: TextEncoder;
+
   public get buffer() {
     const outcome = {...this._buffer};
     this._buffer = {};
@@ -23,6 +26,10 @@ export default class Store {
         this.handleMessage(message);
       }
     });
+
+    this._encoder = new TextEncoder();
+
+    this._fwal = Deno.openSync('/app/data/abcd.wal', { write: true });
   }
 
   private handleMessage(message: IMessage) {
@@ -87,33 +94,61 @@ export default class Store {
     return this._store[key];
   }
 
-  public commit(log: ILog): ILog {
-    const key: string = log.next.key;
+  private async persist(log: ILog): Promise<Boolean> {
+    // return Promise.resolve(true);
+    const bytes = this._encoder.encode(JSON.stringify(log));
+    return this._fwal.write(bytes)
+      .then((written: number) => {
+        return Deno.fsync(this._fwal.rid)
+          .then(() => {
+            return written === bytes.length;
+          })
+        
+      }).catch(() => false);
+  }
 
-    // Now in memory useless
-    // [TODO] Append commit to WAL on disk befre setting commited = true
-    // Wall append should be much faster when files i/o are involved
-    // [TODO] Commit only if the timestamp is the highest regarding the key (later use MVCC)
+  public async commit(log: ILog): Promise<ILog> {
 
-    this.wget(key).push(log);
+    // [TODO] Commit only if the timestamp (term?) is the highest regarding the key (later use MVCC)
 
-    log.commited = true;
+    return this.persist(log)
+      .then((ok: Boolean) => {
 
-    this.bget(key).push(log);
+        const key: string = log.next.key;
 
-    this._store[key] = log.next;
-    delete this._votes[key];
+        if (ok) {
+          this.wget(key).push(log);
 
-    this.messages.setValue({
-      type: "commitCall",
-      source: "store",
-      destination: "log",
-      payload: {
-        log: log,
-      },
-    });
+          log.commited = true;
+      
+          this.bget(key).push(log);
+      
+          this._store[key] = log.next;
+          delete this._votes[key];
+      
+          this.messages.setValue({
+            type: "commitSuccess",
+            source: "store",
+            destination: "log",
+            payload: {
+              log: log
+            },
+          });
 
-    return log;
+          return log;
+        } else {
+          this.messages.setValue({
+            type: "commitFail",
+            source: "store",
+            destination: "log",
+            payload: {
+              log: log
+            }
+          });
+
+          return log;
+        }
+      })
   }
 
   public empty() {
@@ -130,10 +165,10 @@ export default class Store {
    * @param wal the incoming wal from which to sync the current node's wall
    * @returns a report listing the logs that have been commited & the ones appended only (for the node to notify the leader)
    */
-  public sync(wal: IWal): {
+  public async sync(wal: IWal): Promise<{
     commited: ILog[];
     appended: ILog[];
-  } {
+  }> {
     const report: {
       commited: ILog[];
       appended: ILog[];
@@ -163,7 +198,21 @@ export default class Store {
 
           // It's important to call .commit() instead of just .append() with log.commited = true
           // That's because later, .commit() will actually perform I/O operations that .append() won't
-          this.commit(log);
+          await this.commit(log)
+            .then((commited: ILog) => {
+              if (commited.commited) {
+                report.commited.push(log)
+              } else {
+                this.messages.setValue({
+                  type: "commitingLogFailed",
+                  source: "store",
+                  destination: "log",
+                  payload: {
+                    log: log
+                  }
+                })
+              }
+            });
 
           report.commited.push(log);
         } else {
