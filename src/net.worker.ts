@@ -31,9 +31,7 @@ self.postMessage({
   payload: server.listener.addr,
 });
 
-async function handleMessage(
-  message: IMessage<any>,
-): Promise<IMessage> {
+function handleMessage(message: IMessage<any>): IMessage {
   switch (message.type) {
     case "openPeerConnectionRequest":
       if (peers[message.payload.peerIp]) {
@@ -52,6 +50,14 @@ async function handleMessage(
 
       sock.onopen = () => {
         peers[message.payload.peerIp] = sock;
+        self.postMessage({
+          type: "peerConnectionSuccess",
+          source: "net.worker",
+          destination: "log",
+          payload: {
+            peerIp: message.payload.peerIp,
+          },
+        });
       }
 
       sock.onmessage = (ev: MessageEvent) => {
@@ -63,19 +69,30 @@ async function handleMessage(
       }
 
       sock.onclose = (ev: CloseEvent) => {
-        delete peers[message.payload.peerIp];
-        return {
-          type: "peerConnectionClose",
-          source: "net.worker",
-          destination: "net",
-          payload: {
-            peerIp: message.payload.peerIp,
-          },
-        };
+        if (peers[message.payload.peerIp]) {
+          delete peers[message.payload.peerIp];
+          self.postMessage({
+            type: "peerConnectionClose",
+            source: "net.worker",
+            destination: "net",
+            payload: {
+              peerIp: message.payload.peerIp,
+            },
+          });
+        } else {
+          self.postMessage({
+            type: "peerConnectionFailed",
+            source: "net.worker",
+            destination: "net",
+            payload: {
+              peerIp: message.payload.peerIp,
+            },
+          });
+        }
       }
 
       return {
-        type: "peerConnectionSuccess",
+        type: "peerConnectionPending",
         source: "net.worker",
         destination: "log",
         payload: {
@@ -114,7 +131,7 @@ self.onmessage = async (e: MessageEvent) => {
 
   // If it's "worker", handle message here
   } else if (destination == "net.worker") {
-    self.postMessage(await handleMessage(message));
+    self.postMessage(handleMessage(message));
 
   // If it's "ui" send it to all UIs connected
   } else if (destination == "ui") {
