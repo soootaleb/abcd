@@ -50,32 +50,11 @@ export default class Logger {
     if (
       this.console && !["heartBeat", "uiLogMessage"].includes(message.type)
     ) {
-      console.log(
-        c.bgWhite(
-          "                                                                                   ",
-        ),
-      );
-      if (message.type == "serverStarted") {
-        console.log(
-          c.bgBrightMagenta(
-            c.brightYellow(
-              c.bold(
-                `[${message.source}]->[${message.destination}][${message.type}]${
-                  JSON.stringify(message.payload)
-                }`,
-              ),
-            ),
-          ),
-        );
-      } else {
-        console.log(
-          c.gray(
-            `[${message.source}]->[${message.destination}][${message.type}]${
-              JSON.stringify(message.payload)
-            }`,
-          ),
-        );
-      }
+      const icon = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.destination) ? "🟢"
+            : /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.source) ? "🔵"
+            : "🔄"
+      const log = `${icon}[${message.source}]->[${message.destination}][${message.type}]${JSON.stringify(message.payload)}`;
+      message.type == "serverStarted" ? console.log(c.bold(log)) : console.log(log)
     }
   }
 
