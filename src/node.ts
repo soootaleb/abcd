@@ -192,7 +192,15 @@ export default class Node {
 
         break;
       default:
-        throw new Error(`Invalid transitionTo("${to}")`);
+        this.messages.setValue({
+          type: "invalidTransitionToState",
+          source: "node",
+          destination: "log",
+          payload: {
+            currentState: this.state,
+            transitionTo: to
+          }
+        });
     }
   }
 
