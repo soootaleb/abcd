@@ -449,6 +449,15 @@ export default class Node {
           },
         });
 
+        this.messages.setValue({
+          type: "activateDiscovery",
+          source: "node",
+          destination: "discovery",
+          payload: {
+            discover: false,
+          },
+        });
+
         for (const peerIp of Object.keys(message.payload.knownPeers)) {
           if (!Object.keys(this.net.peers).includes(peerIp)) {
             this.messages.setValue({
@@ -482,6 +491,15 @@ export default class Node {
             term: this.term,
             knownPeers: knownPeers,
             wal: this.store.wal,
+          },
+        });
+
+        this.messages.setValue({
+          type: "activateDiscovery",
+          source: "node",
+          destination: "discovery",
+          payload: {
+            discover: false,
           },
         });
         break;
@@ -554,7 +572,16 @@ export default class Node {
           payload: message.payload,
         });
         break;
-    
+      case "discoveryBeaconReceived":
+        this.messages.setValue({
+          type: "openPeerConnectionRequest",
+          source: "node",
+          destination: "net",
+          payload: {
+            peerIp: message.payload.addr.hostname,
+          },
+        });
+        break;
       default:
         break;
     }

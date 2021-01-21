@@ -7,7 +7,8 @@ export default class Discovery {
   private worker: Worker;
   private messages: Observe<IMessage>;
 
-  private discoveryBeanconInterval = 3000;
+  private discover = true;
+  private discoveryBeaconInterval = 3000;
 
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
@@ -30,20 +31,24 @@ export default class Discovery {
     });
 
     setInterval(() => {
-      this.messages.setValue({
-        type: "sendDiscoveryBeancon",
-        source: "discovery",
-        destination: "discovery.worker",
-        payload: {}
-      });
-    }, this.discoveryBeanconInterval)
+      if (this.discover) {
+        this.messages.setValue({
+          type: "sendDiscoveryBeacon",
+          source: "discovery",
+          destination: "discovery.worker",
+          payload: {}
+        });
+      }
+    }, this.discoveryBeaconInterval)
   }
 
   /**
    * Method to handle message with destination DISCOVERY
    * @param message message with destination == "discovery"
    */
-  private handleMessage(message: IMessage) {
+  private handleMessage(message: IMessage<{
+    discover: boolean
+  }>) {
     switch (message.type) {
       case "discoveryServerStarted":
         this.messages.setValue({
@@ -57,9 +62,12 @@ export default class Discovery {
         this.messages.setValue({
           type: "discoveryBeaconReceived",
           source: "discovery",
-          destination: "log",
+          destination: "node",
           payload: message.payload,
         });
+        break;
+      case "activateDiscovery":
+        this.discover = message.payload.discover;
         break;
       default:
         this.messages.setValue({

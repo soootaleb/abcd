@@ -39,10 +39,10 @@ self.postMessage({
 
 function handleMessage(message: IMessage<any>): IMessage {
   switch (message.type) {
-    case "sendDiscoveryBeancon":
+    case "sendDiscoveryBeacon":
       server.send(encoder.encode(token), multicast);
       return {
-        type: "discoveryBeanconSent",
+        type: "discoveryBeaconSent",
         source: "discovery.worker",
         destination: "log",
         payload: {
