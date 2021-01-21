@@ -6,10 +6,20 @@ import type { IMessage } from "./interface.ts";
 export default class Logger {
   private messages: Observe<IMessage>;
 
-  private console: Boolean = false;
+  private console = false;
 
-  private uiMessagesActivated: Boolean = false;
-  private uiRefreshActivated: Boolean = false;
+  private uiMessagesActivated = false;
+  private uiRefreshActivated = false;
+
+  private static consoleIgnoredMessages = [
+    "heartBeat",
+    "uiLogMessage",
+    "discoveryBeaconSent",
+    "sendDiscoveryBeacon",
+    "discoveryBeaconReceived"
+  ]
+
+  private static uiIgnoredMessages = Logger.consoleIgnoredMessages;
 
   constructor(messages: Observe<IMessage>, args: Args) {
     this.messages = messages;
@@ -24,7 +34,7 @@ export default class Logger {
   }
 
   private log(message: IMessage) {
-    if (message.destination != "ui" && message.type != "heartBeat") {
+    if (message.destination != "ui" && !Logger.uiIgnoredMessages.includes(message.type)) {
       /**
            * We wrap the messages for UI in another messages
            * - source is the current node sending the messages (so the UI can know it & deal with multiple nodes)
@@ -47,14 +57,12 @@ export default class Logger {
       }
     }
 
-    if (
-      this.console && !["heartBeat", "uiLogMessage"].includes(message.type)
-    ) {
+    if (this.console && !Logger.consoleIgnoredMessages.includes(message.type)) {
       const icon = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.destination) ? "🟢"
             : /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.source) ? "🔵"
             : "🔄"
       const log = `${icon}[${message.source}]->[${message.destination}][${message.type}]${JSON.stringify(message.payload)}`;
-      message.type == "serverStarted" ? console.log(c.bold(log)) : console.log(log)
+      console.log(log)
     }
   }
 
