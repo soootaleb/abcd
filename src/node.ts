@@ -15,6 +15,7 @@ export default class Node {
   private uiRefreshTimeout: number = this.args["ui"] ? this.args["ui"] : 100;
 
   private messages: Observe<IMessage>;
+  private leader = "";
   private requests: { [key: string]: string } = {};
 
   private net: Net;
@@ -85,8 +86,6 @@ export default class Node {
     this.store.reset();
 
     switch (to) {
-      case "starting":
-        
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
           if (this.run) {
@@ -259,10 +258,13 @@ export default class Node {
           this.messages.setValue({
             type: "KVOpReceivedButNotLeader",
             source: "node",
-            destination: "log",
+            destination: message.source,
             payload: {
-              key: message.payload.key,
-              value: message.payload.value,
+              request: {
+                key: message.payload.key,
+                value: message.payload.value,
+              },
+              leader: this.leader
             },
           });
         }
@@ -297,6 +299,7 @@ export default class Node {
           break;
         }
 
+        this.leader = message.source;
         this.heartBeatCounter += 1;
 
         clearTimeout(this.electionTimeoutId);
