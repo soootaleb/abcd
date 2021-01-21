@@ -3,10 +3,17 @@ import type { IMessage } from "./interface.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 
 export default class Net {
+
+  private _ready = false;
   private _peers: { [key: string]: { peerIp: string } } = {};
   private _clients: { [key: string]: { clientIp: string } } = {};
+  
   private worker: Worker;
   private messages: Observe<IMessage>;
+
+  public get ready() {
+    return this._ready;
+  }
 
   public get peers() {
     return this._peers;
@@ -119,6 +126,15 @@ export default class Net {
           source: "net",
           destination: "log",
           payload: message.payload,
+        });
+        break;
+      case "peerServerStarted":
+        this._ready = true;
+        this.messages.setValue({
+          type: "peerServerStarted",
+          source: "net",
+          destination: "node",
+          payload: message.payload
         });
         break;
       default:

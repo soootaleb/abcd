@@ -25,9 +25,9 @@ const peers: { [key: string]: DenoWS | WebSocket } = {};
 const clients: { [key: string]: DenoWS } = {};
 
 self.postMessage({
-  type: "serverStarted",
+  type: "peerServerStarted",
   source: "net.worker",
-  destination: "node",
+  destination: "net",
   payload: server.listener.addr,
 });
 
@@ -47,9 +47,9 @@ function handleMessage(message: IMessage<any>): IMessage {
       }
 
       const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`)
+      peers[message.payload.peerIp] = sock;
 
       sock.onopen = () => {
-        peers[message.payload.peerIp] = sock;
         self.postMessage({
           type: "peerConnectionSuccess",
           source: "net.worker",
@@ -116,7 +116,7 @@ self.onmessage = async (e: MessageEvent) => {
   const message: IMessage<{
     peerIp: string;
     sourceId: string;
-    data: Object;
+    data: Record<string, unknown>;
   }> = e.data;
 
   const destination = message.destination;

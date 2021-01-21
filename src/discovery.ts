@@ -7,8 +7,11 @@ export default class Discovery {
   private worker: Worker;
   private messages: Observe<IMessage>;
 
-  private discover = true;
-  private discoveryBeaconInterval = 3000;
+  private _ready = false;
+
+  public get ready() {
+    return this._ready;
+  }
 
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
@@ -29,17 +32,6 @@ export default class Discovery {
         this.worker.postMessage(message);
       }
     });
-
-    setInterval(() => {
-      if (this.discover) {
-        this.messages.setValue({
-          type: "sendDiscoveryBeacon",
-          source: "discovery",
-          destination: "discovery.worker",
-          payload: {}
-        });
-      }
-    }, this.discoveryBeaconInterval)
   }
 
   /**
@@ -50,24 +42,34 @@ export default class Discovery {
     discover: boolean
   }>) {
     switch (message.type) {
+      case "sendDiscoveryBeacon":
+        if (this.ready) {
+          this.messages.setValue({
+            type: "sendDiscoveryBeacon",
+            source: "discovery",
+            destination: "discovery.worker",
+            payload: {}
+          });
+        } else {
+          this.messages.setValue({
+            type: "sendDiscoveryBeaconFailed",
+            source: "discovery",
+            destination: "log",
+            payload: {
+              reason: "discoveryServiceNotReady",
+              ready: this.ready
+            }
+          })
+        }
+        break;
       case "discoveryServerStarted":
+        this._ready = true;
         this.messages.setValue({
           type: "discoveryServerStarted",
           source: "discovery",
-          destination: "log",
-          payload: message.payload,
-        });
-        break;
-      case "discoveryBeacon":
-        this.messages.setValue({
-          type: "discoveryBeaconReceived",
-          source: "discovery",
           destination: "node",
-          payload: message.payload,
+          payload: {}
         });
-        break;
-      case "activateDiscovery":
-        this.discover = message.payload.discover;
         break;
       default:
         this.messages.setValue({

@@ -15,13 +15,7 @@ import type { IMessage } from "./interface.ts";
 
 declare const self: Worker;
 
-const server = Deno.listenDatagram(
-  { port: 8888, transport: "udp", hostname: "0.0.0.0" },
-);
-
-//   let uis: DenoWS[] = [];
-//   let peers: { [key: string]: DenoWS | WebSocket } = {};
-//   let clients: { [key: string]: DenoWS } = {};
+const server = Deno.listenDatagram({ port: 8888, transport: "udp", hostname: "0.0.0.0" });
 
 const token = Math.random().toString(36).substring(7);
 const encoder = new TextEncoder();
@@ -32,9 +26,7 @@ self.postMessage({
   type: "discoveryServerStarted",
   source: "discovery.worker",
   destination: "discovery",
-  payload: {
-    token: token
-  },
+  payload: { token: token },
 });
 
 function handleMessage(message: IMessage<any>): IMessage {
@@ -89,9 +81,9 @@ for await (const datagram of server) {
 
   if (decoder.decode(data) !== token) {
     self.postMessage({
-      type: "discoveryBeacon",
+      type: "discoveryBeaconReceived",
       source: addr.hostname,
-      destination: "discovery",
+      destination: "node",
       payload: {
         addr: addr,
         token: decoder.decode(data)

@@ -6,7 +6,7 @@ import Store from "./store.ts";
 import Logger from "./logger.ts";
 import Discovery from "./discovery.ts";
 
-export type TState = "leader" | "follower" | "candidate";
+export type TState = "leader" | "follower" | "candidate" | "starting";
 
 export default class Node {
   private args: Args = parse(Deno.args);
@@ -20,7 +20,7 @@ export default class Node {
   private net: Net;
   private store: Store;
   private logger: Logger;
-  private state: TState = "follower";
+  private state: TState = "starting";
   private discovery: Discovery;
 
   private term = 0;
@@ -30,6 +30,8 @@ export default class Node {
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"] ? this.args["etimeout"] : (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
+  
+  private discoveryBeaconIntervalId: number | undefined;
 
   constructor() {
     this.messages = new Observe<IMessage>({
@@ -48,8 +50,6 @@ export default class Node {
           this.handleClientMessage(message);
         } else if (message.source == "ui") {
           this.handleUiMessage(message);
-        } else if (message.source == "discovery") {
-          this.handleDiscoveryMessage(message);
         } else {
           this.handleMessage(message);
         }
@@ -80,10 +80,13 @@ export default class Node {
 
     clearTimeout(this.electionTimeoutId);
     clearInterval(this.heartBeatIntervalId);
+    clearInterval(this.discoveryBeaconIntervalId);
 
     this.store.reset();
 
     switch (to) {
+      case "starting":
+        
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
           if (this.run) {
@@ -118,6 +121,17 @@ export default class Node {
               });
               this.heartBeatCounter += 1;
             }
+          }
+        }, this.heartBeatInterval);
+
+        this.discoveryBeaconIntervalId = setInterval(() => {
+          if (this.run) {
+            this.messages.setValue({
+              type: "sendDiscoveryBeacon",
+              source: "node",
+              destination: "discovery",
+              payload: {},
+            });
           }
         }, this.heartBeatInterval);
 
@@ -261,6 +275,7 @@ export default class Node {
   private handleMessage(message: IMessage<{
     wal: IWal,
     log: ILog,
+    addr: Deno.NetAddr,
     term: number,
     peerIp: string,
     voteGranted: boolean,
@@ -449,15 +464,6 @@ export default class Node {
           },
         });
 
-        this.messages.setValue({
-          type: "activateDiscovery",
-          source: "node",
-          destination: "discovery",
-          payload: {
-            discover: false,
-          },
-        });
-
         for (const peerIp of Object.keys(message.payload.knownPeers)) {
           if (!Object.keys(this.net.peers).includes(peerIp)) {
             this.messages.setValue({
@@ -493,15 +499,6 @@ export default class Node {
             wal: this.store.wal,
           },
         });
-
-        this.messages.setValue({
-          type: "activateDiscovery",
-          source: "node",
-          destination: "discovery",
-          payload: {
-            discover: false,
-          },
-        });
         break;
       }
       case "peerConnectionClose":
@@ -534,19 +531,22 @@ export default class Node {
           },
         });
         break;
-      case "serverStarted":
-        if (this.args["join"]) {
+      case "peerServerStarted":
+      case "discoveryServerStarted":
+        if (this.net.ready && this.discovery.ready) {
           this.transitionFunction("follower");
+        }
+        break;
+      case "discoveryBeaconReceived":
+        if (!Object.keys(this.net.peers).length) {
           this.messages.setValue({
             type: "openPeerConnectionRequest",
             source: "node",
             destination: "net",
             payload: {
-              peerIp: this.args["join"],
+              peerIp: message.payload.addr.hostname,
             },
           });
-        } else {
-          this.transitionFunction("leader");
         }
         break;
       default:
@@ -558,31 +558,6 @@ export default class Node {
             message: message,
           },
         });
-        break;
-    }
-  }
-
-  private handleDiscoveryMessage(message: IMessage<any>) {
-    switch (message.type) {
-      case "discoveryServerStarted":
-        this.messages.setValue({
-          type: "discoveryServerStarted",
-          source: "node",
-          destination: "log",
-          payload: message.payload,
-        });
-        break;
-      case "discoveryBeaconReceived":
-        this.messages.setValue({
-          type: "openPeerConnectionRequest",
-          source: "node",
-          destination: "net",
-          payload: {
-            peerIp: message.payload.addr.hostname,
-          },
-        });
-        break;
-      default:
         break;
     }
   }
