@@ -21,6 +21,7 @@ export default class Node {
   private store: Store;
   private logger: Logger;
   private state: TState = "follower";
+  private discovery: Discovery;
 
   private term = 0;
   private votesCounter = 0;
@@ -47,6 +48,8 @@ export default class Node {
           this.handleClientMessage(message);
         } else if (message.source == "ui") {
           this.handleUiMessage(message);
+        } else if (message.source == "discovery") {
+          this.handleDiscoveryMessage(message);
         } else {
           this.handleMessage(message);
         }
@@ -55,6 +58,7 @@ export default class Node {
 
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
+    this.discovery = new Discovery(this.messages);
 
     setInterval(() => {
       this.logger.ui({
@@ -536,6 +540,22 @@ export default class Node {
             message: message,
           },
         });
+        break;
+    }
+  }
+
+  private handleDiscoveryMessage(message: IMessage<any>) {
+    switch (message.type) {
+      case "discoveryServerStarted":
+        this.messages.setValue({
+          type: "discoveryServerStarted",
+          source: "node",
+          destination: "log",
+          payload: message.payload,
+        });
+        break;
+    
+      default:
         break;
     }
   }

@@ -21,8 +21,8 @@ const server = serve({
 });
 
 let uis: DenoWS[] = [];
-let peers: { [key: string]: DenoWS | WebSocket } = {};
-let clients: { [key: string]: DenoWS } = {};
+const peers: { [key: string]: DenoWS | WebSocket } = {};
+const clients: { [key: string]: DenoWS } = {};
 
 self.postMessage({
   type: "serverStarted",
@@ -33,7 +33,7 @@ self.postMessage({
 
 function handleMessage(message: IMessage<any>): IMessage {
   switch (message.type) {
-    case "openPeerConnectionRequest":
+    case "openPeerConnectionRequest": {
       if (peers[message.payload.peerIp]) {
         return {
           type: "openPeerConnectionFail",
@@ -99,7 +99,7 @@ function handleMessage(message: IMessage<any>): IMessage {
           peerIp: message.payload.peerIp,
         },
       };
-      break;
+    }
     default:
       return {
         type: "invalidMessageType",
