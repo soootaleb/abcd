@@ -1,4 +1,4 @@
-export interface IMessage<T = Object> {
+export interface IMessage<T = Record<string, unknown>> {
   type: string;
   source: string;
   destination: string;
@@ -12,7 +12,7 @@ export interface IKeyValue<T = string | number> {
 
 export interface ILog<T = string | number> {
   action: "put";
-  commited: Boolean;
+  commited: boolean;
   timestamp: number;
   previous?: IKeyValue<T>;
   next: IKeyValue<T>;
