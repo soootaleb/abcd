@@ -1,16 +1,17 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { Args, parse } from "https://deno.land/std/flags/mod.ts";
-import type { IKeyValue, ILog, IMessage } from "./interface.ts";
+import type { IKeyValue, ILog, IMessage, IWal } from "./interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Logger from "./logger.ts";
+import Discovery from "./discovery.ts";
 
 export type TState = "leader" | "follower" | "candidate";
 
 export default class Node {
   private args: Args = parse(Deno.args);
 
-  private run: Boolean = true;
+  private run = true;
   private uiRefreshTimeout: number = this.args["ui"] ? this.args["ui"] : 100;
 
   private messages: Observe<IMessage>;
@@ -21,9 +22,9 @@ export default class Node {
   private logger: Logger;
   private state: TState = "follower";
 
-  private term: number = 0;
-  private votesCounter: number = 0;
-  private heartBeatCounter: number = 1;
+  private term = 0;
+  private votesCounter = 0;
+  private heartBeatCounter = 1;
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 30;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"] ? this.args["etimeout"] : (Math.random() + 0.150) * 1000;
@@ -177,7 +178,9 @@ export default class Node {
     }
   }
 
-  private handleUiMessage(message: IMessage<any>) {
+  private handleUiMessage(message: IMessage<{
+    state: TState
+  }>) {
     switch (message.type) {
       case "setState":
         this.transitionFunction(message.payload.state);
@@ -201,7 +204,10 @@ export default class Node {
     }
   }
 
-  private handleClientMessage(message: IMessage<any>) {
+  private handleClientMessage(message: IMessage<{
+    key: string,
+    value: string
+  }>) {
     switch (message.type) {
       case "clearStore":
         this.store.empty();
@@ -210,7 +216,7 @@ export default class Node {
         if (this.state == "leader") {
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected (or use MVCC)
-          let log = this.store.set(message.payload.key, message.payload.value);
+          const log = this.store.set(message.payload.key, message.payload.value);
 
           this.requests[log.timestamp + log.action + log.next.key] =
             message.source;
@@ -248,9 +254,17 @@ export default class Node {
     }
   }
 
-  private handleMessage(message: IMessage<any>) {
+  private handleMessage(message: IMessage<{
+    wal: IWal,
+    log: ILog,
+    term: number,
+    peerIp: string,
+    voteGranted: boolean,
+    knownPeers: { [key: string]: { peerIp: string } },
+    clientIp: string
+  }>) {
     switch (message.type) {
-      case "heartBeat":
+      case "heartBeat": {
         if (this.state === "candidate") {
           this.transitionFunction("follower");
           break;
@@ -295,7 +309,8 @@ export default class Node {
           });
         }
         break;
-      case "KVOpAccepted":
+      }
+      case "KVOpAccepted": {
         let log: ILog = message.payload.log;
 
         const votes: number = this.store.voteFor(log.next.key);
@@ -335,7 +350,8 @@ export default class Node {
           });
         }
         break;
-      case "KVOpRequestComplete":
+      }
+      case "KVOpRequestComplete": {
         const l: ILog = message.payload.log;
         const key: string = l.timestamp + l.action + l.next.key;
         const client = this.requests[key];
@@ -349,6 +365,7 @@ export default class Node {
           },
         });
         break;
+      }
       case "newTerm":
         if (message.payload.term > this.term) {
           this.term = message.payload.term;
@@ -441,7 +458,7 @@ export default class Node {
           }
         }
         break;
-      case "peerConnectionOpen":
+      case "peerConnectionOpen": {
         // Duplicate known peers before adding the new one (it already knows itself...)
         const knownPeers = { ...this.net.peers };
 
@@ -464,6 +481,7 @@ export default class Node {
           },
         });
         break;
+      }
       case "peerConnectionClose":
         this.messages.setValue({
           type: "peerConnectionClose",
