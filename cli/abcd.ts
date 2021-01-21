@@ -115,4 +115,6 @@ ws.onmessage = (ev) => {
       });
     }
   }
+
+  console.log(message)
 };
