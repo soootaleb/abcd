@@ -59,6 +59,8 @@ export default class Node {
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
     this.discovery = new Discovery(this.messages);
+    
+    this.discovery.protocol = typeof this.args["discovery"] === "string" ? this.args["discovery"] : Discovery.DEFAULT;
 
     setInterval(() => {
       this.logger.ui({
@@ -86,7 +88,7 @@ export default class Node {
 
     switch (to) {
       case "starting":
-        
+        break;
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
           if (this.run) {
@@ -289,10 +291,12 @@ export default class Node {
     voteGranted: boolean,
     knownPeers: { [key: string]: { peerIp: string } },
     clientIp: string
+    success: boolean,
+    result: string
   }>) {
     switch (message.type) {
       case "heartBeat": {
-        if (this.state === "candidate") {
+        if (this.state === "candidate" || this.state === "starting") {
           this.transitionFunction("follower");
           break;
         }
@@ -542,19 +546,38 @@ export default class Node {
       case "peerServerStarted":
       case "discoveryServerStarted":
         if (this.net.ready && this.discovery.ready) {
-          this.transitionFunction("follower");
+          this.discovery.discover();
         }
         break;
-      case "discoveryBeaconReceived":
-        if (!Object.keys(this.net.peers).length) {
+      case "discoveryResult":
+        if (message.payload.success) {
           this.messages.setValue({
             type: "openPeerConnectionRequest",
             source: "node",
             destination: "net",
             payload: {
-              peerIp: message.payload.addr.hostname,
-            },
-          });
+              peerIp: message.payload.result
+            }
+          })
+          this.messages.setValue({
+            type: "nodeReady",
+            source: "node",
+            destination: "net.worker",
+            payload: {
+              ready: true
+            }
+          })
+          this.transitionFunction("follower");
+        } else {
+          this.transitionFunction("leader");
+          this.messages.setValue({
+            type: "nodeReady",
+            source: "node",
+            destination: "net.worker",
+            payload: {
+              ready: true
+            }
+          })
         }
         break;
       default:
