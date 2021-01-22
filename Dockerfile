@@ -14,4 +14,6 @@ EXPOSE 8080
 WORKDIR /app
 COPY . /app
 
+RUN deno cache --reload --unstable main.ts
+
 CMD deno run --unstable --allow-write --allow-net --allow-read main.ts

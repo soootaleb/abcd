@@ -83,6 +83,11 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 > Now all nodes are started the same way and use **peer discovery** to connect to an existing cluster
 
+- Node uses UDP discovery by default (need nodes to be in the same subnet)
+- HTTP discovery can be specified with --discovery  (requires ABCD_NODE_IP & ABCD_CLUSTER_HOSTNAME to be defined)
+
+> Cluser discovery can be achieve using two different protocols depending on the environment
+
 # Next steps
 
 ## Architecture

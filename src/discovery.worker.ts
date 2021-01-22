@@ -22,6 +22,8 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8");
 const multicast: Deno.NetAddr = { port: 8888, transport: "udp", hostname: "224.0.0.1"};
 
+const knownTokens: string[] = [];
+
 self.postMessage({
   type: "discoveryServerStarted",
   source: "discovery.worker",
@@ -79,11 +81,12 @@ self.onmessage = async (e: MessageEvent) => {
 for await (const datagram of server) {
   const [data, addr] = datagram as [Uint8Array, Deno.NetAddr];
 
-  if (decoder.decode(data) !== token) {
+  if (decoder.decode(data) !== token && !knownTokens.includes(token)) {
+    knownTokens.push(token)
     self.postMessage({
       type: "discoveryBeaconReceived",
       source: addr.hostname,
-      destination: "node",
+      destination: "discovery",
       payload: {
         addr: addr,
         token: decoder.decode(data)

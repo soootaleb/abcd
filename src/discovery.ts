@@ -4,10 +4,43 @@ import type Observe from "https://deno.land/x/Observe/Observe.ts";
 
 export default class Discovery {
 
+  public static PROTOCOLS = ["udp", "http"];
+  public static DEFAULT = "udp";
+
   private worker: Worker;
   private messages: Observe<IMessage>;
 
   private _ready = false;
+  private _protocol = "udp";
+
+  public get protocol() {
+    return this._protocol
+  }
+  
+  public set protocol(mode: string) {
+    if (Discovery.PROTOCOLS.includes(mode)) {
+      this._protocol = mode;
+      this.messages.setValue({
+        type: "discoveryProtocolSet",
+        source: "discovery",
+        destination: "log",
+        payload: {
+          protocol: this.protocol
+        }
+      })
+    } else {
+      this.messages.setValue({
+        type: "invalidDiscoveryProtocol",
+        source: "discovery",
+        destination: "log",
+        payload: {
+          invalid: mode,
+          default: Discovery.DEFAULT,
+          available: Discovery.PROTOCOLS
+        }
+      })
+    }
+  }
 
   public get ready() {
     return this._ready;
@@ -40,6 +73,7 @@ export default class Discovery {
    */
   private handleMessage(message: IMessage<{
     discover: boolean
+    addr: Deno.NetAddr
   }>) {
     switch (message.type) {
       case "sendDiscoveryBeacon":
@@ -71,6 +105,11 @@ export default class Discovery {
           payload: {}
         });
         break;
+      case "discoveryBeaconReceived":
+        if (this.protocol === "udp") {
+          this.result(true, message.payload.addr.hostname, "beacon_received");
+        }
+        break;
       default:
         this.messages.setValue({
           type: "invalidMessageType",
@@ -82,5 +121,32 @@ export default class Discovery {
         });
         break;
     }
+  }
+
+  public discover() {
+    if (this.protocol === "http") {
+      const url = "http://" + Deno.env.get("ABCD_CLUSTER_HOSTNAME") + ":8080/discovery"
+      fetch(url).then((response) => response.text())
+        .then((ip) => {
+          this.result(true, ip, "http_success");
+        }).catch((error) => {
+          this.result(false, error.message, "http_fail");
+        })
+    } else {
+      this.result(false, "node called discovery.discover() but protocol is " + this.protocol, "passive_discovery")
+    }
+  }
+
+  private result(success: boolean, result: string, source: string) {
+    this.messages.setValue({
+      type: "discoveryResult",
+      source: "discovery",
+      destination: "node",
+      payload: {
+        success: success,
+        result: result,
+        source: source
+      }
+    })
   }
 }
