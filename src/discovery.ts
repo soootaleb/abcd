@@ -133,7 +133,14 @@ export default class Discovery {
           this.result(false, error.message, "http_fail");
         })
     } else {
-      this.result(false, "node called discovery.discover() but protocol is " + this.protocol, "passive_discovery")
+      this.messages.setValue({
+        type: "passiveDiscoverMode",
+        source: "discovery",
+        destination: "log",
+        payload: {
+          message: "node called discovery.discover() but protocol is " + this.protocol
+        }
+      })
     }
   }
 

@@ -555,6 +555,11 @@ export default class Node {
         }
         break;
       case "discoveryResult":
+
+        if (this.state !== "starting") {
+          break;
+        }
+
         if (message.payload.success) {
           this.messages.setValue({
             type: "openPeerConnectionRequest",
@@ -564,24 +569,18 @@ export default class Node {
               peerIp: message.payload.result
             }
           })
-          this.messages.setValue({
-            type: "nodeReady",
-            source: "node",
-            destination: "net.worker",
-            payload: {
-              ready: true
-            }
-          })
-        } else {
-          this.messages.setValue({
-            type: "nodeReady",
-            source: "node",
-            destination: "net.worker",
-            payload: {
-              ready: true
-            }
-          })
+          
         }
+
+        this.messages.setValue({
+          type: "nodeReady",
+          source: "node",
+          destination: "net.worker",
+          payload: {
+            ready: true
+          }
+        })
+
         this.transitionFunction("follower");
         break;
       default:
