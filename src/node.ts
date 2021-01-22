@@ -572,9 +572,7 @@ export default class Node {
               ready: true
             }
           })
-          this.transitionFunction("follower");
         } else {
-          this.transitionFunction("leader");
           this.messages.setValue({
             type: "nodeReady",
             source: "node",
@@ -584,6 +582,7 @@ export default class Node {
             }
           })
         }
+        this.transitionFunction("follower");
         break;
       default:
         this.messages.setValue({
