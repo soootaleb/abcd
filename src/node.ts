@@ -551,15 +551,28 @@ export default class Node {
       case "peerServerStarted":
       case "discoveryServerStarted":
         if (this.net.ready && this.discovery.ready) {
-          if (this.discovery.protocol === "http") {
-            this.discovery.discover();
-          } else {
-            // Need to go follower if UDP since election timeout without beacon IS the way to end up leader
-            this.transitionFunction("follower");
-          }
+
+          this.discovery.discover();
         }
         break;
       case "discoveryResult":
+
+        // If node is leader or knows a leader, break
+        if (this.state === "leader" || this.leader.length) {
+          this.messages.setValue({
+            type: "discoveredResultIgnored",
+            source: "node",
+            destination: "log",
+            payload: {
+              result: message.payload,
+              state: this.state,
+              leader: this.leader
+            }
+          })
+          break;
+        }
+
+        // If discovery found a node, connect to it
         if (message.payload.success) {
           this.messages.setValue({
             type: "openPeerConnectionRequest",
@@ -569,23 +582,19 @@ export default class Node {
               peerIp: message.payload.result
             }
           })
-          
-          this.messages.setValue({
-            type: "nodeReady",
-            source: "node",
-            destination: "net.worker",
-            payload: {
-              ready: true
-            }
-          })
-  
-          
         }
+        
+        // either way, discovery is finished so node is ready
+        this.messages.setValue({
+          type: "nodeReady",
+          source: "node",
+          destination: "net.worker",
+          payload: {
+            ready: true
+          }
+        })
 
-        // It's possible transitionTo("follower") is called twice
-        // - once when servers are started
-        // - once when receiving a beacon
-        // It's OK since transitionFunction is idempotent
+        // discovery finishes by passing follower (may move to leader if no node found)
         this.transitionFunction("follower");
         break;
       default:
