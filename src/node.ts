@@ -1,33 +1,38 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { Args, parse } from "https://deno.land/std/flags/mod.ts";
-import type { IKeyValue, ILog, IMessage } from "./interface.ts";
+import type { IKeyValue, ILog, IMessage, IWal } from "./interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Logger from "./logger.ts";
+import Discovery from "./discovery.ts";
 
-export type TState = "leader" | "follower" | "candidate";
+export type TState = "leader" | "follower" | "candidate" | "starting";
 
 export default class Node {
   private args: Args = parse(Deno.args);
 
-  private run: Boolean = true;
+  private run = true;
   private uiRefreshTimeout: number = this.args["ui"] ? this.args["ui"] : 100;
 
   private messages: Observe<IMessage>;
+  private leader = "";
   private requests: { [key: string]: string } = {};
 
   private net: Net;
   private store: Store;
   private logger: Logger;
-  private state: TState = "follower";
+  private state: TState = "starting";
+  private discovery: Discovery;
 
-  private term: number = 0;
-  private votesCounter: number = 0;
-  private heartBeatCounter: number = 1;
+  private term = 0;
+  private votesCounter = 0;
+  private heartBeatCounter = 1;
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 30;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"] ? this.args["etimeout"] : (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
+  
+  private discoveryBeaconIntervalId: number | undefined;
 
   constructor() {
     this.messages = new Observe<IMessage>({
@@ -54,6 +59,9 @@ export default class Node {
 
     this.net = new Net(this.messages);
     this.store = new Store(this.messages);
+    this.discovery = new Discovery(this.messages);
+    
+    this.discovery.protocol = typeof this.args["discovery"] === "string" ? this.args["discovery"] : Discovery.DEFAULT;
 
     setInterval(() => {
       this.logger.ui({
@@ -75,10 +83,13 @@ export default class Node {
 
     clearTimeout(this.electionTimeoutId);
     clearInterval(this.heartBeatIntervalId);
+    clearInterval(this.discoveryBeaconIntervalId);
 
     this.store.reset();
 
     switch (to) {
+      case "starting":
+        break;
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
           if (this.run) {
@@ -113,6 +124,17 @@ export default class Node {
               });
               this.heartBeatCounter += 1;
             }
+          }
+        }, this.heartBeatInterval);
+
+        this.discoveryBeaconIntervalId = setInterval(() => {
+          if (this.run) {
+            this.messages.setValue({
+              type: "sendDiscoveryBeacon",
+              source: "node",
+              destination: "discovery",
+              payload: {},
+            });
           }
         }, this.heartBeatInterval);
 
@@ -173,11 +195,21 @@ export default class Node {
 
         break;
       default:
-        throw new Error(`Invalid transitionTo("${to}")`);
+        this.messages.setValue({
+          type: "invalidTransitionToState",
+          source: "node",
+          destination: "log",
+          payload: {
+            currentState: this.state,
+            transitionTo: to
+          }
+        });
     }
   }
 
-  private handleUiMessage(message: IMessage<any>) {
+  private handleUiMessage(message: IMessage<{
+    state: TState
+  }>) {
     switch (message.type) {
       case "setState":
         this.transitionFunction(message.payload.state);
@@ -201,7 +233,10 @@ export default class Node {
     }
   }
 
-  private handleClientMessage(message: IMessage<any>) {
+  private handleClientMessage(message: IMessage<{
+    key: string,
+    value: string
+  }>) {
     switch (message.type) {
       case "clearStore":
         this.store.empty();
@@ -210,7 +245,7 @@ export default class Node {
         if (this.state == "leader") {
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected (or use MVCC)
-          let log = this.store.set(message.payload.key, message.payload.value);
+          const log = this.store.set(message.payload.key, message.payload.value);
 
           this.requests[log.timestamp + log.action + log.next.key] =
             message.source;
@@ -227,10 +262,13 @@ export default class Node {
           this.messages.setValue({
             type: "KVOpReceivedButNotLeader",
             source: "node",
-            destination: "log",
+            destination: message.source,
             payload: {
-              key: message.payload.key,
-              value: message.payload.value,
+              request: {
+                key: message.payload.key,
+                value: message.payload.value,
+              },
+              leader: this.leader
             },
           });
         }
@@ -248,14 +286,26 @@ export default class Node {
     }
   }
 
-  private handleMessage(message: IMessage<any>) {
+  private handleMessage(message: IMessage<{
+    wal: IWal,
+    log: ILog,
+    addr: Deno.NetAddr,
+    term: number,
+    peerIp: string,
+    voteGranted: boolean,
+    knownPeers: { [key: string]: { peerIp: string } },
+    clientIp: string
+    success: boolean,
+    result: string
+  }>) {
     switch (message.type) {
-      case "heartBeat":
-        if (this.state === "candidate") {
+      case "heartBeat": {
+        if (this.state === "candidate" || this.state === "starting") {
           this.transitionFunction("follower");
           break;
         }
 
+        this.leader = message.source;
         this.heartBeatCounter += 1;
 
         clearTimeout(this.electionTimeoutId);
@@ -295,7 +345,8 @@ export default class Node {
           });
         }
         break;
-      case "KVOpAccepted":
+      }
+      case "KVOpAccepted": {
         let log: ILog = message.payload.log;
 
         const votes: number = this.store.voteFor(log.next.key);
@@ -335,7 +386,8 @@ export default class Node {
           });
         }
         break;
-      case "KVOpRequestComplete":
+      }
+      case "KVOpRequestComplete": {
         const l: ILog = message.payload.log;
         const key: string = l.timestamp + l.action + l.next.key;
         const client = this.requests[key];
@@ -349,6 +401,7 @@ export default class Node {
           },
         });
         break;
+      }
       case "newTerm":
         if (message.payload.term > this.term) {
           this.term = message.payload.term;
@@ -441,7 +494,7 @@ export default class Node {
           }
         }
         break;
-      case "peerConnectionOpen":
+      case "peerConnectionOpen": {
         // Duplicate known peers before adding the new one (it already knows itself...)
         const knownPeers = { ...this.net.peers };
 
@@ -464,6 +517,7 @@ export default class Node {
           },
         });
         break;
+      }
       case "peerConnectionClose":
         this.messages.setValue({
           type: "peerConnectionClose",
@@ -494,20 +548,54 @@ export default class Node {
           },
         });
         break;
-      case "serverStarted":
-        if (this.args["join"]) {
-          this.transitionFunction("follower");
+      case "peerServerStarted":
+      case "discoveryServerStarted":
+        if (this.net.ready && this.discovery.ready) {
+
+          this.discovery.discover();
+        }
+        break;
+      case "discoveryResult":
+
+        // If node is leader or knows a leader, break
+        if (this.state === "leader" || this.leader.length) {
+          this.messages.setValue({
+            type: "discoveredResultIgnored",
+            source: "node",
+            destination: "log",
+            payload: {
+              result: message.payload,
+              state: this.state,
+              leader: this.leader
+            }
+          })
+          break;
+        }
+
+        // If discovery found a node, connect to it
+        if (message.payload.success) {
           this.messages.setValue({
             type: "openPeerConnectionRequest",
             source: "node",
             destination: "net",
             payload: {
-              peerIp: this.args["join"],
-            },
-          });
-        } else {
-          this.transitionFunction("leader");
+              peerIp: message.payload.result
+            }
+          })
         }
+        
+        // either way, discovery is finished so node is ready
+        this.messages.setValue({
+          type: "nodeReady",
+          source: "node",
+          destination: "net.worker",
+          payload: {
+            ready: true
+          }
+        })
+
+        // discovery finishes by passing follower (may move to leader if no node found)
+        this.transitionFunction("follower");
         break;
       default:
         this.messages.setValue({

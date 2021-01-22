@@ -74,18 +74,28 @@ This list is a chronological feature implementation. Changes are not reflected b
 - The leader can send KVOpResponse to precise clients once a KVOpRequest has complete
 - Peer .sync() the WAL received from master on peerConnectionAccepted
 
+> Cluster can be deployed on IP machines / containers
+
+- Node start in a "starting" state
+- Node moves to "follower" only after peerServer & discoveryServer are started
+- Node sends multicast UDP datagrams (beacons) if it's master
+- Node connects to the source of a beacon if it doesn't have any peer
+
+> Now all nodes are started the same way and use **peer discovery** to connect to an existing cluster
+
+- Node uses UDP discovery by default (need nodes to be in the same subnet)
+- HTTP discovery can be specified with --discovery  (requires ABCD_NODE_IP & ABCD_CLUSTER_HOSTNAME to be defined)
+
+> Cluser discovery can be achieve using two different protocols depending on the environment
+
 # Next steps
 
 ## Architecture
 
 - KVOpRequests tracing (mon, responses, ...)
-- Streamline commands names
-- Isolate logging
-- Isolate UI logics
 - Differenciate RAFT actions from KVDB actions (get, put, ...)
-- Add CLI arguments to activate UI refresh
-- Add CLI arguments to activate Console logging
 - Add file logging
+- Deploy on Kubernetes
 
 ## Features
 
@@ -102,7 +112,6 @@ This list is a chronological feature implementation. Changes are not reflected b
 - WASI
 
 # Known issues
-
 
 2. Upgrade the voting strategy:
  - grant vote only if latest log is before latest log from candidate calling for vote (https://youtu.be/RHDP_KCrjUc?t=1063)

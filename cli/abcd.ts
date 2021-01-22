@@ -4,7 +4,7 @@ import type { ILog, IMessage } from "../src/interface.ts";
 const ARGS = parse(Deno.args);
 
 const n: number = typeof ARGS["n"] === "number" ? ARGS["n"] : 1;
-const port: string = typeof ARGS["p"] === "string" ? ARGS["p"] : "8080";
+const port: number = typeof ARGS["p"] === "number" ? ARGS["p"] : 8080;
 const addr: string = typeof ARGS["a"] === "string" ? ARGS["a"] : "127.0.0.1";
 const cleanup: boolean = Boolean(ARGS["clean"]);
 const interval: number = ARGS["i"] | 0;
@@ -12,7 +12,7 @@ const duration: number = ARGS["d"] | 0;
 
 const start: number = new Date().getTime();
 
-const ws: WebSocket = new WebSocket("ws://" + addr + ":" + port + "/client");
+const ws: WebSocket = new WebSocket(`${port === 443 ? "wss" : "ws"}://` + addr + ":" + port + "/client");
 
 let mon = {
   objective: n,
@@ -59,7 +59,7 @@ ws.onopen = (ev: Event) => {
         ws.send(JSON.stringify({
           type: "KVOpRequest",
           source: "client",
-          destination: "ws://" + addr + ":" + port,
+          destination: addr,
           payload: {
             action: "set",
             key: "from_client_" + index,
@@ -115,4 +115,6 @@ ws.onmessage = (ev) => {
       });
     }
   }
+
+  console.log(message)
 };
