@@ -551,15 +551,15 @@ export default class Node {
       case "peerServerStarted":
       case "discoveryServerStarted":
         if (this.net.ready && this.discovery.ready) {
-          this.discovery.discover();
+          if (this.discovery.protocol === "http") {
+            this.discovery.discover();
+          } else {
+            // Need to go follower if UDP since election timeout without beacon IS the way to end up leader
+            this.transitionFunction("follower");
+          }
         }
         break;
       case "discoveryResult":
-
-        if (this.state !== "starting") {
-          break;
-        }
-
         if (message.payload.success) {
           this.messages.setValue({
             type: "openPeerConnectionRequest",
@@ -570,17 +570,22 @@ export default class Node {
             }
           })
           
+          this.messages.setValue({
+            type: "nodeReady",
+            source: "node",
+            destination: "net.worker",
+            payload: {
+              ready: true
+            }
+          })
+  
+          
         }
 
-        this.messages.setValue({
-          type: "nodeReady",
-          source: "node",
-          destination: "net.worker",
-          payload: {
-            ready: true
-          }
-        })
-
+        // It's possible transitionTo("follower") is called twice
+        // - once when servers are started
+        // - once when receiving a beacon
+        // It's OK since transitionFunction is idempotent
         this.transitionFunction("follower");
         break;
       default:
