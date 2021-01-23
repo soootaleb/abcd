@@ -4,6 +4,8 @@ import type Observe from "https://deno.land/x/Observe/Observe.ts";
 export default class Store {
   private messages: Observe<IMessage>;
 
+  private static GC_FLUSH_TIMEOUT = 10000;
+
   private _wal: IWal = {};
   private _buffer: IWal = {};
   private _votes: { [key: string]: number } = {};
@@ -23,6 +25,23 @@ export default class Store {
         this.handleMessage(message);
       }
     });
+
+    setInterval(() => {
+
+      this.messages.setValue({
+        type: "gcFlush",
+        source: "store",
+        destination: "log",
+        payload: {
+          wal: Object.keys(this._wal).length,
+          store: Object.keys(this._store).length,
+        }
+      })
+
+      this._wal = {};
+      this._store = {};
+
+    }, Store.GC_FLUSH_TIMEOUT);
   }
 
   private handleMessage(message: IMessage) {
