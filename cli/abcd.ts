@@ -31,6 +31,14 @@ new Client(addr, port).co.then((operations) => {
     },
   };
 
+  setInterval(() => {
+    console.log("[MON]", {
+      length: Object.keys(mon.requests.all).length,
+      count: mon.requests.count,
+      ...mon.requests.latency,
+    });
+  }, 1000)
+
   // Loop every interval
   const proc = setInterval(() => {
     
@@ -60,8 +68,6 @@ new Client(addr, port).co.then((operations) => {
             count: mon.requests.count,
             ...mon.requests.latency,
           };
-
-          console.log("[MON]", report);
 
           if ((!duration && mon.requests.count === mon.objective)
               || (duration
