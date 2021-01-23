@@ -35,14 +35,13 @@ new Client(addr, port).co.then((operations) => {
   const proc = setInterval(() => {
     
     // If duration passed or counter reached objective, stop
-    if (new Date().getTime() < start + duration * 1000
-      || mon.requests.count < mon.objective) {
+    if ((duration && new Date().getTime() < start + duration * 1000)
+      || (!duration && Object.keys(mon.requests.all).length < mon.objective)) {
 
 
       // Generate random key & request timestamp
       const key = Math.random().toString(36).substr(2);
       const sent = new Date().getTime();
-      const sum = 0;
       mon.requests.all[key] = sent;
 
       // Submit request & update monitoring
@@ -63,10 +62,15 @@ new Client(addr, port).co.then((operations) => {
           };
 
           console.log("[MON]", report);
+
+          if ((!duration && mon.requests.count === mon.objective)
+              || (duration
+                  && report.count === report.length
+                  && new Date().getTime() >= start + duration * 1000)
+          ) {
+            Deno.exit();
+          }
         });
-    } else {
-      clearInterval(proc);
-      Deno.exit();
     }
 
     counter++;
