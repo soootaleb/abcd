@@ -89,6 +89,7 @@ export default class Node {
 
     switch (to) {
       case "starting":
+        this.logger.role = "starting"
         break;
       case "follower":
         this.electionTimeoutId = setTimeout(() => {
@@ -98,6 +99,7 @@ export default class Node {
         }, this.electionTimeout);
 
         this.state = "follower";
+        this.logger.role = "follower"
         this.messages.setValue({
           type: "newState",
           source: "node",
@@ -141,6 +143,7 @@ export default class Node {
         this.term += 1;
 
         this.state = "leader";
+        this.logger.role = "leader"
         this.messages.setValue({
           type: "newState",
           source: "node",
@@ -166,6 +169,7 @@ export default class Node {
         break;
       case "candidate":
         this.state = "candidate";
+        this.logger.role = "candidate"
         this.votesCounter = 1;
         this.messages.setValue({
           type: "newState",
@@ -275,6 +279,15 @@ export default class Node {
             ...message,
             source: "node",
             destination: this.leader,
+          });
+
+          this.messages.setValue({
+            type: "forwardedClientMessage",
+            source: "node",
+            destination: "log",
+            payload: {
+              message: message
+            }
           });
         }
         break;
