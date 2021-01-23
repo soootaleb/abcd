@@ -78,14 +78,18 @@ class Client {
         return this.send<IMessage<ILog>>("KVOpRequest",{
             key: "random-key",
             value: "random-value",
-            op: "set"
-        }).then((message) => message.payload.response)
+            op: "put"
+        }).then((message) => ({
+            ...message.payload.response,
+            source: this._server.addr,
+            destination: "client"
+        }))
     }
 }
 
 // const client = await new Client("192.168.64.2").co;
 
-// client.kvop("set", "random-key", "some-value")
+// client.kvop("put", "random-key", "some-value")
 //     .then((response: IMessage<ILog>) => {
 //         console.log(response);
 //     })
