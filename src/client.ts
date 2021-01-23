@@ -1,6 +1,6 @@
 import type { ILog, IMessage } from "../src/interface.ts";
 
-class Client {
+export default class Client {
 
     public static DEFAULT_SERVER_ADDR = "127.0.01"
     public static DEFAULT_SERVER_PORT = 8080
@@ -18,7 +18,7 @@ class Client {
     private ws: WebSocket; // = new WebSocket(this.endpoint);
 
     private _requests: { [key: string]: any } = {};
-    public _connection: any = {};
+    private _connection: any = {};
 
     public get co(): Promise<Client> {
         return this._connection.promise
@@ -74,20 +74,16 @@ class Client {
         })
     }
 
-    public async kvop(op: string, key: string, value?: string): Promise<IMessage<ILog>> {
+    public async kvop(op: string, key: string, value?: string) {
         return this.send<IMessage<ILog>>("KVOpRequest",{
-            key: "random-key",
-            value: "random-value",
+            key: key,
+            value: value,
             op: "put"
-        }).then((message) => ({
-            ...message.payload.response,
-            source: this._server.addr,
-            destination: "client"
-        }))
+        })
     }
 }
 
-// const client = await new Client("192.168.64.2").co;
+// const client = await new Client("abcd.sotaleb.ch", 443).co;
 
 // client.kvop("put", "random-key", "some-value")
 //     .then((response: IMessage<ILog>) => {
