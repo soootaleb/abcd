@@ -267,15 +267,14 @@ export default class Node {
               break;
           }
         } else {
+
+          this.requests[message.payload.token] = message.source;
+
           // Here we will forward
           this.messages.setValue({
-            type: "clientRequestReceivedButNotLeader",
+            ...message,
             source: "node",
-            destination: message.source,
-            payload: {
-              request: message.payload.request,
-              leader: this.leader
-            },
+            destination: this.leader,
           });
         }
         break;
@@ -303,7 +302,13 @@ export default class Node {
     clientIp: string
     success: boolean,
     result: string,
-    token: string
+    token: string,
+    request: IMessage<{
+      key: string,
+      value: string,
+      op: string
+    }>,
+    timestamp: number
   }>) {
     switch (message.type) {
       case "heartBeat": {
@@ -612,6 +617,18 @@ export default class Node {
 
         // discovery finishes by passing follower (may move to leader if no node found)
         this.transitionFunction("follower");
+        break;
+      case "clientResponse":
+        this.messages.setValue({
+          ...message,
+          source: "node",
+          destination: this.requests[message.payload.token]
+        })
+
+        delete this.requests[message.payload.token];
+        break;
+      case "clientRequest":
+        this.handleClientMessage(message);
         break;
       default:
         this.messages.setValue({
