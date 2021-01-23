@@ -234,40 +234,46 @@ export default class Node {
   }
 
   private handleClientMessage(message: IMessage<{
-    key: string,
-    value: string
+    token: string,
+    request: IMessage<{
+      key: string,
+      value: string,
+      op: string
+    }>,
+    timestamp: number
   }>) {
     switch (message.type) {
       case "clearStore":
         this.store.empty();
         break;
-      case "KVOpRequest":
+      case "clientRequest":
         if (this.state == "leader") {
-          // Later we'll need to verify the kv is not in process
-          // Otherwise, the request will have to be delayed or rejected (or use MVCC)
-          const log = this.store.set(message.payload.key, message.payload.value);
 
-          this.requests[log.timestamp + log.action + log.next.key] =
-            message.source;
+          this.requests[message.payload.token] = message.source;
 
-          this.messages.setValue({
-            type: "KVOpAccepted",
-            source: "node",
-            destination: "node",
-            payload: {
-              log: log,
-            },
-          });
+          switch (message.payload.request.type) {
+            case "KVOpRequest":
+              this.kvop(message.payload)
+              break;
+            default:
+              this.messages.setValue({
+                type: "invalidClientRequestType",
+                source: "node",
+                destination: "log",
+                payload: {
+                  invalidType: message.type
+                }
+              })
+              break;
+          }
         } else {
+          // Here we will forward
           this.messages.setValue({
-            type: "KVOpReceivedButNotLeader",
+            type: "clientRequestReceivedButNotLeader",
             source: "node",
             destination: message.source,
             payload: {
-              request: {
-                key: message.payload.key,
-                value: message.payload.value,
-              },
+              request: message.payload.request,
               leader: this.leader
             },
           });
@@ -296,7 +302,8 @@ export default class Node {
     knownPeers: { [key: string]: { peerIp: string } },
     clientIp: string
     success: boolean,
-    result: string
+    result: string,
+    token: string
   }>) {
     switch (message.type) {
       case "heartBeat": {
@@ -317,31 +324,27 @@ export default class Node {
         }, this.electionTimeout);
 
         const report: {
-          commited: ILog[];
-          appended: ILog[];
+          commited: {log: ILog, token: string}[];
+          appended: {log: ILog, token: string}[];
         } = this.store.sync(message.payload.wal);
 
         // Commited logs are logged locally
-        for (const log of report.commited) {
+        for (const entry of report.commited) {
           this.messages.setValue({
             type: "commitedLog",
             source: "node",
             destination: "log",
-            payload: {
-              log: log,
-            },
+            payload: entry,
           });
         }
 
         // Appended logs are notified to the leader
-        for (const log of report.appended) {
+        for (const entry of report.appended) {
           this.messages.setValue({
             type: "KVOpAccepted",
             source: "node",
             destination: message.source,
-            payload: {
-              log: log,
-            },
+            payload: entry,
           });
         }
         break;
@@ -358,10 +361,14 @@ export default class Node {
             destination: "log",
             payload: {
               log: log,
+              token: message.payload.token
             },
           });
         } else if (votes >= this.net.quorum) {
-          log = this.store.commit(log);
+          log = this.store.commit({
+            log: log,
+            token: message.payload.token
+          });
 
           this.messages.setValue({
             type: "KVOpRequestComplete",
@@ -371,6 +378,7 @@ export default class Node {
               log: log,
               votes: votes,
               qorum: this.net.quorum,
+              token: message.payload.token
             },
           });
         } else {
@@ -382,24 +390,32 @@ export default class Node {
               message: message,
               qorum: this.net.quorum,
               votes: votes,
+              token: message.payload.token
             },
           });
         }
         break;
       }
       case "KVOpRequestComplete": {
-        const l: ILog = message.payload.log;
-        const key: string = l.timestamp + l.action + l.next.key;
-        const client = this.requests[key];
-        delete this.requests[key];
+        
         this.messages.setValue({
-          type: "KVOpResponse",
+          type: "clientResponse",
           source: "node",
-          destination: client,
+          destination: this.requests[message.payload.token],
           payload: {
-            log: l,
-          },
+            token: message.payload.token,
+            response: {
+              type: "KVOpResponse",
+              source: "node",
+              destination: this.requests[message.payload.token],
+              payload: message.payload.log,
+            },
+            timestamp: new Date().getTime()
+          }
         });
+
+        delete this.requests[message.payload.token];
+
         break;
       }
       case "newTerm":
@@ -606,6 +622,50 @@ export default class Node {
             message: message,
           },
         });
+        break;
+    }
+  }
+
+  private kvop(request: {
+    token: string,
+    request: IMessage<{
+      key: string,
+      value: string,
+      op: string
+    }>,
+    timestamp: number,
+    
+  }) {
+    switch (request.request.payload.op) {
+      case "put":
+
+        const key = request.request.payload.key
+        const value = request.request.payload.value
+        const token = request.token
+
+        // Later we'll need to verify the kv is not in process
+        // Otherwise, the request will have to be delayed or rejected (or use MVCC)
+        const log = this.store.put(token, key, value);
+
+        this.messages.setValue({
+          type: "KVOpAccepted",
+          source: "node",
+          destination: "node",
+          payload: {
+            log: log,
+            token: request.token
+          },
+        });
+        break;
+      default:
+        this.messages.setValue({
+          type: "invalidKVOperation",
+          source: "node",
+          destination: "log",
+          payload: {
+            invalidOperation: request.request.payload.op
+          }
+        })
         break;
     }
   }

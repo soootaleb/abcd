@@ -19,5 +19,5 @@ export interface ILog<T = string | number> {
 }
 
 export interface IWal {
-  [key: string]: ILog[];
+  [key: string]: {log: ILog, token: string}[];
 }

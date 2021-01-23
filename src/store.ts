@@ -69,14 +69,14 @@ export default class Store {
     return this._votes[key];
   }
 
-  public wget(key: string): ILog[] {
+  private wget(key: string): {log: ILog, token: string}[] {
     if (!(key in this.wal)) {
       this.wal[key] = [];
     }
     return this.wal[key];
   }
 
-  public bget(key: string): ILog[] {
+  public bget(key: string): {log: ILog, token: string}[] {
     if (!(key in this._buffer)) {
       this._buffer[key] = [];
     }
@@ -87,21 +87,30 @@ export default class Store {
     return this._store[key];
   }
 
-  public commit(log: ILog): ILog {
-    const key: string = log.next.key;
+  public commit(entry: {
+    log: ILog,
+    token: string
+  }): ILog {
+    const key: string = entry.log.next.key;
 
     // Now in memory useless
     // [TODO] Append commit to WAL on disk befre setting commited = true
     // Wall append should be much faster when files i/o are involved
     // [TODO] Commit only if the timestamp is the highest regarding the key (later use MVCC)
 
-    this.wget(key).push(log);
+    this.wget(key).push({
+      log: entry.log,
+      token: entry.token
+    });
 
-    log.commited = true;
+    entry.log.commited = true;
 
-    this.bget(key).push(log);
+    this.bget(key).push({
+      log: entry.log,
+      token: entry.token
+    });
 
-    this._store[key] = log.next;
+    this._store[key] = entry.log.next;
     delete this._votes[key];
 
     this.messages.setValue({
@@ -109,11 +118,11 @@ export default class Store {
       source: "store",
       destination: "log",
       payload: {
-        log: log,
+        log: entry.log,
       },
     });
 
-    return log;
+    return entry.log;
   }
 
   public empty() {
@@ -131,12 +140,12 @@ export default class Store {
    * @returns a report listing the logs that have been commited & the ones appended only (for the node to notify the leader)
    */
   public sync(wal: IWal): {
-    commited: ILog[];
-    appended: ILog[];
+    commited: {log: ILog, token: string}[];
+    appended: {log: ILog, token: string}[];
   } {
     const report: {
-      commited: ILog[];
-      appended: ILog[];
+      commited: {log: ILog, token: string}[];
+      appended: {log: ILog, token: string}[];
     } = {
       commited: [],
       appended: [],
@@ -156,23 +165,23 @@ export default class Store {
       // [DEPRECATED] We need to sort() in order to commit in the right order later
 
       // For all incoming logs, in the correct order (sort)
-      for (const log of wal[key].sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)) {
+      for (const entry of wal[key].sort((a, b) => a.log.timestamp < b.log.timestamp ? -1 : 1)) {
 
         // We commit if the log is commited
-        if (log.commited) {
+        if (entry.log.commited) {
 
           // It's important to call .commit() instead of just .append() with log.commited = true
           // That's because later, .commit() will actually perform I/O operations that .append() won't
-          this.commit(log);
+          this.commit(entry);
 
-          report.commited.push(log);
+          report.commited.push(entry);
         } else {
 
           // [DEPRECATED] We simple .append() the log if it's not commited
           // Appended logs in report will be sent as KVOpAccepted
           // [TODO] Some logic before appending (e.g check term for SPLIT BRAIN)
 
-          report.appended.push(log);
+          report.appended.push(entry);
         }
       }
     }
@@ -188,11 +197,11 @@ export default class Store {
    * @param key 
    * @param val 
    */
-  public set(key: string, val: string | number): ILog {
+  public put(token: string, key: string, val: string | number): ILog {
     this._votes[key] = 0;
 
-    const log = {
-      action: "put" as "put",
+    const log: ILog = {
+      action: "put",
       commited: false,
       timestamp: new Date().getTime(),
       previous: this.get(key),
@@ -202,15 +211,19 @@ export default class Store {
       },
     };
 
-    this.bget(key).push(log);
+    this.bget(key).push({
+      log: log,
+      token: token
+    });
 
     this.messages.setValue({
-      type: "setValueCall",
+      type: "putValueCall",
       source: "store",
       destination: "log",
       payload: {
         key: key,
         value: val,
+        token: token
       },
     });
 
