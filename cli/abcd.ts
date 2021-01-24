@@ -21,7 +21,10 @@ new Client(addr, port).co.then((operations) => {
   const mon = {
     objective: n,
     requests: {
-      all: {} as { [key: string]: number },
+      all: {} as { [key: string]: {
+        sent: number,
+        received: number
+      } },
       count: 0,
       latency: {
         sum: 0,
@@ -32,10 +35,16 @@ new Client(addr, port).co.then((operations) => {
   };
 
   setInterval(() => {
+    const total = Object.keys(mon.requests.all).length;
+    const latest = Object.keys(mon.requests.all).slice(total - 100)
+    const latency = latest.map((key) => mon.requests.all[key]).reduce((acc, curr) => {
+      return acc + curr.received - curr.sent
+    }, 0) / latest.length
     console.log("[MON]", {
       length: Object.keys(mon.requests.all).length,
       count: mon.requests.count,
-      ...mon.requests.latency,
+      pending: Object.keys(mon.requests.all).length - mon.requests.count,
+      latency: Math.round(latency * 100) / 100,
     });
   }, 1000)
 
@@ -50,13 +59,17 @@ new Client(addr, port).co.then((operations) => {
       // Generate random key & request timestamp
       const key = Math.random().toString(36).substr(2);
       const sent = new Date().getTime();
-      mon.requests.all[key] = sent;
+      mon.requests.all[key] = {
+        sent: sent,
+        received: sent
+      };
 
       // Submit request & update monitoring
       operations.kvop("put", key, counter.toString())
         .then((message) => {
           const key = message.payload.response.payload.next.key
-          const sent = mon.requests.all[key];
+          const sent = mon.requests.all[key].sent;
+          mon.requests.all[key].received = new Date().getTime()
           mon.requests.count++;
           mon.requests.latency.sum += new Date().getTime() - sent;
           mon.requests.latency.total = Math.round((new Date().getTime() - start) / 10) / 100;
@@ -76,9 +89,13 @@ new Client(addr, port).co.then((operations) => {
           ) {
             Deno.exit();
           }
+        }).catch(() => {
+          console.log("Shit happens...")
         });
     }
 
     counter++;
   }, interval);
+}).catch(() => {
+  console.log("Shit happens.")
 });
