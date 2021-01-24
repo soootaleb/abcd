@@ -78,14 +78,7 @@ export default class Client {
         return this.send<IMessage<ILog>>("KVOpRequest",{
             key: key,
             value: value,
-            op: "put"
+            op: op
         })
     }
 }
-
-// const client = await new Client("abcd.sotaleb.ch", 443).co;
-
-// client.kvop("put", "random-key", "some-value")
-//     .then((response: IMessage<ILog>) => {
-//         console.log(response);
-//     })

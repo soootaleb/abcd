@@ -308,6 +308,7 @@ export default class Node {
     wal: IWal,
     log: ILog,
     addr: Deno.NetAddr,
+    answer: Record<string, unknown>,
     term: number,
     peerIp: string,
     voteGranted: boolean,
@@ -393,7 +394,7 @@ export default class Node {
             source: "node",
             destination: "node",
             payload: {
-              log: log,
+              answer: log,
               votes: votes,
               qorum: this.net.quorum,
               token: message.payload.token
@@ -426,7 +427,7 @@ export default class Node {
               type: "KVOpResponse",
               source: "node",
               destination: this.requests[message.payload.token],
-              payload: message.payload.log,
+              payload: message.payload.answer,
             },
             timestamp: new Date().getTime()
           }
@@ -683,6 +684,17 @@ export default class Node {
           destination: "node",
           payload: {
             log: log,
+            token: request.token
+          },
+        });
+        break;
+      case "get":
+        this.messages.setValue({
+          type: "KVOpRequestComplete",
+          source: "node",
+          destination: "node",
+          payload: {
+            answer: this.store.get(request.request.payload.key),
             token: request.token
           },
         });
