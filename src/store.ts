@@ -4,7 +4,7 @@ import type Observe from "https://deno.land/x/Observe/Observe.ts";
 export default class Store {
   private messages: Observe<IMessage>;
 
-  private static GC_FLUSH_TIMEOUT = 10000;
+  private static GC_FLUSH_TIMEOUT = 600000;
 
   private _wal: IWal = {};
   private _buffer: IWal = {};
