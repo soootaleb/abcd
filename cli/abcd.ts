@@ -89,9 +89,6 @@ new Client(addr, port).co.then((operations) => {
           ) {
             Deno.exit();
           }
-        }).then(() => {
-          operations.kvop("get", key)
-            .then(console.log)
         }).catch(() => {
           console.log("Shit happens...")
         });
