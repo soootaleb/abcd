@@ -1,118 +1,104 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import type { ILog, IMessage } from "../src/interface.ts";
+import Client from "../src/client.ts";
 
 const ARGS = parse(Deno.args);
 
+// Params parsing
 const n: number = typeof ARGS["n"] === "number" ? ARGS["n"] : 1;
-const port: string = typeof ARGS["p"] === "string" ? ARGS["p"] : "8080";
+const port: number = typeof ARGS["p"] === "number" ? ARGS["p"] : 8080;
 const addr: string = typeof ARGS["a"] === "string" ? ARGS["a"] : "127.0.0.1";
-const cleanup: boolean = Boolean(ARGS["clean"]);
 const interval: number = ARGS["i"] | 0;
 const duration: number = ARGS["d"] | 0;
 
-const start: number = new Date().getTime();
+// Connect client
+new Client(addr, port).co.then((operations) => {
+  
+  let counter = 0;
+  const start: number = new Date().getTime();
 
-const ws: WebSocket = new WebSocket("ws://" + addr + ":" + port + "/client");
-
-let mon = {
-  objective: n,
-  requests: {
-    all: [] as { key: string; start: number }[],
-    count: 0,
-    latency: {
-      sum: 0,
-      total: 0,
-      average: 0,
+  // Init monitoring
+  const mon = {
+    objective: n,
+    requests: {
+      all: {} as { [key: string]: {
+        sent: number,
+        received: number
+      } },
+      count: 0,
+      latency: {
+        sum: 0,
+        total: 0,
+        average: 0,
+      },
     },
-  },
-};
+  };
 
-const monInterval = setInterval(() => {
-  if (
-    (duration && new Date().getTime() > start + duration * 1000) ||
-    (!duration && mon.objective === mon.requests.count)
-  ) {
-    if (cleanup) {
-      ws.send(JSON.stringify({
-        type: "clearStore",
-        source: "client",
-        destination: port,
-        payload: {}
-      }))
-    }
-    console.log('[FINISHED]', {
-      length: mon.requests.all.length,
+  setInterval(() => {
+    const total = Object.keys(mon.requests.all).length;
+    const latest = Object.keys(mon.requests.all).slice(total - 100)
+    const latency = latest.map((key) => mon.requests.all[key]).reduce((acc, curr) => {
+      return acc + curr.received - curr.sent
+    }, 0) / latest.length
+    console.log("[MON]", {
+      length: Object.keys(mon.requests.all).length,
       count: mon.requests.count,
-      ...mon.requests.latency,
+      pending: Object.keys(mon.requests.all).length - mon.requests.count,
+      latency: Math.round(latency * 100) / 100,
     });
-    clearInterval(monInterval);
-  }
-}, 100);
+  }, 1000)
 
-ws.onopen = (ev: Event) => {
-  if (duration === 0) {
-    for (let index = 0; index < n; index++) {
-      setTimeout(() => {
-        mon.requests.all.push(
-          { key: "from_client_" + index, start: new Date().getTime() },
-        );
-        ws.send(JSON.stringify({
-          type: "KVOpRequest",
-          source: "client",
-          destination: "ws://" + addr + ":" + port,
-          payload: {
-            action: "set",
-            key: "from_client_" + index,
-            value: "ping",
-          },
-        }));
-      }, interval * index);
+  // Loop every interval
+  const proc = setInterval(() => {
+    
+    // If duration passed or counter reached objective, stop
+    if ((duration && new Date().getTime() < start + duration * 1000)
+      || (!duration && Object.keys(mon.requests.all).length < mon.objective)) {
+
+
+      // Generate random key & request timestamp
+      const key = Math.random().toString(36).substr(2);
+      const sent = new Date().getTime();
+      mon.requests.all[key] = {
+        sent: sent,
+        received: sent
+      };
+
+      // Submit request & update monitoring
+      operations.kvop("put", key, counter.toString())
+        .then((message) => {
+          const key = message.payload.response.payload.next.key
+          const sent = mon.requests.all[key].sent;
+          mon.requests.all[key].received = new Date().getTime()
+          mon.requests.count++;
+          mon.requests.latency.sum += new Date().getTime() - sent;
+          mon.requests.latency.total = Math.round((new Date().getTime() - start) / 10) / 100;
+          mon.requests.latency.average = mon.requests.latency.sum /
+            mon.requests.count;
+
+          const report = {
+            length: Object.keys(mon.requests.all).length,
+            count: mon.requests.count,
+            ...mon.requests.latency,
+          };
+
+          if ((!duration && mon.requests.count === mon.objective)
+              || (duration
+                  && report.count === report.length
+                  && new Date().getTime() >= start + duration * 1000)
+          ) {
+            Deno.exit();
+          }
+        }).then(() => {
+          operations.kvop("get", key)
+            .then(console.log)
+        }).catch(() => {
+          console.log("Shit happens...")
+        });
     }
-  } else {
-    const begin: number = new Date().getTime();
-    let counter: number = 0;
 
-    const proc = setInterval(() => {
-      if (new Date().getTime() < begin + duration * 1000) {
-        counter++;
-        mon.requests.all.push(
-          { key: "from_client_" + counter, start: new Date().getTime() },
-        );
-        ws.send(JSON.stringify({
-          type: "KVOpRequest",
-          source: "client",
-          destination: "8080",
-          payload: {
-            action: "set",
-            key: "from_client_" + counter,
-            value: "ping",
-          },
-        }));
-      } else {
-        clearInterval(proc);
-      }
-    }, interval);
-  }
-};
-
-ws.onmessage = (ev) => {
-  const message: IMessage<{log: ILog}> = JSON.parse(ev.data);
-  if (message.type === "KVOpResponse") {
-    const request = mon.requests.all.find((o) =>
-      o.key === message.payload.log.next.key
-    );
-    if (request) {
-      mon.requests.count++;
-      mon.requests.latency.sum += new Date().getTime() - request.start;
-      mon.requests.latency.total = new Date().getTime() - start;
-      mon.requests.latency.average = mon.requests.latency.sum /
-        mon.requests.count;
-
-      console.log('[ONGOING]', {
-        length: mon.requests.all.length,
-        count: mon.requests.count,
-        ...mon.requests.latency,
-      });
-    }
-  }
-};
+    counter++;
+  }, interval);
+}).catch(() => {
+  console.log("Shit happens.")
+});

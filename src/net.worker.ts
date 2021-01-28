@@ -21,21 +21,21 @@ const server = serve({
 });
 
 let uis: DenoWS[] = [];
-let peers: { [key: string]: DenoWS | WebSocket } = {};
-let clients: { [key: string]: DenoWS } = {};
+const peers: { [key: string]: DenoWS | WebSocket } = {};
+const clients: { [key: string]: DenoWS } = {};
+
+let ready = false;
 
 self.postMessage({
-  type: "serverStarted",
+  type: "peerServerStarted",
   source: "net.worker",
-  destination: "node",
+  destination: "net",
   payload: server.listener.addr,
 });
 
-function handleMessage(
-  message: IMessage<any>,
-): IMessage {
+function handleMessage(message: IMessage<any>): IMessage {
   switch (message.type) {
-    case "openPeerConnectionRequest":
+    case "openPeerConnectionRequest": {
       if (peers[message.payload.peerIp]) {
         return {
           type: "openPeerConnectionFail",
@@ -49,9 +49,17 @@ function handleMessage(
       }
 
       const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`)
+      peers[message.payload.peerIp] = sock;
 
       sock.onopen = () => {
-        peers[message.payload.peerIp] = sock;
+        self.postMessage({
+          type: "peerConnectionSuccess",
+          source: "net.worker",
+          destination: "log",
+          payload: {
+            peerIp: message.payload.peerIp,
+          },
+        });
       }
 
       sock.onmessage = (ev: MessageEvent) => {
@@ -63,26 +71,44 @@ function handleMessage(
       }
 
       sock.onclose = (ev: CloseEvent) => {
-        delete peers[message.payload.peerIp];
-        return {
-          type: "peerConnectionClose",
-          source: "net.worker",
-          destination: "net",
-          payload: {
-            peerIp: message.payload.peerIp,
-          },
-        };
+        if (peers[message.payload.peerIp]) {
+          delete peers[message.payload.peerIp];
+          self.postMessage({
+            type: "peerConnectionClose",
+            source: "net.worker",
+            destination: "net",
+            payload: {
+              peerIp: message.payload.peerIp,
+            },
+          });
+        } else {
+          self.postMessage({
+            type: "peerConnectionFailed",
+            source: "net.worker",
+            destination: "net",
+            payload: {
+              peerIp: message.payload.peerIp,
+            },
+          });
+        }
       }
 
       return {
-        type: "peerConnectionSuccess",
+        type: "peerConnectionPending",
         source: "net.worker",
         destination: "log",
         payload: {
           peerIp: message.payload.peerIp,
         },
       };
-      break;
+    }
+    case "nodeReady":
+      ready = message.payload.ready;
+      return {
+        ...message,
+        source: "net.worker",
+        destination: "log"
+      }
     default:
       return {
         type: "invalidMessageType",
@@ -99,7 +125,7 @@ self.onmessage = (e: MessageEvent) => {
   const message: IMessage<{
     peerIp: string;
     sourceId: string;
-    data: Object;
+    data: Record<string, unknown>;
   }> = e.data;
 
   const destination = message.destination;
@@ -143,99 +169,120 @@ self.onmessage = (e: MessageEvent) => {
 for await (const request of server) {
   const { conn, r: bufReader, w: bufWriter, headers } = request;
 
-  acceptWebSocket({
-    conn,
-    bufReader,
-    bufWriter,
-    headers,
-  }).then(async (sock: DenoWS) => {
-    const remoteAddr: Deno.NetAddr = request.conn.remoteAddr as Deno.NetAddr;
-    const hostname: string = remoteAddr.hostname;
+  if (request.url === "/discovery") {
 
-    if (request.url === "/client") {
-      clients[hostname] = sock;
+    self.postMessage({
+      type: "discoveryEndpointCalled",
+      source: "net.worker",
+      destination: "log",
+      payload: request.conn.remoteAddr
+    })
 
-      self.postMessage({
-        type: "clientConnectionOpen",
-        source: "net.worker",
-        destination: "net",
-        payload: {
-          clientIp: hostname,
-          remoteAddr: remoteAddr,
-          clientId: request.conn.rid,
-        },
-      });
+    request.respond({
+      status: 200,
+      body: Deno.env.get("ABCD_NODE_IP")
+    })
+  } else if (request.url === "/ready") {
+    request.respond({
+      status: ready ? 200 : 500,
+      body: ready ? "OK" : "KO"
+    })
+  } else {
 
-      for await (const ev of sock) {
-        if (typeof ev === "string") {
-          self.postMessage({
-            ...JSON.parse(ev),
-            source: hostname,
-            destination: "node"
-          });
+    acceptWebSocket({
+      conn,
+      bufReader,
+      bufWriter,
+      headers,
+    }).then(async (sock: DenoWS) => {
+      const remoteAddr: Deno.NetAddr = request.conn.remoteAddr as Deno.NetAddr;
+      const hostname: string = remoteAddr.hostname;
+  
+      if (request.url === "/client") {
+        clients[hostname] = sock;
+  
+        self.postMessage({
+          type: "clientConnectionOpen",
+          source: "net.worker",
+          destination: "net",
+          payload: {
+            clientIp: hostname,
+            remoteAddr: remoteAddr,
+            clientId: request.conn.rid,
+          },
+        });
+  
+        for await (const ev of sock) {
+          if (typeof ev === "string") {
+            self.postMessage({
+              ...JSON.parse(ev),
+              source: hostname,
+              destination: "node"
+            });
+          }
         }
-      }
-
-      delete clients[hostname];
-
-      self.postMessage({
-        type: "clientConnectionClose",
-        source: "net.worker",
-        destination: "net",
-        payload: {
-          clientIp: hostname,
-        },
-      });
-    } else if (request.url === "/ui") {
-      uis.push(sock);
-
-      for await (const ev of sock) {
-        if (typeof ev === "string") {
-          self.postMessage({
-            ...JSON.parse(ev),
-            source: "ui",
-            destination: "node"
-          });
+  
+        delete clients[hostname];
+  
+        self.postMessage({
+          type: "clientConnectionClose",
+          source: "net.worker",
+          destination: "net",
+          payload: {
+            clientIp: hostname,
+          },
+        });
+      } else if (request.url === "/ui") {
+        uis.push(sock);
+  
+        for await (const ev of sock) {
+          if (typeof ev === "string") {
+            self.postMessage({
+              ...JSON.parse(ev),
+              source: "ui",
+              destination: "node"
+            });
+          }
         }
-      }
-
-      uis = uis.filter((ui) => ui.conn.rid === sock.conn.rid);
-
-    } else if (request.url === "/peer") {
-
-      peers[hostname] = sock;
-
-      self.postMessage({
-        type: "peerConnectionOpen",
-        source: "net.worker",
-        destination: "net",
-        payload: {
-          peerIp: hostname,
-        },
-      });
-
-      for await (const ev of sock) {
-        if (typeof ev === "string") {
-          self.postMessage({
-            ...JSON.parse(ev),
-            source: hostname,
-            destination: "node"
-          });
+  
+        uis = uis.filter((ui) => ui.conn.rid === sock.conn.rid);
+  
+      } else if (request.url === "/peer") {
+  
+        peers[hostname] = sock;
+  
+        self.postMessage({
+          type: "peerConnectionOpen",
+          source: "net.worker",
+          destination: "net",
+          payload: {
+            peerIp: hostname,
+          },
+        });
+  
+        for await (const ev of sock) {
+          if (typeof ev === "string") {
+            self.postMessage({
+              ...JSON.parse(ev),
+              source: hostname,
+              destination: "node"
+            });
+          }
         }
+  
+        delete peers[hostname];
+  
+        self.postMessage({
+          type: "peerConnectionClose",
+          source: "net.worker",
+          destination: "net",
+          payload: {
+            peerIp: hostname,
+            remoteAddr: remoteAddr,
+            peerId: request.conn.rid,
+          },
+        });
       }
-
-      delete peers[hostname];
-
-      self.postMessage({
-        type: "peerConnectionClose",
-        source: "net.worker",
-        destination: "net",
-        payload: {
-          peerIp: hostname,
-          remoteAddr: remoteAddr,
-          peerId: request.conn.rid,
-        },
-      });
-    }
-  });
+    });
+  }
 }

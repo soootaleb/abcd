@@ -4,6 +4,8 @@ import type Observe from "https://deno.land/x/Observe/Observe.ts";
 export default class Store {
   private messages: Observe<IMessage>;
 
+  private static GC_FLUSH_TIMEOUT = 600000;
+
   private _wal: IWal = {};
   private _buffer: IWal = {};
   private _votes: { [key: string]: number } = {};
@@ -30,6 +32,22 @@ export default class Store {
     this._encoder = new TextEncoder();
 
     this._fwal = Deno.openSync('/app/data/abcd.wal', { write: true });
+    setInterval(() => {
+
+      this.messages.setValue({
+        type: "gcFlush",
+        source: "store",
+        destination: "log",
+        payload: {
+          wal: Object.keys(this._wal).length,
+          store: Object.keys(this._store).length,
+        }
+      })
+
+      this._wal = {};
+      this._store = {};
+
+    }, Store.GC_FLUSH_TIMEOUT);
   }
 
   private handleMessage(message: IMessage) {
@@ -76,14 +94,14 @@ export default class Store {
     return this._votes[key];
   }
 
-  public wget(key: string): ILog[] {
+  private wget(key: string): {log: ILog, token: string}[] {
     if (!(key in this.wal)) {
       this.wal[key] = [];
     }
     return this.wal[key];
   }
 
-  public bget(key: string): ILog[] {
+  public bget(key: string): {log: ILog, token: string}[] {
     if (!(key in this._buffer)) {
       this._buffer[key] = [];
     }
@@ -94,9 +112,12 @@ export default class Store {
     return this._store[key];
   }
 
-  private async persist(log: ILog): Promise<Boolean> {
+  private async persist(entry: {
+    log: ILog,
+    token: string
+  }): Promise<Boolean> {
     // return Promise.resolve(true);
-    const bytes = this._encoder.encode(JSON.stringify(log));
+    const bytes = this._encoder.encode(JSON.stringify(entry.log));
     return this._fwal.write(bytes)
       .then((written: number) => {
         return Deno.fsync(this._fwal.rid)
@@ -106,47 +127,50 @@ export default class Store {
         
       }).catch(() => false);
   }
-
-  public async commit(log: ILog): Promise<ILog> {
+  public async commit(entry: {
+    log: ILog,
+    token: string
+  }): Promise<{
+    log: ILog,
+    token: string
+  }> {
+    const key: string = entry.log.next.key;
+    // const log = entry.log
 
     // [TODO] Commit only if the timestamp (term?) is the highest regarding the key (later use MVCC)
 
-    return this.persist(log)
+    return this.persist(entry)
       .then((ok: Boolean) => {
 
-        const key: string = log.next.key;
+        const key: string = entry.log.next.key;
 
         if (ok) {
-          this.wget(key).push(log);
+          this.wget(key).push(entry);
 
-          log.commited = true;
+          entry.log.commited = true;
       
-          this.bget(key).push(log);
+          this.bget(key).push(entry);
       
-          this._store[key] = log.next;
+          this._store[key] = entry.log.next;
           delete this._votes[key];
       
           this.messages.setValue({
             type: "commitSuccess",
             source: "store",
             destination: "log",
-            payload: {
-              log: log
-            },
+            payload: entry,
           });
 
-          return log;
+          return entry;
         } else {
           this.messages.setValue({
             type: "commitFail",
             source: "store",
             destination: "log",
-            payload: {
-              log: log
-            }
+            payload: entry
           });
 
-          return log;
+          return entry;
         }
       })
   }
@@ -166,12 +190,12 @@ export default class Store {
    * @returns a report listing the logs that have been commited & the ones appended only (for the node to notify the leader)
    */
   public async sync(wal: IWal): Promise<{
-    commited: ILog[];
-    appended: ILog[];
+    commited: {log: ILog, token: string}[];
+    appended: {log: ILog, token: string}[];
   }> {
     const report: {
-      commited: ILog[];
-      appended: ILog[];
+      commited: {log: ILog, token: string}[];
+      appended: {log: ILog, token: string}[];
     } = {
       commited: [],
       appended: [],
@@ -191,37 +215,34 @@ export default class Store {
       // [DEPRECATED] We need to sort() in order to commit in the right order later
 
       // For all incoming logs, in the correct order (sort)
-      for (const log of wal[key].sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)) {
+      for (const entry of wal[key].sort((a, b) => a.log.timestamp < b.log.timestamp ? -1 : 1)) {
 
         // We commit if the log is commited
-        if (log.commited) {
+        if (entry.log.commited) {
 
           // It's important to call .commit() instead of just .append() with log.commited = true
           // That's because later, .commit() will actually perform I/O operations that .append() won't
-          await this.commit(log)
-            .then((commited: ILog) => {
-              if (commited.commited) {
-                report.commited.push(log)
+          await this.commit(entry)
+            .then((entry: {log: ILog, token: string}) => {
+              if (entry.log.commited) {
+                report.commited.push(entry)
               } else {
                 this.messages.setValue({
                   type: "commitingLogFailed",
                   source: "store",
                   destination: "log",
-                  payload: {
-                    log: log
-                  }
+                  payload: entry
                 })
               }
             });
 
-          report.commited.push(log);
         } else {
 
           // [DEPRECATED] We simple .append() the log if it's not commited
           // Appended logs in report will be sent as KVOpAccepted
           // [TODO] Some logic before appending (e.g check term for SPLIT BRAIN)
 
-          report.appended.push(log);
+          report.appended.push(entry);
         }
       }
     }
@@ -237,11 +258,11 @@ export default class Store {
    * @param key 
    * @param val 
    */
-  public set(key: string, val: string | number): ILog {
+  public put(token: string, key: string, val: string | number): ILog {
     this._votes[key] = 0;
 
-    const log = {
-      action: "put" as "put",
+    const log: ILog = {
+      action: "put",
       commited: false,
       timestamp: new Date().getTime(),
       previous: this.get(key),
@@ -251,15 +272,19 @@ export default class Store {
       },
     };
 
-    this.bget(key).push(log);
+    this.bget(key).push({
+      log: log,
+      token: token
+    });
 
     this.messages.setValue({
-      type: "setValueCall",
+      type: "putValueCall",
       source: "store",
       destination: "log",
       payload: {
         key: key,
         value: val,
+        token: token
       },
     });
 

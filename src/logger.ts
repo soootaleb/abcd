@@ -2,14 +2,31 @@ import * as c from "https://deno.land/std/fmt/colors.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 import { Args } from "https://deno.land/std/flags/mod.ts";
 import type { IMessage } from "./interface.ts";
+import { TState } from "./node.ts";
 
 export default class Logger {
   private messages: Observe<IMessage>;
 
-  private console: Boolean = false;
+  private console = false;
 
-  private uiMessagesActivated: Boolean = false;
-  private uiRefreshActivated: Boolean = false;
+  private uiMessagesActivated = false;
+  private uiRefreshActivated = false;
+
+  private _role = "starting";
+
+  public set role(role: TState) {
+    this._role = role
+  }
+
+  private static consoleIgnoredMessages = [
+    "heartBeat",
+    "uiLogMessage",
+    "discoveryBeaconSent",
+    "sendDiscoveryBeacon",
+    "discoveryBeaconReceived"
+  ]
+
+  private static uiIgnoredMessages = Logger.consoleIgnoredMessages;
 
   constructor(messages: Observe<IMessage>, args: Args) {
     this.messages = messages;
@@ -24,7 +41,7 @@ export default class Logger {
   }
 
   private log(message: IMessage) {
-    if (message.destination != "ui" && message.type != "heartBeat") {
+    if (message.destination != "ui" && !Logger.uiIgnoredMessages.includes(message.type)) {
       /**
            * We wrap the messages for UI in another messages
            * - source is the current node sending the messages (so the UI can know it & deal with multiple nodes)
@@ -47,35 +64,40 @@ export default class Logger {
       }
     }
 
-    if (
-      this.console && !["heartBeat", "uiLogMessage"].includes(message.type)
-    ) {
-      console.log(
-        c.bgWhite(
-          "                                                                                   ",
-        ),
-      );
-      if (message.type == "serverStarted") {
-        console.log(
-          c.bgBrightMagenta(
-            c.brightYellow(
-              c.bold(
-                `[${message.source}]->[${message.destination}][${message.type}]${
-                  JSON.stringify(message.payload)
-                }`,
-              ),
-            ),
-          ),
-        );
-      } else {
-        console.log(
-          c.gray(
-            `[${message.source}]->[${message.destination}][${message.type}]${
-              JSON.stringify(message.payload)
-            }`,
-          ),
-        );
+    if (this.console && !Logger.consoleIgnoredMessages.includes(message.type)) {
+      let icon = "🔄";
+      let source = message.source;
+      let destination = message.destination;
+      if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.destination)) {
+        icon = "🟢"
+        destination = c.green(destination)
+      } else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.source)) {
+        icon = "🔵"
+        source = c.blue(source);
       }
+
+      let role = this._role
+      switch (this._role) {
+        case "starting":
+          role = c.yellow(role);          
+          break;
+        case "follower":
+          role = c.gray(role);          
+          break;
+        case "candidate":
+          role = c.cyan(role);          
+          break;
+        case "leader":
+          role = c.brightMagenta(role);          
+          break;
+      
+        default:
+          role = this._role
+          break;
+      }
+
+      const log = `${icon}[${role}][${source}]->[${destination}][${message.type}]${JSON.stringify(message.payload)}`;
+      message.source === "node" ? console.log(c.bold(log)) : console.log(log)
     }
   }
 
