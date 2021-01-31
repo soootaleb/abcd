@@ -80,8 +80,13 @@ export default class Store {
     }, Store.GC_FLUSH_TIMEOUT);
   }
 
-  private handleMessage(message: IMessage) {
+  private handleMessage(message: IMessage<{
+    [key: string]: IKeyValue
+  }>) {
     switch (message.type) {
+      case "initStore":
+        this._store = message.payload
+        break;
       default:
         this.messages.setValue({
           type: "invalidMessageType",
