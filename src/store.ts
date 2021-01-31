@@ -356,12 +356,16 @@ export default class Store {
         });
         break;
       case "get":
+        const val = this.get(request.request.payload.key)
         this.messages.setValue({
           type: "KVOpRequestComplete",
           source: "store",
           destination: "node",
           payload: {
-            answer: this.get(request.request.payload.key),
+            answer: val ? val : {
+              key: request.request.payload.key,
+              value: "undefined"
+            },
             token: request.token
           },
         });
