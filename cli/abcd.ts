@@ -12,7 +12,7 @@ const interval: number = ARGS["i"] | 0;
 const duration: number = ARGS["d"] | 0;
 
 const get: string = ARGS["get"];
-const put: string = ARGS["put"];
+const put: string = ARGS["put"] || ARGS["set"];
 
 new Client(addr, port).co.then((operations) => {
 
