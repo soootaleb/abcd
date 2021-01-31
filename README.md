@@ -97,6 +97,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 ## Architecture
 
+- Update Kubernetes ready signal (wait for store to sync)
 - KVOpRequests tracing (mon, responses, ...)
 - Add file logging
 
