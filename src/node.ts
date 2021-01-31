@@ -374,14 +374,16 @@ export default class Node {
             commited: {log: ILog, token: string}[];
             appended: {log: ILog, token: string}[];
           }) => {
-            this.messages.setValue({
-              type: "KVOpStoreSyncComplete",
-              source: "node",
-              destination: "log",
-              payload: {
-                report: report,
-              },
-            });
+            if (report.appended.length + report.commited.length) {
+              this.messages.setValue({
+                type: "KVOpStoreSyncComplete",
+                source: "node",
+                destination: "log",
+                payload: {
+                  report: report,
+                },
+              });
+            }
           });
         break;
       }
