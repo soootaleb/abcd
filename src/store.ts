@@ -5,7 +5,8 @@ export default class Store {
   private messages: Observe<IMessage>;
 
   private static GC_FLUSH_TIMEOUT = 600000;
-
+  private static readonly STORE_DATA_DIR = new URL('..', import.meta.url).pathname + "data/"
+    
   private _wal: IWal = {};
   private _buffer: IWal = {};
   private _votes: { [key: string]: number } = {};
@@ -31,7 +32,8 @@ export default class Store {
 
     this._encoder = new TextEncoder();
 
-    this._fwal = Deno.openSync('/app/data/abcd.wal', { write: true });
+    this._fwal = Deno.openSync(Store.STORE_DATA_DIR + 'abcd.wal', { append: true, create: true });
+    
     setInterval(() => {
 
       this.messages.setValue({
