@@ -33,7 +33,7 @@ export default class Store {
     this._encoder = new TextEncoder();
 
     this._fwal = Deno.openSync(Store.STORE_DATA_DIR + 'abcd.wal', { append: true, create: true });
-    
+
     setInterval(() => {
 
       this.messages.setValue({
@@ -119,7 +119,7 @@ export default class Store {
     token: string
   }): Promise<Boolean> {
     // return Promise.resolve(true);
-    const bytes = this._encoder.encode(JSON.stringify(entry.log));
+    const bytes = this._encoder.encode(JSON.stringify(entry.log) + '\n');
     return this._fwal.write(bytes)
       .then((written: number) => {
         return Deno.fsync(this._fwal.rid)
