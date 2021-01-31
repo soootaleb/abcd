@@ -324,4 +324,59 @@ export default class Store {
     return log;
   }
 
+  public kvop(request: {
+    token: string,
+    request: IMessage<{
+      key: string,
+      value: string,
+      op: string
+    }>,
+    timestamp: number,
+    
+  }) {
+    switch (request.request.payload.op) {
+      case "put":
+
+        const key = request.request.payload.key
+        const value = request.request.payload.value
+        const token = request.token
+
+        // Later we'll need to verify the kv is not in process
+        // Otherwise, the request will have to be delayed or rejected (or use MVCC)
+        const log = this.put(token, key, value);
+
+        this.messages.setValue({
+          type: "KVOpAccepted",
+          source: "store",
+          destination: "node",
+          payload: {
+            log: log,
+            token: request.token
+          },
+        });
+        break;
+      case "get":
+        this.messages.setValue({
+          type: "KVOpRequestComplete",
+          source: "store",
+          destination: "node",
+          payload: {
+            answer: this.get(request.request.payload.key),
+            token: request.token
+          },
+        });
+        break;
+      default:
+        this.messages.setValue({
+          type: "invalidKVOperation",
+          source: "store",
+          destination: "log",
+          payload: {
+            invalidOperation: request.request.payload.op
+          }
+        })
+        break;
+    }
+  }
+
 }
