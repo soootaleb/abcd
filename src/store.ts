@@ -2,19 +2,33 @@ import type { IKeyValue, ILog, IMessage, IWal } from "./interface.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 
 export default class Store {
+
+  private worker: Worker;
   private messages: Observe<IMessage>;
 
   private static GC_FLUSH_TIMEOUT = 600000;
   private static readonly STORE_DATA_DIR = new URL('..', import.meta.url).pathname + "data/"
     
   private _wal: IWal = {};
+
+  /**
+   * In order to prevent master node to send a log mutliple times (until it's commited)
+   * the node will read the latest logs using Store.buffer get method;
+   * The getter erases the buffer each time, so logs in buffer are read only once
+   */
   private _buffer: IWal = {};
+
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
 
   private _fwal: Deno.File;
   private _encoder: TextEncoder;
 
+  /**
+   * WARNING: The getter exists ONLY for the master node to send logs only one time
+   * Reading the buffer will erase it, preventing the master from sending the latest logs
+   * If you need to read the WAL, use Store.wget(key)
+   */
   public get buffer() {
     const outcome = {...this._buffer};
     this._buffer = {};
@@ -24,9 +38,23 @@ export default class Store {
   constructor(messages: Observe<IMessage>) {
     this.messages = messages;
 
+    // START THE WORKER
+    this.worker = new Worker(new URL("store.worker.ts", import.meta.url).href, {
+      type: "module",
+      deno: true,
+    });
+
+    // Push worker messages to queue
+    // If destination is Net, message will be handled by messages.bind()
+    this.worker.onmessage = (e: MessageEvent) => {
+      this.messages.setValue(e.data);
+    };
+
     this.messages.bind((message: IMessage<any>) => {
       if (message.destination == "store") {
         this.handleMessage(message);
+      } else if (message.destination == "store.worker") {
+        this.worker.postMessage(message);
       }
     });
 
@@ -103,7 +131,7 @@ export default class Store {
     return this.wal[key];
   }
 
-  public bget(key: string): {log: ILog, token: string}[] {
+  private bget(key: string): {log: ILog, token: string}[] {
     if (!(key in this._buffer)) {
       this._buffer[key] = [];
     }
@@ -124,9 +152,16 @@ export default class Store {
       .then((written: number) => {
         return Deno.fsync(this._fwal.rid)
           .then(() => {
+            this.messages.setValue({
+              type: "applyLogInStore",
+              source: "store",
+              destination: "store.worker",
+              payload: entry
+            })
+          })
+          .then(() => {
             return written === bytes.length;
           })
-        
       }).catch(() => false);
   }
   public async commit(entry: {
@@ -136,10 +171,6 @@ export default class Store {
     log: ILog,
     token: string
   }> {
-    const key: string = entry.log.next.key;
-    // const log = entry.log
-
-    // [TODO] Commit only if the timestamp (term?) is the highest regarding the key (later use MVCC)
 
     return this.persist(entry)
       .then((ok: Boolean) => {
