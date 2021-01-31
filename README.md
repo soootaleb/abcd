@@ -88,24 +88,26 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 > Cluser discovery can be achieve using two different protocols depending on the environment
 
+- Starting node opens abcd.wal file append only
+- Starting node opens & reads store.json (loads content in memory)
+
+> Cluster is able to receive put & get requests and persist data between executions
+
 # Next steps
 
 ## Architecture
 
 - KVOpRequests tracing (mon, responses, ...)
-- Differenciate RAFT actions from KVDB actions (get, put, ...)
 - Add file logging
-- Deploy on Kubernetes
 
 ## Features
 
+- Applied logs in store should be remove from WAL (need to match logApplied with correct log)
+- Starting node should apply WAL logs in store (store.worker.applyLog)
 - Candidate timeout for new callForVote
 - Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
 - Upgrade voting strategy (known issue #2)
-- Partial WAL replication (in theory send all uncommited along with the latest commited only => requires logic in case of missing logs in follower)
-- Atomic WAL replication (send only one log along with latest commited like https://youtu.be/RHDP_KCrjUc?t=892 => need to queue logs replication)
-- WAL persistance
-- Store persistance
+- Send latest commited log along with uncommited WAL entries
 - Network partitions
 - Network latency
 - MVCC
