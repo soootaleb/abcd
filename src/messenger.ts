@@ -1,14 +1,15 @@
 // deno-lint-ignore-file no-explicit-any
 import Observe from "https://deno.land/x/Observe/Observe.ts";
-import { IMessage, IMPayload } from "./interface.ts";
-import { EMTypes } from "./enumeration.ts";
+import { IMessage } from "./interfaces/interface.ts";
+import { EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
+import { IMPayload } from "./interfaces/mpayload.ts";
 
 export default class Messenger extends Object {
 
-    private messages: Observe<IMessage<EMTypes>>;
+    private messages: Observe<IMessage<EMType>>;
 
-    constructor(messages: Observe<IMessage<EMTypes>>) {
+    constructor(messages: Observe<IMessage<EMType>>) {
         super();
 
         this.messages = messages;
@@ -21,13 +22,13 @@ export default class Messenger extends Object {
                 if (self.hasOwnProperty(message.type)) {
                     self[message.type](message);
                 } else {
-                    this.send(EMTypes.LogMessage, { message: "Missing handler for " + message.type }, "Log")
+                    this.send(EMType.LogMessage, { message: "Missing handler for " + message.type }, "Log")
                 }
             }
         })
     }
 
-    protected send<T extends EMTypes>(type: T, payload: IMPayload[T], destination: string) {
+    protected send<T extends EMType>(type: T, payload: IMPayload[T], destination: string) {
         this.messages.setValue({
             type: type,
             source: this.constructor.name,
@@ -40,38 +41,38 @@ export default class Messenger extends Object {
 /**
  * A components extends IO
  * - uses this.send() to send typed messages
- * - declares [EMTypes.MType] to handle typed messages
+ * - declares [EMType.MType] to handle typed messages
  */
 class Node extends Messenger {
 
-    constructor(messages: Observe<IMessage<EMTypes>>) {
+    constructor(messages: Observe<IMessage<EMType>>) {
         super(messages);
     }
 
-    protected [EMTypes.Ping]: H<EMTypes.Ping> = (message) => {
-        this.send(EMTypes.Pong, null, message.source);
+    protected [EMType.InitialMessage]: H<EMType.InitialMessage> = (message) => {
+        this.send(EMType.InitialMessage, null, message.source);
     }
 }
 
 class Net extends Messenger {
-    constructor(messages: Observe<IMessage<EMTypes>>) {
+    constructor(messages: Observe<IMessage<EMType>>) {
         super(messages);
     }
 
-    [EMTypes.Pong]: H<EMTypes.Pong> = (message) => {
-        this.send(EMTypes.LogMessage, {
+    [EMType.InitialMessage]: H<EMType.InitialMessage> = (message) => {
+        this.send(EMType.LogMessage, {
             message: "Received pong from " + message.source
         }, "Log")
     }
 
     public ping() {
-        this.send(EMTypes.Ping, null, "Node")
+        this.send(EMType.InitialMessage, null, "Node")
     }
 }
 
 // // Init messages
 // const messages = new Observe({
-//     type: EMTypes.InitialMessage,
+//     type: EMType.InitialMessage,
 //     source: "Root",
 //     destination: "Log",
 //     payload: null

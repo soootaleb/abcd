@@ -1,7 +1,7 @@
-import { EMTypes } from "./enumeration.ts";
-import { IMessage } from "./interface.ts";
+import { EMType } from "./enumeration.ts";
+import { IMessage } from "./interfaces/interface.ts";
 
 /**
  * EMType Handler (H) is a function accepting an IMessage<EMType>
  */
-export type H<T extends EMTypes> = (message: IMessage<T>) => void
+export type H<T extends EMType> = (message: IMessage<T>) => void
