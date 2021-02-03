@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 
 enum MT {
@@ -44,13 +45,13 @@ type Message<T extends keyof Mapping> = {
  */
 type H<T extends MT> = (message: Message<T>) => void
 
-class IO extends Object {
+class Messenger extends Object {
 
     /**
      * Doesn't seem to work as intended (check the constructor, payload doesn't match MType)
      * !!! Take a time to console.log(messages), very interesting props
      */
-    private messages: Observe<Message<keyof Mapping>>;
+    private messages: Observe<Message<MT>>;
 
 
     constructor(messages: Observe<Message<keyof Mapping>>) {
@@ -61,6 +62,7 @@ class IO extends Object {
         this.messages.bind((message) => {
             if(message.destination === this.constructor.name) {
                 // Yes, a bit ugly but...
+                // Added deno lint ignore...
                 const self: any = this;
                 if (self.hasOwnProperty(message.type)) {
                     self[message.type](message);
@@ -86,9 +88,9 @@ class IO extends Object {
  * - uses this.send() to send typed messages
  * - declares [MT.MType] to handle typed messages
  */
-class Node extends IO {
+class Node extends Messenger {
 
-    constructor(messages: Observe<Message<keyof Mapping>>) {
+    constructor(messages: Observe<Message<MT>>) {
         super(messages);
     }
 
@@ -97,8 +99,8 @@ class Node extends IO {
     }
 }
 
-class Net extends IO {
-    constructor(messages: Observe<Message<keyof Mapping>>) {
+class Net extends Messenger {
+    constructor(messages: Observe<Message<MT>>) {
         super(messages);
     }
 
@@ -115,7 +117,7 @@ class Net extends IO {
 
 // Init messages
 const messages = new Observe({
-    type: MT.LogMessage,
+    type: MT.InitialMessage,
     source: "Root",
     destination: "Log",
     payload: null
