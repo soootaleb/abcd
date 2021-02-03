@@ -1,4 +1,5 @@
-import type { ILog, IMessage } from "../src/interface.ts";
+import type { ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
+import { EKVOpType, EMType, EOpType } from "./enumeration.ts";
 
 export default class Client {
 
@@ -15,10 +16,19 @@ export default class Client {
         return `${protocol}://` + this._server.addr + ":" + this._server.port + "/client"
     }
 
-    private ws: WebSocket; // = new WebSocket(this.endpoint);
+    private ws: WebSocket;
 
-    private _requests: { [key: string]: any } = {};
-    private _connection: any = {};
+    private _requests: {
+        [key: string]: (value: IMessage<EMType.ClientResponse>) => void
+    } = {};
+
+    private _connection: {
+        promise: Promise<Client>,
+        resolve: (client: Client) => void
+    } = {} as {
+        promise: Promise<Client>,
+        resolve: (client: Client) => void
+    };
 
     public get co(): Promise<Client> {
         return this._connection.promise
@@ -45,11 +55,7 @@ export default class Client {
         })
     }
 
-    private async send<T = unknown>(type:  string, payload: any = {}): Promise<IMessage<{
-        timestamp: number,
-        token: string,
-        response: T
-    }>> {
+    private async send<T extends EOpType>(type:  T, payload: IOPayload[T]): Promise<IMessage<EMType.ClientResponse>> {
 
         const token = Math.random().toString(36).substr(2);
 
@@ -59,12 +65,8 @@ export default class Client {
             destination: this._server.addr,
             payload: {
                 token: token,
-                request: {
-                    type: type,
-                    source: "client",
-                    destination: this._server.addr,
-                    payload: payload
-                },
+                type: type,
+                payload: payload,
                 timestamp: new Date().getTime()
             }
         }))
@@ -74,10 +76,12 @@ export default class Client {
         })
     }
 
-    public async kvop(op: string, key: string, value?: string) {
-        return this.send<IMessage<ILog>>("KVOpRequest",{
-            key: key,
-            value: value,
+    public async kvop(op: EKVOpType, key: string, value?: string) {
+        return this.send(EOpType.KVOp, {
+            kv: {
+                key: key,
+                value: value,
+            },
             op: op
         })
     }
