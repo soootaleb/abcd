@@ -1,27 +1,24 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { Args, parse } from "https://deno.land/std/flags/mod.ts";
-import type { IKeyValue, ILog, IMessage, IWal } from "./interface.ts";
+import type { ILog, IMessage } from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Logger from "./logger.ts";
 import Discovery from "./discovery.ts";
+import { EMType, ENodeState, EOpType } from "./enumeration.ts";
+import Messenger from "./messenger.ts";
+import { H } from "./type.ts";
 
-export type TState = "leader" | "follower" | "candidate" | "starting";
-
-export default class Node {
+export default class Node extends Messenger {
   private args: Args = parse(Deno.args);
 
-  private run = true;
-  private uiRefreshTimeout: number = this.args["ui"] ? this.args["ui"] : 100;
-
-  private messages: Observe<IMessage>;
   private leader = "";
   private requests: { [key: string]: string } = {};
 
   private net: Net;
   private store: Store;
   private logger: Logger;
-  private state: TState = "starting";
+  private state: ENodeState = ENodeState.Starting;
   private discovery: Discovery;
 
   private term = 0;
@@ -33,55 +30,29 @@ export default class Node {
     ? this.args["etimeout"]
     : (Math.random() + 0.150) * 1000;
   private electionTimeoutId: number | undefined;
-  
+
   private discoveryBeaconIntervalId: number | undefined;
 
-  constructor() {
-    this.messages = new Observe<IMessage>({
-      type: "initialMessage",
-      source: "node",
-      destination: "log",
-      payload: {},
-    });
+  constructor(messages: Observe<IMessage<EMType>>) {
+    super(messages);
 
-    // Register logger first since messages.bind() is called in the subscription order
-    this.logger = new Logger(this.messages, this.args);
+    this.logger = new Logger(messages, this.args);
 
-    this.messages.bind((message: IMessage<any>) => {
-      if (message.destination == "node") {
-        if (Object.keys(this.net.clients).includes(message.source)) {
-          this.handleClientMessage(message);
-        } else if (message.source == "ui") {
-          this.handleUiMessage(message);
-        } else {
-          this.handleMessage(message);
-        }
-      }
-    });
+    this.net = new Net(messages);
+    this.store = new Store(messages);
+    this.discovery = new Discovery(messages);
 
-    this.net = new Net(this.messages);
-    this.store = new Store(this.messages);
-    this.discovery = new Discovery(this.messages);
-    
-    this.discovery.protocol = typeof this.args["discovery"] === "string" ? this.args["discovery"] : Discovery.DEFAULT;
-
-    setInterval(() => {
-      this.logger.ui({
-        run: this.run,
-        state: this.state,
-        peers: Object.keys(this.net.peers),
-        electionTimeout: this.electionTimeout,
-        term: this.term,
-        store: {
-          store: this.store.store,
-        },
-        heartBeatCounter: this.heartBeatCounter,
-      });
-    }, this.uiRefreshTimeout);
+    this.discovery.protocol = typeof this.args["discovery"] === "string"
+      ? this.args["discovery"]
+      : Discovery.DEFAULT;
   }
 
-  private transitionFunction(to: TState) {
-    const oldState: TState = this.state;
+  /**
+   * I prefer to keep this in method (private) to ensure only node can call it
+   * @param to state to transition to
+   */
+  private transitionFunction(to: ENodeState) {
+    const oldState: ENodeState = this.state;
 
     clearTimeout(this.electionTimeoutId);
     clearInterval(this.heartBeatIntervalId);
@@ -90,610 +61,340 @@ export default class Node {
     this.store.reset();
 
     switch (to) {
-      case "starting":
-        this.logger.role = "starting"
+      case ENodeState.Starting:
+        this.logger.role = ENodeState.Starting;
         break;
-      case "follower":
+      case ENodeState.Follower:
         this.electionTimeoutId = setTimeout(() => {
-          if (this.run) {
-            this.transitionFunction("candidate");
-          }
+          this.transitionFunction(ENodeState.Candidate);
         }, this.electionTimeout);
 
-        this.state = "follower";
-        this.logger.role = "follower"
-        this.messages.setValue({
-          type: "newState",
-          source: "node",
-          destination: "log",
-          payload: {
-            oldState: oldState,
-            newState: this.state,
-          },
-        });
+        this.state = ENodeState.Follower;
+        this.logger.role = ENodeState.Follower;
+
+        this.send(EMType.NewState, {
+          oldState: oldState,
+          newState: this.state,
+        }, "Logger");
 
         break;
-      case "leader":
+      case ENodeState.Leader:
         this.heartBeatIntervalId = setInterval(() => {
-          if (this.run) {
-            for (const peerIp of Object.keys(this.net.peers)) {
-              this.messages.setValue({
-                type: "heartBeat",
-                source: "node",
-                destination: peerIp,
-                payload: {
-                  wal: this.store.buffer,
-                  heartBeatCounter: this.heartBeatCounter,
-                },
-              });
-              this.heartBeatCounter += 1;
-            }
+          for (const peerIp of Object.keys(this.net.peers)) {
+            this.send(EMType.HeartBeat, {
+              wal: this.store.buffer,
+              heartBeatCounter: this.heartBeatCounter,
+            }, peerIp);
+            this.heartBeatCounter += 1;
           }
         }, this.heartBeatInterval);
 
         this.discoveryBeaconIntervalId = setInterval(() => {
-          if (this.run) {
-            this.messages.setValue({
-              type: "sendDiscoveryBeacon",
-              source: "node",
-              destination: "discovery",
-              payload: {},
-            });
-          }
+          this.send(EMType.DiscoveryBeaconSend, null, "Discovery");
         }, this.heartBeatInterval);
 
         this.term += 1;
 
-        this.state = "leader";
-        this.logger.role = "leader"
-        this.messages.setValue({
-          type: "newState",
-          source: "node",
-          destination: "log",
-          payload: {
-            oldState: oldState,
-            newState: this.state,
-          },
-        });
+        this.state = ENodeState.Leader;
+        this.logger.role = ENodeState.Leader;
+
+        this.send(EMType.NewState, {
+          oldState: oldState,
+          newState: this.state,
+        }, "Logger");
 
         for (const peerIp of Object.keys(this.net.peers)) {
-          this.messages.setValue({
-            type: "newTerm",
-            source: "node",
-            destination: peerIp,
-            payload: {
-              term: this.term,
-            },
-          });
+          this.send(EMType.NewTerm, {
+            term: this.term,
+          }, peerIp);
           this.heartBeatCounter += 1;
         }
 
         break;
-      case "candidate":
-        this.state = "candidate";
-        this.logger.role = "candidate"
+      case ENodeState.Candidate:
+        this.state = ENodeState.Candidate;
+        this.logger.role = ENodeState.Candidate;
         this.votesCounter = 1;
-        this.messages.setValue({
-          type: "newState",
-          source: "node",
-          destination: "log",
-          payload: {
-            oldState: oldState,
-            newState: this.state,
-          },
-        });
+
+        this.send(EMType.NewState, {
+          oldState: oldState,
+          newState: this.state,
+        }, "Logger");
 
         if (Object.keys(this.net.peers).length == 0) {
-          this.transitionFunction("leader");
+          this.transitionFunction(ENodeState.Leader);
         } else {
           for (const peerIp of Object.keys(this.net.peers)) {
-            this.messages.setValue({
-              type: "callForVoteRequest",
-              source: "node",
-              destination: peerIp,
-              payload: {
-                term: this.term,
-                peerIp: peerIp,
-              },
-            });
+            this.send(EMType.CallForVoteRequest, {
+              term: this.term,
+              peerIp: peerIp,
+            }, peerIp);
           }
         }
 
         break;
       default:
-        this.messages.setValue({
-          type: "invalidTransitionToState",
-          source: "node",
-          destination: "log",
-          payload: {
-            currentState: this.state,
-            transitionTo: to
-          }
-        });
+        this.send(EMType.InvalidTransitionToState, {
+          currentState: this.state,
+          transitionTo: to,
+        }, "Logger");
     }
   }
 
-  private handleUiMessage(message: IMessage<{
-    state: TState
-  }>) {
-    switch (message.type) {
-      case "setState":
-        this.transitionFunction(message.payload.state);
-        break;
-      case "runStop":
-        this.run = !this.run;
-        break;
-      case "clearStore":
-        this.store.empty();
-        break;
-      default:
-        this.messages.setValue({
-          type: "invalidUiMessageType",
-          source: "node",
-          destination: "log",
-          payload: {
-            message: message,
-          },
-        });
-        break;
-    }
-  }
+  [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
+    if (this.state == ENodeState.Leader) {
+      this.requests[message.payload.token] = message.source;
 
-  private handleClientMessage(message: IMessage<{
-    token: string,
-    request: IMessage<{
-      key: string,
-      value: string,
-      op: string
-    }>,
-    timestamp: number
-  }>) {
-    switch (message.type) {
-      case "clearStore":
-        this.store.empty();
-        break;
-      case "clientRequest":
-        if (this.state == "leader") {
-
-          this.requests[message.payload.token] = message.source;
-
-          switch (message.payload.request.type) {
-            case "KVOpRequest":
-              this.store.kvop(message.payload)
-              break;
-            default:
-              this.messages.setValue({
-                type: "invalidClientRequestType",
-                source: "node",
-                destination: "log",
-                payload: {
-                  invalidType: message.type
-                }
-              })
-              break;
-          }
-        } else {
-
-          this.requests[message.payload.token] = message.source;
-
-          // Here we will forward
-          this.messages.setValue({
-            ...message,
-            source: "node",
-            destination: this.leader,
-          });
-
-          this.messages.setValue({
-            type: "forwardedClientMessage",
-            source: "node",
-            destination: "log",
-            payload: {
-              message: message
-            }
-          });
-        }
-        break;
-      default:
-        this.messages.setValue({
-          type: "invalidClientMessageType",
-          source: "node",
-          destination: "log",
-          payload: {
-            message: message,
-          },
-        });
-        break;
-    }
-  }
-
-  private handleMessage(message: IMessage<{
-    wal: IWal,
-    log: ILog,
-    addr: Deno.NetAddr,
-    answer: Record<string, unknown>,
-    term: number,
-    peerIp: string,
-    voteGranted: boolean,
-    knownPeers: { [key: string]: { peerIp: string } },
-    clientIp: string
-    success: boolean,
-    result: string,
-    token: string,
-    request: IMessage<{
-      key: string,
-      value: string,
-      op: string
-    }>,
-    timestamp: number
-  }>) {
-    switch (message.type) {
-      case "heartBeat": {
-        if (this.state === "candidate" || this.state === "starting") {
-          this.transitionFunction("follower");
+      switch (message.payload.type) {
+        case EOpType.KVOp: {
+          this.store.kvop(message.payload);
           break;
         }
-
-        this.leader = message.source;
-        this.heartBeatCounter += 1;
-
-        clearTimeout(this.electionTimeoutId);
-
-        this.electionTimeoutId = setTimeout(() => {
-          if (this.run) {
-            this.transitionFunction("candidate");
-          }
-        }, this.electionTimeout);
-
-        this.store.sync(message.payload.wal)
-          .then((report: {
-            commited: {log: ILog, token: string}[];
-            appended: {log: ILog, token: string}[];
-          }) => {
-            // Commited logs are logged locally
-            for (const entry of report.commited) {
-              this.messages.setValue({
-                type: "commitedLog",
-                source: "node",
-                destination: "log",
-                payload: entry,
-              });
-            }
-
-            // Appended logs are notified to the leader
-            for (const entry of report.appended) {
-              this.messages.setValue({
-                type: "KVOpAccepted",
-                source: "node",
-                destination: message.source,
-                payload: entry,
-              });
-            }
-
-            return report;
-          }).then((report: {
-            commited: {log: ILog, token: string}[];
-            appended: {log: ILog, token: string}[];
-          }) => {
-            if (report.appended.length + report.commited.length) {
-              this.messages.setValue({
-                type: "KVOpStoreSyncComplete",
-                source: "node",
-                destination: "log",
-                payload: {
-                  report: report,
-                },
-              });
-            }
-          });
-        break;
-      }
-      case "KVOpAccepted": {
-        let log: ILog = message.payload.log;
-
-        const votes: number = this.store.voteFor(log.next.key);
-        // const entry = {
-        //   log: log,
-        //   token: message.payload.token
-        // };
-
-        if (votes === -1) { // Key is not currently under vote
-          this.messages.setValue({
-            type: "KVOpAcceptedReceivedButCommited",
-            source: "node",
-            destination: "log",
-            payload: {
-              log: log,
-              token: message.payload.token
-            },
-          });
-        } else if (votes >= this.net.quorum) {
-          this.store.commit({
-            log: log,
-            token: message.payload.token
-          }).then((entry: {
-              log: ILog,
-              token: string
-            }) => {
-              if (entry.log.commited) {
-                this.messages.setValue({
-                  type: "KVOpRequestComplete",
-                  source: "node",
-                  destination: "node",
-                  payload: {
-                    answer: entry.log,
-                    votes: votes,
-                    qorum: this.net.quorum,
-                    token: entry.token
-                  },
-                });
-              } else {
-                this.messages.setValue({
-                  type: "KVOpRequestIncomplete",
-                  source: "node",
-                  destination: "log",
-                  payload: {
-                    answer: entry.log,
-                    votes: votes,
-                    qorum: this.net.quorum,
-                    token: entry.token
-                  },
-                });
-              }
-            });
-        } else {
-          this.messages.setValue({
-            type: "KVOpAcceptedReceived",
-            source: "node",
-            destination: "log",
-            payload: {
-              message: message,
-              qorum: this.net.quorum,
-              votes: votes,
-              token: message.payload.token
-            },
-          });
-        }
-        break;
-      }
-      case "KVOpRequestComplete": {
-        
-        this.messages.setValue({
-          type: "clientResponse",
-          source: "node",
-          destination: this.requests[message.payload.token],
-          payload: {
-            token: message.payload.token,
-            response: {
-              type: "KVOpResponse",
-              source: "node",
-              destination: this.requests[message.payload.token],
-              payload: message.payload.answer,
-            },
-            timestamp: new Date().getTime()
-          }
-        });
-
-        delete this.requests[message.payload.token];
-
-        break;
-      }
-      case "newTerm":
-        if (message.payload.term > this.term) {
-          this.term = message.payload.term;
-
-          this.messages.setValue({
-            type: "newTermAccepted",
-            source: "node",
-            destination: "log",
-            payload: {
-              term: this.term,
-              leader: this.net.peers[message.source],
-            },
-          });
-
-          // TODO Implement WAL sync here
-
-          this.transitionFunction("follower");
-        } else {
-          this.messages.setValue({
-            type: "newTermRejected",
-            source: "node",
-            destination: message.source,
-            payload: {
-              term: this.term,
-            },
-          });
-        }
-        break;
-      case "callForVoteRequest":
-        this.messages.setValue({
-          type: "callForVoteReply",
-          source: "node",
-          destination: message.source,
-          payload: {
-            voteGranted: this.state != "leader" &&
-              message.payload.term >= this.term,
-          },
-        });
-        break;
-      case "callForVoteReply":
-        if (this.state == "candidate") {
-          if (message.payload.voteGranted) {
-            this.votesCounter += 1;
-          }
-
-          if (
-            this.votesCounter >= this.net.quorum
-          ) {
-            this.votesCounter = 0;
-            this.transitionFunction("leader");
-          }
-        } else {
-          this.messages.setValue({
-            type: "voteReceivedButNotCandidate",
-            source: "node",
-            destination: "log",
-            payload: {
-              callForVoteReply: message,
-              currentState: this.state,
-            },
-          });
-        }
-        break;
-      case "peerConnectionAccepted":
-        this.term = message.payload.term;
-
-        if (message.payload.wal) {
-          this.store.sync(message.payload.wal);
-        }
-
-        this.messages.setValue({
-          type: "openPeerConnectionComplete",
-          source: "node",
-          destination: "net",
-          payload: {
-            peerIp: message.source,
-          },
-        });
-
-        for (const peerIp of Object.keys(message.payload.knownPeers)) {
-          if (!Object.keys(this.net.peers).includes(peerIp)) {
-            this.messages.setValue({
-              type: "openPeerConnectionRequest",
-              source: "node",
-              destination: "net",
-              payload: {
-                peerIp: peerIp,
-              },
-            });
-          }
-        }
-        break;
-      case "peerConnectionOpen": {
-        // Duplicate known peers before adding the new one (it already knows itself...)
-        const knownPeers = { ...this.net.peers };
-
-        // newPeer can be received twice from same peer
-        // That's because knownPeers are added in parallel
-        // Hence, a peer can connect a second time because its first co didn't make it before
-        // another peer replies with the same knownPeer.
-        // Duplicate conn are not a problem but duplicate newPeers will
-        // send the peer to itself, thus making it create a self-loop
-        delete knownPeers[message.payload.peerIp];
-
-        this.messages.setValue({
-          type: "peerConnectionAccepted",
-          source: "node",
-          destination: message.payload.peerIp,
-          payload: {
-            term: this.term,
-            knownPeers: knownPeers,
-            wal: this.store.wal,
-          },
-        });
-        break;
-      }
-      case "peerConnectionClose":
-        this.messages.setValue({
-          type: "peerConnectionClose",
-          source: "node",
-          destination: "log",
-          payload: {
-            peerIp: message.payload.peerIp,
-          },
-        });
-        break;
-      case "clientConnectionOpen":
-        this.messages.setValue({
-          type: "clientConnectionOpen",
-          source: "node",
-          destination: "log",
-          payload: {
-            clientIp: message.payload.clientIp,
-          },
-        });
-        break;
-      case "clientConnectionClose":
-        this.messages.setValue({
-          type: "clientConnectionClose",
-          source: "node",
-          destination: "log",
-          payload: {
-            clientIp: message.payload.clientIp,
-          },
-        });
-        break;
-      case "peerServerStarted":
-      case "discoveryServerStarted":
-        if (this.net.ready && this.discovery.ready) {
-
-          this.discovery.discover();
-        }
-        break;
-      case "discoveryResult":
-
-        // If node is leader or knows a leader, break
-        if (this.state === "leader" || this.leader.length) {
-          this.messages.setValue({
-            type: "discoveredResultIgnored",
-            source: "node",
-            destination: "log",
-            payload: {
-              result: message.payload,
-              state: this.state,
-              leader: this.leader
-            }
-          })
+        default:
+          this.send(EMType.InvalidClientRequestType, {
+            invalidType: message.payload.type,
+          }, "Logger");
           break;
-        }
+      }
+    } else {
+      this.requests[message.payload.token] = message.source;
 
-        // If discovery found a node, connect to it
-        if (message.payload.success) {
-          this.messages.setValue({
-            type: "openPeerConnectionRequest",
-            source: "node",
-            destination: "net",
-            payload: {
-              peerIp: message.payload.result
-            }
-          })
-        }
-        
-        // either way, discovery is finished so node is ready
-        this.messages.setValue({
-          type: "nodeReady",
-          source: "node",
-          destination: "net.worker",
-          payload: {
-            ready: true
-          }
-        })
+      this.send(message.type, message.payload, this.leader);
 
-        // discovery finishes by passing follower (may move to leader if no node found)
-        this.transitionFunction("follower");
-        break;
-      case "clientResponse":
-        this.messages.setValue({
-          ...message,
-          source: "node",
-          destination: this.requests[message.payload.token]
-        })
-
-        delete this.requests[message.payload.token];
-        break;
-      case "clientRequest":
-        this.handleClientMessage(message);
-        break;
-      default:
-        this.messages.setValue({
-          type: "invalidMessageType",
-          source: "node",
-          destination: "log",
-          payload: {
-            message: message,
-          },
-        });
-        break;
+      this.send(EMType.ClientRequestForward, {
+        message: message,
+      }, "Logger");
     }
+  };
+
+  [EMType.HeartBeat]: H<EMType.HeartBeat> = (message) => {
+    if (
+      this.state === ENodeState.Candidate ||
+      this.state === ENodeState.Starting
+    ) {
+      // Check performance here (called very often)
+      this.transitionFunction(ENodeState.Follower);
+      return;
+    }
+
+    this.leader = message.source;
+    this.heartBeatCounter += 1;
+
+    clearTimeout(this.electionTimeoutId);
+
+    this.electionTimeoutId = setTimeout(() => {
+      this.transitionFunction(ENodeState.Candidate);
+    }, this.electionTimeout);
+
+    this.store.sync(message.payload.wal)
+      .then((report) => {
+        // Commited logs are logged locally
+        for (const entry of report.commited) {
+          this.send(EMType.CommitedLog, entry, "Logger");
+        }
+
+        // Appended logs are notified to the leader
+        for (const entry of report.appended) {
+          this.send(EMType.KVOpAccepted, entry, message.source);
+        }
+
+        return report;
+      }).then((report) => {
+        if (report.appended.length + report.commited.length) {
+          this.send(EMType.KVOpStoreSyncComplete, {
+            report: report,
+          }, "Logger");
+        }
+      });
+  };
+
+  [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
+    const log: ILog = message.payload.log;
+    const votes: number = this.store.voteFor(log.next.key);
+
+    if (votes === -1) { // Key is not currently under vote
+      this.send(
+        EMType.KVOpAcceptedReceivedButCommited,
+        message.payload,
+        "Logger",
+      );
+    } else if (votes >= this.net.quorum) {
+      this.store.commit({
+        log: log,
+        token: message.payload.token,
+      }).then((entry) => {
+        if (entry.log.commited) {
+          this.send(EMType.KVOpRequestComplete, message.payload, "Node");
+        } else {
+          this.send(EMType.KVOpRequestIncomplete, message.payload, "Logger");
+        }
+      });
+    } else {
+      this.send(EMType.KVOpAcceptedReceived, {
+        message: message,
+        qorum: this.net.quorum,
+        votes: votes,
+        token: message.payload.token,
+      }, "Logger");
+    }
+  };
+
+  [EMType.KVOpRequestComplete]: H<EMType.KVOpRequestComplete> = (message) => {
+    this.send(EMType.ClientResponse, {
+      token: message.payload.token,
+      type: EOpType.KVOp,
+      payload: {
+        kv: message.payload.log.next,
+        op: message.payload.log.op,
+      },
+      timestamp: new Date().getTime(),
+    }, this.requests[message.payload.token]);
+
+    delete this.requests[message.payload.token];
+  };
+
+  [EMType.NewTerm]: H<EMType.NewTerm> = (message) => {
+    if (message.payload.term > this.term) {
+      this.term = message.payload.term;
+
+      this.send(EMType.NewTermAccepted, {
+        term: this.term,
+        leader: this.net.peers[message.source],
+      }, "Logger");
+
+      // TODO Implement WAL sync here
+
+      this.transitionFunction(ENodeState.Follower);
+    } else {
+      this.send(EMType.NewTermRejected, {
+        term: this.term,
+      }, message.source);
+    }
+  };
+
+  [EMType.CallForVoteRequest]: H<EMType.CallForVoteRequest> = (message) => {
+    this.send(EMType.CallForVoteResponse, {
+      voteGranted: this.state != ENodeState.Leader &&
+        message.payload.term >= this.term,
+    }, message.source);
+  };
+
+  [EMType.CallForVoteResponse]: H<EMType.CallForVoteResponse> = (message) => {
+    if (this.state == ENodeState.Candidate) {
+      if (message.payload.voteGranted) {
+        this.votesCounter += 1;
+      }
+
+      if (
+        this.votesCounter >= this.net.quorum
+      ) {
+        this.votesCounter = 0;
+        this.transitionFunction(ENodeState.Leader);
+      }
+    } else {
+      this.send(EMType.VoteReceivedButNotCandidate, {
+        callForVoteReply: message,
+        currentState: this.state,
+      }, "Logger");
+    }
+  };
+
+  [EMType.PeerConnectionAccepted]: H<EMType.PeerConnectionAccepted> = (
+    message,
+  ) => {
+    this.term = message.payload.term;
+
+    if (message.payload.wal) {
+      this.store.sync(message.payload.wal);
+    }
+
+    this.send(EMType.PeerConnectionComplete, {
+      peerIp: message.source,
+    }, "Net");
+
+    for (const peerIp of Object.keys(message.payload.knownPeers)) {
+      if (!Object.keys(this.net.peers).includes(peerIp)) {
+        this.send(EMType.PeerConnectionRequest, {
+          peerIp: peerIp,
+        }, "Net");
+      }
+    }
+  };
+
+  [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
+    // Duplicate known peers before adding the new one (it already knows itself...)
+    const knownPeers = { ...this.net.peers };
+
+    // newPeer can be received twice from same peer
+    // That's because knownPeers are added in parallel
+    // Hence, a peer can connect a second time because its first co didn't make it before
+    // another peer replies with the same knownPeer.
+    // Duplicate conn are not a problem but duplicate newPeers will
+    // send the peer to itself, thus making it create a self-loop
+    delete knownPeers[message.payload.peerIp];
+
+    this.send(EMType.PeerConnectionAccepted, {
+      term: this.term,
+      knownPeers: knownPeers,
+      wal: this.store.wal,
+    }, message.payload.peerIp);
+  };
+
+  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = (message) => {
+    this.send(message.type, message.payload, "Logger");
+  };
+
+  [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
+    this.send(message.type, message.payload, "Logger");
+  };
+
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
+    message,
+  ) => {
+    this.send(message.type, message.payload, "Logger");
+  };
+
+  [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {
+    if (this.net.ready && this.discovery.ready) {
+      this.discovery.discover();
+    }
+  }
+
+  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (message) => {
+    if (this.net.ready && this.discovery.ready) {
+      this.discovery.discover();
+    }
+  }
+
+  [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
+    // If node is leader or knows a leader, break
+    if (this.state === ENodeState.Leader || this.leader.length) {
+      this.send(EMType.DiscoveredResultIgnored, {
+        result: message.payload,
+        state: this.state,
+        leader: this.leader,
+      }, "Logger")
+      return;
+    }
+
+    // If discovery found a node, connect to it
+    if (message.payload.success) {
+      this.send(EMType.PeerConnectionRequest, {
+        peerIp: message.payload.result,
+      }, "Net")
+    }
+
+    // either way, discovery is finished so node is ready
+    this.send(EMType.NodeReady, {
+      ready: true,
+    }, "Net")
+
+    // discovery finishes by passing follower (may move to leader if no node found)
+    this.transitionFunction(ENodeState.Follower);
+  }
+
+  [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
+    this.send(message.type, message.payload, this.requests[message.payload.token]);
+    delete this.requests[message.payload.token];
   }
 }
