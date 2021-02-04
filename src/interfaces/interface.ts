@@ -30,6 +30,11 @@ export interface IEntry {
   token: string
 }
 
+export interface IReport {
+  commited: IEntry[],
+  appended: IEntry[]
+}
+
 export interface IKVOp {
   kv: IKeyValue,
   op: EKVOpType
