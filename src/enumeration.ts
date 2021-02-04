@@ -28,7 +28,7 @@ export enum EMType {
   DiscoveryEndpointCalled = "DiscoveryEndpointCalled",
   DiscoveryBeaconSend = "DiscoveryBeaconSend",
   DiscoveryBeaconReceived = "DiscoveryBeaconReceived",
-  DiscoveryBeaconSendFailed = "DiscoveryBeaconSendFailed",
+  DiscoveryBeaconSendFail = "DiscoveryBeaconSendFail",
 
   // UI
 
@@ -45,7 +45,10 @@ export enum EMType {
 
   // PEER CONNECTION
 
+  PeerAdded = "PeerAdded",
   PeerConnected = "PeerConnected",
+  PeerConnectionRequest = "PeerConnectionRequest",
+  PeerConnectionAccepted = "PeerConnectionAccepted",
   PeerConnectionOpen = "PeerConnectionOpen",
   PeerConnectionPending = "PeerConnectionPending",
   PeerConnectionComplete = "PeerConnectionComplete",
@@ -70,9 +73,7 @@ export enum EMType {
   VoteReceivedButNotCandidate = "VoteReceivedButNotCandidate",
 
   // KVOPERATIONS
-
-  KVOpRequest = "KVOpRequest",
-  KVOpResponse = "KVOpResponse",
+  
   KVOpAccepted = "KVOpAccepted",
   KVOpStoreSyncComplete = "KVOpStoreSyncComplete",
   KVOpAcceptedReceivedButCommited = "KVOpAcceptedReceivedButCommited",
