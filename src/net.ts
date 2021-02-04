@@ -1,15 +1,17 @@
-import type { IMessage } from "./interface.ts";
+import type { IMessage } from "./interfaces/interface.ts";
 
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
+import Messenger from "./messenger.ts";
+import { EMType } from "./enumeration.ts";
+import { H } from "./type.ts";
 
-export default class Net {
+export default class Net extends Messenger {
 
   private _ready = false;
   private _peers: { [key: string]: { peerIp: string } } = {};
   private _clients: { [key: string]: { clientIp: string } } = {};
   
   private worker: Worker;
-  private messages: Observe<IMessage>;
 
   public get ready() {
     return this._ready;
@@ -27,126 +29,75 @@ export default class Net {
     return Math.floor((Object.keys(this.peers).length + 1) / 2) + 1
   }
 
-  constructor(messages: Observe<IMessage>) {
-    this.messages = messages;
+  constructor(messages: Observe<IMessage<EMType>>) {
+    super(messages);
 
     // START THE WORKER
-    this.worker = new Worker(new URL("net.worker.ts", import.meta.url).href, {
+    this.worker = new Worker(new URL("net.worker.ts", import.meta.url + 'workers/').href, {
       type: "module",
       deno: true,
     });
 
     // Push worker messages to queue
     // If destination is Net, message will be handled by messages.bind()
-    this.worker.onmessage = (e: MessageEvent) => {
-      this.messages.setValue(e.data);
+    this.worker.onmessage = (ev: MessageEvent) => {
+      const message: IMessage<EMType> = ev.data;
+      this.send(message.type, message.payload, message.destination, message.source);
     };
 
     // MESSAGES RECEIVED FROM QUEUE WILL GO EITHER TO
     // handleMessage if destination is NET
     // this.worker.postMessage if it's a peer, a client or "ui"
-    this.messages.bind((message: IMessage<any>) => {
-      if (message.destination == "net") {
-
-        // Worker should no longer send messages to net
-        this.handleMessage(message);
-      } else if (
+    this.messages.bind((message) => {
+      if (
         Object.keys(this.peers).includes(message.destination) ||
         Object.keys(this.clients).includes(message.destination) ||
-        message.destination === "ui" ||
-        message.destination === "net.worker"
+        message.destination === "Ui" ||
+        message.destination === "NetWorker"
       ) {
         this.worker.postMessage(message);
       }
     });
   }
 
-  /**
-   * Method to handle message with destination NET
-   * @param message message with destination == "net"
-   */
-  private handleMessage(
-    message: IMessage<{
-      clientIp: string,
-      peerIp: string;
-    }>, 
-  ) {
-    switch (message.type) {
-      case "peerConnectionOpen":
-        this.peers[message.payload.peerIp] = message.payload;
-        this.messages.setValue({
-          type: "peerConnectionOpen",
-          source: "net",
-          destination: "node",
-          payload: message.payload,
-        });
-        break;
-      case "peerConnectionFailed":
-      case "peerConnectionClose":
-        delete this.peers[message.payload.peerIp];
-        this.messages.setValue({
-          type: "peerConnectionClose",
-          source: "net",
-          destination: "node",
-          payload: message.payload,
-        });
-        break;
-      case "clientConnectionOpen":
-        this.clients[message.payload.clientIp] = message.payload;
-        this.messages.setValue({
-          type: "clientConnectionOpen",
-          source: "net",
-          destination: "node",
-          payload: message.payload,
-        });
-        break;
-      case "clientConnectionClose":
-        delete this.clients[message.payload.peerIp];
-        this.messages.setValue({
-          type: "clientConnectionClose",
-          source: "net",
-          destination: "node",
-          payload: message.payload,
-        });
-        break;
-      case "openPeerConnectionRequest":
-        this.messages.setValue({
-          type: "openPeerConnectionRequest",
-          source: "net",
-          destination: "net.worker",
-          payload: message.payload,
-        });
-        break;
-      case "openPeerConnectionComplete":
-        this._peers[message.payload.peerIp] = {
-          peerIp: message.payload.peerIp
-        };
-        this.messages.setValue({
-          type: "peerAdded",
-          source: "net",
-          destination: "log",
-          payload: message.payload,
-        });
-        break;
-      case "peerServerStarted":
-        this._ready = true;
-        this.messages.setValue({
-          type: "peerServerStarted",
-          source: "net",
-          destination: "node",
-          payload: message.payload
-        });
-        break;
-      default:
-        this.messages.setValue({
-          type: "invalidMessageType",
-          source: "net",
-          destination: "log",
-          payload: {
-            message: message,
-          },
-        });
-        break;
-    }
+  [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
+    this.peers[message.payload.peerIp] = message.payload;
+    this.send(message.type, message.payload, "Node")
+  }
+
+  [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
+    delete this.peers[message.payload.peerIp];
+    this.send(EMType.PeerConnectionClose, message.payload, "Node");
+  }
+
+  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
+    delete this.peers[message.payload.peerIp];
+    this.send(message.type, message.payload, "Node");
+  }
+
+  [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
+    this.clients[message.payload.clientIp] = message.payload;
+    this.send(message.type, message.payload, "Node");
+  }
+
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (message) => {
+    this.clients[message.payload.clientIp] = message.payload;
+    this.send(message.type, message.payload, "Node");
+  }
+
+  [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (message) => {
+    this.send(message.type, message.payload, "NetWorker");
+  }
+
+  [EMType.PeerConnectionComplete]: H<EMType.PeerConnectionComplete> = (message) => {
+    this._peers[message.payload.peerIp] = {
+      peerIp: message.payload.peerIp
+    };
+    this.send(EMType.PeerAdded, message.payload, "Logger")
+  }
+
+  [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {
+    this._ready = true;
+    this.send(message.type, message.payload, "Node");
   }
 }

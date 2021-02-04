@@ -37,7 +37,7 @@ export interface IMPayload {
     token: string;
   };
 
-  [EMType.DiscoveryBeaconSendFailed]: {
+  [EMType.DiscoveryBeaconSendFail]: {
     reason: string;
     ready: boolean;
   };
@@ -61,14 +61,14 @@ export interface IMPayload {
   [EMType.ClientRequest]: {
     token: string;
     type: EOpType,
-    payload: IOPayload[EOpType],
+    payload: IOPayload[EOpType.KVOp], // Need to fix this for new KVOp....
     timestamp: number;
   };
 
   [EMType.ClientResponse]: {
     token: string;
     type: EOpType,
-    payload: IOPayload[EOpType],
+    payload: IOPayload[EOpType.KVOp],
     timestamp: number;
   };
 
@@ -85,8 +85,14 @@ export interface IMPayload {
   [EMType.ClientConnectionClose]: {
     clientIp: string;
   };
+  
+  [EMType.PeerAdded]: IMPayload[EMType.PeerConnectionComplete];
 
   [EMType.PeerConnected]: IMPayload[EMType.PeerConnectionComplete];
+
+  [EMType.PeerConnectionRequest]: {
+    peerIp: string
+  }
 
   [EMType.PeerConnectionOpen]: {
     peerIp: string;
@@ -111,6 +117,16 @@ export interface IMPayload {
   [EMType.PeerConnectionClose]: {
     peerIp: string;
   };
+
+  [EMType.PeerConnectionAccepted]: {
+    term: number,
+    knownPeers: {
+      [key: string]: {
+        peerIp: string
+      }
+    },
+    wal: IWal
+  }
 
   [EMType.PeerServerStarted]: Deno.Addr;
 
@@ -155,17 +171,9 @@ export interface IMPayload {
   };
 
   [EMType.VoteReceivedButNotCandidate]: {
-    callForVoteReply: IMPayload[EMType.CallForVoteResponse];
+    callForVoteReply: IMessage<EMType.CallForVoteResponse>;
     currentState: ENodeState;
   };
-
-  [EMType.KVOpRequest]: {
-    token: string;
-    request: IKVOp;
-    timestamp: number;
-  };
-
-  [EMType.KVOpResponse]: ILog;
 
   [EMType.KVOpAccepted]: IEntry;
 
