@@ -30,9 +30,7 @@ export default class DiscoveryWorker {
 
     self.onmessage = this.onmessage;
 
-    this.send(EMType.DiscoveryServerStarted, {
-      token: this.token
-    }, "Discovery");
+    this.send(EMType.DiscoveryServerStarted, null, "Discovery");
   }
   
   private send<T extends EMType>(
