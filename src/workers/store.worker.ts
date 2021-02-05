@@ -3,6 +3,7 @@ import type { IKeyValue, ILog, IMessage } from "../interfaces/interface.ts";
 import { EMType } from "../enumeration.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
 import { H } from "../type.ts";
+import Store from "../store.ts";
 
 declare const self: Worker;
 
@@ -15,11 +16,10 @@ export default class StoreWorker {
   constructor() {
     self.onmessage = this.onmessage;
 
-    Deno.readTextFile(
-      new URL("..", import.meta.url).pathname + "data/store.json",
-    ).then((content) => {
-      this.send(EMType.StoreInit, JSON.parse(content || ""), "Store");
-    });
+    Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
+      .then((content) => {
+        this.send(EMType.StoreInit, JSON.parse(content || ""), "Store");
+      });
   }
 
   private send<T extends EMType>(
@@ -59,13 +59,11 @@ export default class StoreWorker {
   };
 
   [EMType.KVOpStoreApply]: H<EMType.KVOpStoreApply> = (message) => {
-    
     const log = message.payload.log;
 
     if (log.op === EKVOpType.Put) {
-      Deno.readTextFile(
-        new URL("..", import.meta.url).pathname + "data/store.json",
-      ).then((content) => {
+      Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
+        .then((content) => {
           const store: { [key: string]: IKeyValue } = JSON.parse(
             content || "{}",
           );
@@ -78,14 +76,16 @@ export default class StoreWorker {
           Deno.writeFile(
             new URL("..", import.meta.url).pathname + "data/store.json",
             store,
-          ).then(() => this.send(EMType.StoreLogCommitSuccess, message.payload, "Logger"));
+          ).then(() =>
+            this.send(EMType.StoreLogCommitSuccess, message.payload, "Logger")
+          );
         });
     } else {
       this.send(EMType.LogMessage, {
-        message: 'Invalid EKVOPType ' + log.op
+        message: "Invalid EKVOPType " + log.op,
       }, "Logger");
     }
-  }
+  };
 }
 
 new StoreWorker();

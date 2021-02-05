@@ -8,7 +8,7 @@ import { H } from "./type.ts";
 export default class Store extends Messenger {
   private worker: Worker;
 
-  private static readonly STORE_DATA_DIR =
+  public static readonly STORE_DATA_DIR =
     new URL("..", import.meta.url).pathname + "data/";
 
   private _wal: IWal = {};
