@@ -30,6 +30,13 @@ export enum EMType {
   DiscoveryBeaconReceived = "DiscoveryBeaconReceived",
   DiscoveryBeaconSendFail = "DiscoveryBeaconSendFail",
 
+  // Store
+
+  StoreInit = "StoreInit",
+  StoreLogCommitFail = "StoreLogCommitFail",
+  StoreLogCommitRequest = "StoreLogCommitRequest",
+  StoreLogCommitSuccess = "StoreLogCommitSuccess",
+
   // UI
 
   UILogMessage = "UILogMessage",
@@ -65,7 +72,6 @@ export enum EMType {
   NewState = "NewState",
   NewTerm = "NewTerm",
 
-  CommitedLog = "CommitedLog",
   CallForVoteRequest = "CallForVoteRequest",
   CallForVoteResponse = "CallForVoteResponse",
   NewTermAccepted = "NewTermAccepted",
@@ -75,6 +81,8 @@ export enum EMType {
   // KVOPERATIONS
   
   KVOpAccepted = "KVOpAccepted",
+  KVOpRejected = "KVOpRejected",
+  KVOpStoreApply = "KVOpStoreApply",
   KVOpStoreSyncComplete = "KVOpStoreSyncComplete",
   KVOpAcceptedReceivedButCommited = "KVOpAcceptedReceivedButCommited",
   KVOpRequestComplete = "KVOpRequestComplete",

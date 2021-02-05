@@ -188,10 +188,6 @@ export default class Node extends Messenger {
 
     this.store.sync(message.payload.wal)
       .then((report) => {
-        // Commited logs are logged locally
-        for (const entry of report.commited) {
-          this.send(EMType.CommitedLog, entry, "Logger");
-        }
 
         // Appended logs are notified to the leader
         for (const entry of report.appended) {

@@ -16,7 +16,6 @@ export default class DiscoveryWorker {
   
   private knownTokens: string[] = [];
 
-
   private postMessage: <T extends EMType>(message: IMessage<T>) => void =
     self.postMessage;
 

@@ -1,5 +1,5 @@
 import { EMType, ENodeState, EOpType } from "../enumeration.ts";
-import { IEntry, IKVOp, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
+import { IEntry, IKeyValue, IKVOp, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {
@@ -39,6 +39,10 @@ export interface IMPayload {
     reason: string;
     ready: boolean;
   };
+
+  [EMType.StoreInit]: {
+    [key: string]: IKeyValue
+  }
 
   [EMType.UILogMessage]: {
     message: IMessage<EMType>;
@@ -157,7 +161,9 @@ export interface IMPayload {
     term: number;
   };
 
-  [EMType.CommitedLog]: IEntry;
+  [EMType.StoreLogCommitFail]: IEntry;
+  [EMType.StoreLogCommitRequest]: IEntry;
+  [EMType.StoreLogCommitSuccess]: IEntry;
 
   [EMType.CallForVoteRequest]: {
     term: number;
@@ -174,6 +180,18 @@ export interface IMPayload {
   };
 
   [EMType.KVOpAccepted]: IEntry;
+
+  [EMType.KVOpRejected]: {
+    reason: string,
+    request: {
+      token: string;
+      type: EOpType,
+      payload: IOPayload[EOpType.KVOp], // Need to fix this for new KVOp....
+      timestamp: number;
+    },
+  };
+
+  [EMType.KVOpStoreApply]: IEntry;
 
   [EMType.KVOpStoreSyncComplete]: {
     report: {
