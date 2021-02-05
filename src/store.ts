@@ -42,7 +42,7 @@ export default class Store extends Messenger {
 
     // START THE WORKER
     this.worker = new Worker(
-      new URL("store.worker.ts", import.meta.url + "workers/").href,
+      new URL(".", import.meta.url).href + "workers/store.worker.ts",
       {
         type: "module",
         deno: true,
@@ -53,7 +53,12 @@ export default class Store extends Messenger {
     // If destination is Net, message will be handled by messages.bind()
     this.worker.onmessage = (ev: MessageEvent) => {
       const message: IMessage<EMType> = ev.data;
-      this.send(message.type, message.payload, message.destination, message.source);
+      this.send(
+        message.type,
+        message.payload,
+        message.destination,
+        message.source,
+      );
     };
 
     this.messages.bind((message) => {
@@ -72,7 +77,7 @@ export default class Store extends Messenger {
 
   [EMType.StoreInit]: H<EMType.StoreInit> = (message) => {
     this._store = message.payload;
-  }
+  };
 
   public reset() {
     this._votes = {};
@@ -88,12 +93,6 @@ export default class Store extends Messenger {
 
   public voteFor(key: string): number {
     this._votes[key] += 1;
-
-    this.send(EMType.CallForVoteRequest, {
-      key: key,
-      votes: this._votes[key],
-    }, "Logger");
-
     return this._votes[key];
   }
 
@@ -124,7 +123,9 @@ export default class Store extends Messenger {
     return this._fwal.write(bytes)
       .then((written: number) => {
         return Deno.fsync(this._fwal.rid)
-          .then(() => this.send(EMType.StoreLogCommitRequest, entry, "StoreWorker"))
+          .then(() =>
+            this.send(EMType.StoreLogCommitRequest, entry, "StoreWorker")
+          )
           .then(() => written === bytes.length);
       }).catch(() => false);
   }
@@ -259,20 +260,19 @@ export default class Store extends Messenger {
           // Later we'll need to verify the kv is not in process
           // Otherwise, the request will have to be delayed or rejected (or use MVCC)
           const log = this.put(token, key, value);
-          
+
           this.send(EMType.KVOpAccepted, {
             log: log,
-            token: request.token
+            token: request.token,
           }, "Node");
           break;
         } else {
           this.send(EMType.KVOpRejected, {
             request: request,
-            reason: "Put operation requires value !== undefined"
+            reason: "Put operation requires value !== undefined",
           }, "Node");
           break;
         }
-
       }
 
       case EKVOpType.Get: {
@@ -282,14 +282,14 @@ export default class Store extends Messenger {
               commited: true,
               op: EKVOpType.Get,
               timestamp: new Date().getTime(),
-              next: this.get(request.payload.kv.key)
+              next: this.get(request.payload.kv.key),
             },
             token: request.token,
           }, "Node");
         } else {
           this.send(EMType.KVOpRejected, {
             request: request,
-            reason: `Key ${request.payload.kv.key} not found`
+            reason: `Key ${request.payload.kv.key} not found`,
           }, "Node");
         }
         break;
@@ -297,7 +297,7 @@ export default class Store extends Messenger {
       default:
         this.send(EMType.KVOpRejected, {
           request: request,
-          reason: `KVOp ${request.payload.op} is not implemented`
+          reason: `KVOp ${request.payload.op} is not implemented`,
         }, "Logger");
     }
   }
