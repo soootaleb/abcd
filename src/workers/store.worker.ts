@@ -73,12 +73,10 @@ export default class StoreWorker {
           };
           return this.encoder.encode(JSON.stringify(store));
         }).then((store) => {
-          Deno.writeFile(
-            new URL("..", import.meta.url).pathname + "data/store.json",
-            store,
-          ).then(() =>
-            this.send(EMType.StoreLogCommitSuccess, message.payload, "Logger")
-          );
+          Deno.writeFile(Store.STORE_DATA_DIR + "store.json", store)
+            .then(() =>
+              this.send(EMType.StoreLogCommitSuccess, message.payload, "Logger")
+            );
         });
     } else {
       this.send(EMType.LogMessage, {
