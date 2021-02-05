@@ -4,7 +4,7 @@ import {
   WebSocket as DenoWS,
 } from "https://deno.land/std/ws/mod.ts";
 import type { IMessage } from "../interfaces/interface.ts";
-import { EMType, EOpType } from "../enumeration.ts";
+import { EComponent, EMType, EOpType } from "../enumeration.ts";
 import { H } from "../type.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
 
@@ -36,13 +36,13 @@ export default class NetWorker {
 
     self.onmessage = this.onmessage;
 
-    this.send(EMType.PeerServerStarted, this.server.listener.addr, "Net");
+    this.send(EMType.PeerServerStarted, this.server.listener.addr, EComponent.Net);
   }
 
   private send<T extends EMType>(
     type: T,
     payload: IMPayload[T],
-    destination: string,
+    destination: EComponent | string,
   ) {
     this.postMessage({
       type: type,
@@ -59,7 +59,7 @@ export default class NetWorker {
       worker.send(
         EMType.DiscoveryEndpointCalled,
         request.conn.remoteAddr,
-        "Logger",
+        EComponent.Logger,
       );
       request.respond({
         status: 200,
@@ -88,14 +88,14 @@ export default class NetWorker {
             clientIp: hostname,
             remoteAddr: remoteAddr,
             clientId: request.conn.rid,
-          }, "Net");
+          }, EComponent.Net);
 
           for await (const ev of sock) {
             if (typeof ev === "string") {
               this.postMessage({
                 ...JSON.parse(ev),
                 source: hostname,
-                destination: "Node",
+                destination: EComponent.Node,
               });
             }
           }
@@ -104,7 +104,7 @@ export default class NetWorker {
 
           this.send(EMType.ClientConnectionClose, {
             clientIp: hostname,
-          }, "Net");
+          }, EComponent.Net);
         } else if (request.url === "/ui") {
           this.uis.push(sock);
 
@@ -114,7 +114,7 @@ export default class NetWorker {
               this.postMessage({
                 ...JSON.parse(ev),
                 source: "Ui",
-                destination: "Node",
+                destination: EComponent.Node,
               });
             }
           }
@@ -125,7 +125,7 @@ export default class NetWorker {
 
           this.send(EMType.PeerConnectionOpen, {
             peerIp: hostname,
-          }, "Net");
+          }, EComponent.Net);
 
           for await (const ev of sock) {
             if (typeof ev === "string") {
@@ -133,7 +133,7 @@ export default class NetWorker {
               this.postMessage({
                 ...JSON.parse(ev),
                 source: hostname,
-                destination: "Node",
+                destination: EComponent.Node,
               });
             }
           }
@@ -142,7 +142,7 @@ export default class NetWorker {
 
           this.send(EMType.PeerConnectionClose, {
             peerIp: hostname,
-          }, "Net");
+          }, EComponent.Net);
         }
       });
     }
@@ -162,7 +162,7 @@ export default class NetWorker {
       this.clients[destination].send(JSON.stringify(message));
 
       // If it's "worker", handle message here
-    } else if (destination == "NetWorker") {
+    } else if (destination == EComponent.NetWorker) {
       // deno-lint-ignore no-this-alias no-explicit-any
       const self: any = this;
       if (Object.keys(this).includes(message.type)) {
@@ -171,7 +171,7 @@ export default class NetWorker {
         this.send(
           EMType.LogMessage,
           { message: "Missing handler for " + message.type },
-          "Logger",
+          EComponent.Logger,
         );
       }
 
@@ -190,13 +190,13 @@ export default class NetWorker {
         availablePeers: Object.keys(this.peers),
         availableClients: Object.keys(this.clients),
         message: message,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 
   [EMType.NodeReady]: H<EMType.NodeReady> = (message) => {
     this._ready = message.payload.ready;
-    this.send(message.type, message.payload, "Logger");
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (
@@ -205,7 +205,7 @@ export default class NetWorker {
     if (this.peers[message.payload.peerIp]) {
       this.send(EMType.PeerConnectionFail, {
         peerIp: message.payload.peerIp,
-      }, "Logger");
+      }, EComponent.Logger);
     } else {
       const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`);
       this.peers[message.payload.peerIp] = sock;
@@ -213,7 +213,7 @@ export default class NetWorker {
       sock.onopen = () => {
         this.send(EMType.PeerConnectionSuccess, {
           peerIp: message.payload.peerIp,
-        }, "Logger");
+        }, EComponent.Logger);
       };
 
       sock.onmessage = (ev: MessageEvent<string>) => {
@@ -221,7 +221,7 @@ export default class NetWorker {
         this.postMessage({
           ...JSON.parse(ev.data),
           source: message.payload.peerIp,
-          destination: "Node",
+          destination: EComponent.Node,
         });
       };
 
@@ -230,17 +230,17 @@ export default class NetWorker {
           delete this.peers[message.payload.peerIp];
           this.send(EMType.PeerConnectionClose, {
             peerIp: message.payload.peerIp,
-          }, "Net");
+          }, EComponent.Net);
         } else {
           this.send(EMType.PeerConnectionFail, {
             peerIp: message.payload.peerIp,
-          }, "Net");
+          }, EComponent.Net);
         }
       };
 
       this.send(EMType.PeerConnectionPending, {
         peerIp: message.payload.peerIp,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 }

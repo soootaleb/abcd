@@ -5,7 +5,7 @@ import Net from "./net.ts";
 import Store from "./store.ts";
 import Logger from "./logger.ts";
 import Discovery from "./discovery.ts";
-import { EMType, ENodeState, EOpType } from "./enumeration.ts";
+import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
@@ -75,7 +75,7 @@ export default class Node extends Messenger {
         this.send(EMType.NewState, {
           oldState: oldState,
           newState: this.state,
-        }, "Logger");
+        }, EComponent.Logger);
 
         break;
       case ENodeState.Leader:
@@ -90,7 +90,7 @@ export default class Node extends Messenger {
         }, this.heartBeatInterval);
 
         this.discoveryBeaconIntervalId = setInterval(() => {
-          this.send(EMType.DiscoveryBeaconSend, null, "Discovery");
+          this.send(EMType.DiscoveryBeaconSend, null, EComponent.Discovery);
         }, this.heartBeatInterval);
 
         this.term += 1;
@@ -101,7 +101,7 @@ export default class Node extends Messenger {
         this.send(EMType.NewState, {
           oldState: oldState,
           newState: this.state,
-        }, "Logger");
+        }, EComponent.Logger);
 
         for (const peerIp of Object.keys(this.net.peers)) {
           this.send(EMType.NewTerm, {
@@ -119,7 +119,7 @@ export default class Node extends Messenger {
         this.send(EMType.NewState, {
           oldState: oldState,
           newState: this.state,
-        }, "Logger");
+        }, EComponent.Logger);
 
         if (Object.keys(this.net.peers).length == 0) {
           this.transitionFunction(ENodeState.Leader);
@@ -137,7 +137,7 @@ export default class Node extends Messenger {
         this.send(EMType.InvalidTransitionToState, {
           currentState: this.state,
           transitionTo: to,
-        }, "Logger");
+        }, EComponent.Logger);
     }
   }
 
@@ -153,7 +153,7 @@ export default class Node extends Messenger {
         default:
           this.send(EMType.InvalidClientRequestType, {
             invalidType: message.payload.type,
-          }, "Logger");
+          }, EComponent.Logger);
           break;
       }
     } else {
@@ -163,7 +163,7 @@ export default class Node extends Messenger {
 
       this.send(EMType.ClientRequestForward, {
         message: message,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 
@@ -199,7 +199,7 @@ export default class Node extends Messenger {
         if (report.appended.length + report.commited.length) {
           this.send(EMType.KVOpStoreSyncComplete, {
             report: report,
-          }, "Logger");
+          }, EComponent.Logger);
         }
       });
   };
@@ -212,7 +212,7 @@ export default class Node extends Messenger {
       this.send(
         EMType.KVOpAcceptedReceivedButCommited,
         message.payload,
-        "Logger",
+        EComponent.Logger,
       );
     } else if (votes >= this.net.quorum) {
       this.store.commit({
@@ -220,9 +220,9 @@ export default class Node extends Messenger {
         token: message.payload.token,
       }).then((entry) => {
         if (entry.log.commited) {
-          this.send(EMType.KVOpRequestComplete, message.payload, "Node");
+          this.send(EMType.KVOpRequestComplete, message.payload, EComponent.Node);
         } else {
-          this.send(EMType.KVOpRequestIncomplete, message.payload, "Logger");
+          this.send(EMType.KVOpRequestIncomplete, message.payload, EComponent.Logger);
         }
       });
     } else {
@@ -231,7 +231,7 @@ export default class Node extends Messenger {
         qorum: this.net.quorum,
         votes: votes,
         token: message.payload.token,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 
@@ -256,7 +256,7 @@ export default class Node extends Messenger {
       this.send(EMType.NewTermAccepted, {
         term: this.term,
         leader: this.net.peers[message.source],
-      }, "Logger");
+      }, EComponent.Logger);
 
       // TODO Implement WAL sync here
 
@@ -291,7 +291,7 @@ export default class Node extends Messenger {
       this.send(EMType.VoteReceivedButNotCandidate, {
         callForVoteReply: message,
         currentState: this.state,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 
@@ -306,13 +306,13 @@ export default class Node extends Messenger {
 
     this.send(EMType.PeerConnectionComplete, {
       peerIp: message.source,
-    }, "Net");
+    }, EComponent.Net);
 
     for (const peerIp of Object.keys(message.payload.knownPeers)) {
       if (!Object.keys(this.net.peers).includes(peerIp)) {
         this.send(EMType.PeerConnectionRequest, {
           peerIp: peerIp,
-        }, "Net");
+        }, EComponent.Net);
       }
     }
   };
@@ -337,17 +337,17 @@ export default class Node extends Messenger {
   };
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = (message) => {
-    this.send(message.type, message.payload, "Logger");
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
-    this.send(message.type, message.payload, "Logger");
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
     message,
   ) => {
-    this.send(message.type, message.payload, "Logger");
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {
@@ -369,7 +369,7 @@ export default class Node extends Messenger {
         result: message.payload,
         state: this.state,
         leader: this.leader,
-      }, "Logger")
+      }, EComponent.Logger)
       return;
     }
 
@@ -377,13 +377,13 @@ export default class Node extends Messenger {
     if (message.payload.success) {
       this.send(EMType.PeerConnectionRequest, {
         peerIp: message.payload.result,
-      }, "Net")
+      }, EComponent.Net)
     }
 
     // either way, discovery is finished so node is ready
     this.send(EMType.NodeReady, {
       ready: true,
-    }, "Net")
+    }, EComponent.Net)
 
     // discovery finishes by passing follower (may move to leader if no node found)
     this.transitionFunction(ENodeState.Follower);

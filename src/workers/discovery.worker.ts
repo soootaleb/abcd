@@ -1,5 +1,5 @@
 import type { IMessage } from "../interfaces/interface.ts";
-import { EMType } from "../enumeration.ts";
+import { EComponent, EMType } from "../enumeration.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
 import { H } from "../type.ts";
 
@@ -29,7 +29,7 @@ export default class DiscoveryWorker {
 
     self.onmessage = this.onmessage;
 
-    this.send(EMType.DiscoveryServerStarted, null, "Discovery");
+    this.send(EMType.DiscoveryServerStarted, null, EComponent.Discovery);
   }
   
   private send<T extends EMType>(
@@ -50,7 +50,7 @@ export default class DiscoveryWorker {
   
     const destination = message.destination;
   
-    if (destination == "DiscoveryWorker") {
+    if (destination == EComponent.DiscoveryWorker) {
       // deno-lint-ignore no-this-alias no-explicit-any
       const self: any = this;
       if (Object.keys(this).includes(message.type)) {
@@ -59,11 +59,11 @@ export default class DiscoveryWorker {
         this.send(
           EMType.LogMessage,
           { message: "Missing handler for " + message.type },
-          "Logger",
+          EComponent.Logger,
         );
       }
     } else {
-      this.send(EMType.InvalidMessageType, message, "Logger");
+      this.send(EMType.InvalidMessageType, message, EComponent.Logger);
     }
   };
 
@@ -75,7 +75,7 @@ export default class DiscoveryWorker {
       this.send(EMType.DiscoveryBeaconReceived, {
         addr: addr,
         token: this.decoder.decode(data)
-      }, "Discovery")
+      }, EComponent.Discovery)
     }
   }
 
@@ -83,7 +83,7 @@ export default class DiscoveryWorker {
     this.server.send(this.encoder.encode(this.token), this.multicast);
     this.send(EMType.LogMessage, {
       message: "DiscoveryBeaconSent with token " + this.token
-    }, "Logger")
+    }, EComponent.Logger)
   }
 }
 

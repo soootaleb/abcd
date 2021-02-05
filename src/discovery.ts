@@ -1,7 +1,7 @@
 import type { IMessage } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
-import { EMType } from "./enumeration.ts";
+import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Discovery extends Messenger {
@@ -22,13 +22,13 @@ export default class Discovery extends Messenger {
       this._protocol = mode;
       this.send(EMType.DiscoveryProtocolSet, {
         protocol: this.protocol,
-      }, "Logger");
+      }, EComponent.Logger);
     } else {
       this.send(EMType.InvalidDiscoveryProtocol, {
         invalid: mode,
         default: Discovery.DEFAULT,
         available: Discovery.PROTOCOLS,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   }
 
@@ -58,7 +58,7 @@ export default class Discovery extends Messenger {
     };
 
     this.messages.bind((message) => {
-      if (message.destination === "DiscoveryWorker") {
+      if (message.destination === EComponent.DiscoveryWorker) {
         this.worker.postMessage(message);
       }
     });
@@ -66,12 +66,12 @@ export default class Discovery extends Messenger {
 
   [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
     if (this.ready) {
-      this.send(message.type, null, "DiscoveryWorker");
+      this.send(message.type, null, EComponent.DiscoveryWorker);
     } else {
       this.send(EMType.DiscoveryBeaconSendFail, {
         reason: "discoveryServiceNotReady",
         ready: this.ready,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 
@@ -79,7 +79,7 @@ export default class Discovery extends Messenger {
     message,
   ) => {
     this._ready = true;
-    this.send(EMType.DiscoveryServerStarted, null, "Node");
+    this.send(EMType.DiscoveryServerStarted, null, EComponent.Node);
   };
 
   [EMType.DiscoveryBeaconReceived]: H<EMType.DiscoveryBeaconReceived> = (
@@ -114,6 +114,6 @@ export default class Discovery extends Messenger {
       success: success,
       result: result,
       source: source,
-    }, "Node");
+    }, EComponent.Node);
   }
 }

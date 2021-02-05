@@ -1,7 +1,7 @@
 import type { IKeyValue, ILog, IMessage } from "./interfaces/interface.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 import { IEntry, IKVOp, IReport, IWal } from "./interfaces/interface.ts";
-import { EKVOpType, EMType, EOpType } from "./enumeration.ts";
+import { EComponent, EKVOpType, EMType, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
@@ -62,7 +62,7 @@ export default class Store extends Messenger {
     };
 
     this.messages.bind((message) => {
-      if (message.destination == "StoreWorker") {
+      if (message.destination == EComponent.StoreWorker) {
         this.worker.postMessage(message);
       }
     });
@@ -124,7 +124,7 @@ export default class Store extends Messenger {
       .then((written: number) => {
         return Deno.fsync(this._fwal.rid)
           .then(() =>
-            this.send(EMType.StoreLogCommitRequest, entry, "StoreWorker")
+            this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker)
           )
           .then(() => written === bytes.length);
       }).catch(() => false);
@@ -196,9 +196,9 @@ export default class Store extends Messenger {
             .then((entry) => {
               if (entry.log.commited) {
                 report.commited.push(entry);
-                this.send(EMType.StoreLogCommitSuccess, entry, "Logger");
+                this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Logger);
               } else {
-                this.send(EMType.StoreLogCommitFail, entry, "Logger");
+                this.send(EMType.StoreLogCommitFail, entry, EComponent.Logger);
               }
             });
         } else {
@@ -264,13 +264,13 @@ export default class Store extends Messenger {
           this.send(EMType.KVOpAccepted, {
             log: log,
             token: request.token,
-          }, "Node");
+          }, EComponent.Node);
           break;
         } else {
           this.send(EMType.KVOpRejected, {
             request: request,
             reason: "Put operation requires value !== undefined",
-          }, "Node");
+          }, EComponent.Node);
           break;
         }
       }
@@ -285,12 +285,12 @@ export default class Store extends Messenger {
               next: this.get(request.payload.kv.key),
             },
             token: request.token,
-          }, "Node");
+          }, EComponent.Node);
         } else {
           this.send(EMType.KVOpRejected, {
             request: request,
             reason: `Key ${request.payload.kv.key} not found`,
-          }, "Node");
+          }, EComponent.Node);
         }
         break;
       }
@@ -298,7 +298,7 @@ export default class Store extends Messenger {
         this.send(EMType.KVOpRejected, {
           request: request,
           reason: `KVOp ${request.payload.op} is not implemented`,
-        }, "Logger");
+        }, EComponent.Logger);
     }
   }
 }

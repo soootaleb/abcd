@@ -1,4 +1,4 @@
-import { EKVOpType } from "../enumeration.ts";
+import { EComponent, EKVOpType } from "../enumeration.ts";
 import type { IKeyValue, ILog, IMessage } from "../interfaces/interface.ts";
 import { EMType } from "../enumeration.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
@@ -18,14 +18,14 @@ export default class StoreWorker {
 
     Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
       .then((content) => {
-        this.send(EMType.StoreInit, JSON.parse(content || "{}"), "Store");
+        this.send(EMType.StoreInit, JSON.parse(content || "{}"), EComponent.Store);
       });
   }
 
   private send<T extends EMType>(
     type: T,
     payload: IMPayload[T],
-    destination: string,
+    destination: EComponent | string,
   ) {
     this.postMessage({
       type: type,
@@ -41,7 +41,7 @@ export default class StoreWorker {
 
     const destination = message.destination;
 
-    if (destination == "DiscoveryWorker") {
+    if (destination == EComponent.DiscoveryWorker) {
       // deno-lint-ignore no-this-alias no-explicit-any
       const self: any = this;
       if (Object.keys(this).includes(message.type)) {
@@ -50,11 +50,11 @@ export default class StoreWorker {
         this.send(
           EMType.LogMessage,
           { message: "Missing handler for " + message.type },
-          "Logger",
+          EComponent.Logger,
         );
       }
     } else {
-      this.send(EMType.InvalidMessageType, message, "Logger");
+      this.send(EMType.InvalidMessageType, message, EComponent.Logger);
     }
   };
 
@@ -75,13 +75,13 @@ export default class StoreWorker {
         }).then((store) => {
           Deno.writeFile(Store.STORE_DATA_DIR + "store.json", store)
             .then(() =>
-              this.send(EMType.StoreLogCommitSuccess, message.payload, "Logger")
+              this.send(EMType.StoreLogCommitSuccess, message.payload, EComponent.Logger)
             );
         });
     } else {
       this.send(EMType.LogMessage, {
         message: "Invalid EKVOPType " + log.op,
-      }, "Logger");
+      }, EComponent.Logger);
     }
   };
 }

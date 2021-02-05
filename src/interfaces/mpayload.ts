@@ -1,4 +1,4 @@
-import { EMType, ENodeState, EOpType } from "../enumeration.ts";
+import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
 import { IEntry, IKeyValue, IKVOp, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
 
 export interface IMPayload {
@@ -222,7 +222,7 @@ export interface IMPayload {
   [EMType.InvalidMessageType]: IMessage<EMType>;
 
   [EMType.InvalidMessageDestination]: {
-    invalidMessageDestination: string,
+    invalidMessageDestination: EComponent | string,
     availablePeers: string[],
     availableClients: string[],
     message: IMessage<EMType>

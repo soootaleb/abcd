@@ -5,6 +5,17 @@ export enum ENodeState {
   Candidate = "Candidate",
 }
 
+export enum EComponent {
+  Node = "Node",
+  Store = "Store",
+  Discovery = "Discovery",
+  Net = "Net",
+  StoreWorker = "StoreWorker",
+  NetWorker = "NetWorker",
+  DiscoveryWorker = "DiscoveryWorker",
+  Logger = "Logger"
+}
+
 export enum EKVOpType {
   Put = "put",
   Get = "get",

@@ -2,7 +2,7 @@ import type { IMessage } from "./interfaces/interface.ts";
 
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 import Messenger from "./messenger.ts";
-import { EMType } from "./enumeration.ts";
+import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Net extends Messenger {
@@ -60,7 +60,7 @@ export default class Net extends Messenger {
         Object.keys(this.peers).includes(message.destination) ||
         Object.keys(this.clients).includes(message.destination) ||
         message.destination === "Ui" ||
-        message.destination === "NetWorker"
+        message.destination === EComponent.NetWorker
       ) {
         this.worker.postMessage(message);
       }
@@ -69,35 +69,35 @@ export default class Net extends Messenger {
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.peers[message.payload.peerIp] = message.payload;
-    this.send(message.type, message.payload, "Node");
+    this.send(message.type, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
     delete this.peers[message.payload.peerIp];
-    this.send(EMType.PeerConnectionClose, message.payload, "Node");
+    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
     delete this.peers[message.payload.peerIp];
-    this.send(message.type, message.payload, "Node");
+    this.send(message.type, message.payload, EComponent.Node);
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
     this.clients[message.payload.clientIp] = message.payload;
-    this.send(message.type, message.payload, "Node");
+    this.send(message.type, message.payload, EComponent.Node);
   };
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
     message,
   ) => {
     this.clients[message.payload.clientIp] = message.payload;
-    this.send(message.type, message.payload, "Node");
+    this.send(message.type, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (
     message,
   ) => {
-    this.send(message.type, message.payload, "NetWorker");
+    this.send(message.type, message.payload, EComponent.NetWorker);
   };
 
   [EMType.PeerConnectionComplete]: H<EMType.PeerConnectionComplete> = (
@@ -106,11 +106,11 @@ export default class Net extends Messenger {
     this._peers[message.payload.peerIp] = {
       peerIp: message.payload.peerIp,
     };
-    this.send(EMType.PeerAdded, message.payload, "Logger");
+    this.send(EMType.PeerAdded, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {
     this._ready = true;
-    this.send(message.type, message.payload, "Node");
+    this.send(message.type, message.payload, EComponent.Node);
   };
 }

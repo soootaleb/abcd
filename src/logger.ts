@@ -2,7 +2,7 @@ import * as c from "https://deno.land/std/fmt/colors.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
 import { Args } from "https://deno.land/std/flags/mod.ts";
 import type { IMessage } from "./interfaces/interface.ts";
-import { EMType, ENodeState } from "./enumeration.ts";
+import { EComponent, EMType, ENodeState } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
@@ -58,7 +58,7 @@ export default class Logger extends Messenger {
       }
 
       const log = `${icon}[${role}][${source}]->[${destination}][${message.type}]${JSON.stringify(message.payload)}`;
-      message.source === "node" ? console.log(c.bold(log)) : console.log(log)
+      message.source === EComponent.Node ? console.log(c.bold(log)) : console.log(log)
     }
   }
 }
