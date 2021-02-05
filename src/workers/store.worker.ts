@@ -18,7 +18,7 @@ export default class StoreWorker {
 
     Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
       .then((content) => {
-        this.send(EMType.StoreInit, JSON.parse(content || ""), "Store");
+        this.send(EMType.StoreInit, JSON.parse(content || "{}"), "Store");
       });
   }
 
