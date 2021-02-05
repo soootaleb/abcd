@@ -1,6 +1,7 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import type { ILog, IMessage } from "../src/interface.ts";
+import type { ILog, IMessage } from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
+import { EKVOpType } from "../src/enumeration.ts";
 
 const ARGS = parse(Deno.args);
 
@@ -17,10 +18,10 @@ const put: string = ARGS["put"] || ARGS["set"];
 new Client(addr, port).co.then((operations) => {
 
   if (get) {
-    operations.kvop("get", get).then(console.log)
+    operations.kvop(EKVOpType.Get, get).then(console.log)
   } else if (put) {
     const [key, value] = put.split("=")
-    operations.kvop("put", key, value).then(console.log)
+    operations.kvop(EKVOpType.Put, key, value).then(console.log)
   } else {
       
       let counter = 0;
@@ -74,9 +75,9 @@ new Client(addr, port).co.then((operations) => {
           };
 
           // Submit request & update monitoring
-          operations.kvop("put", key, counter.toString())
+          operations.kvop(EKVOpType.Put, key, counter.toString())
             .then((message) => {
-              const key = message.payload.response.payload.next.key
+              const key = message.payload.payload.kv.key
               const sent = mon.requests.all[key].sent;
               mon.requests.all[key].received = new Date().getTime()
               mon.requests.count++;
