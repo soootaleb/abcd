@@ -20,7 +20,7 @@ export default class Messenger extends Object {
                 const self: any = this;
                 if (this.hasOwnProperty(message.type)) {
                     self[message.type](message);
-                } else {
+                } else if (this.constructor.name != EComponent.Logger) {
                     this.send(EMType.LogMessage, { message: "Missing handler for " + message.type }, EComponent.Logger)
                 }
             }

@@ -197,7 +197,7 @@ export default class Node extends Messenger {
         return report;
       }).then((report) => {
         if (report.appended.length + report.commited.length) {
-          this.send(EMType.KVOpStoreSyncComplete, {
+          this.send(EMType.StoreSyncComplete, {
             report: report,
           }, EComponent.Logger);
         }

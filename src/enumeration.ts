@@ -47,6 +47,7 @@ export enum EMType {
   StoreLogCommitFail = "StoreLogCommitFail",
   StoreLogCommitRequest = "StoreLogCommitRequest",
   StoreLogCommitSuccess = "StoreLogCommitSuccess",
+  StoreSyncComplete = "StoreSyncComplete",
 
   // UI
 
@@ -93,8 +94,6 @@ export enum EMType {
   
   KVOpAccepted = "KVOpAccepted",
   KVOpRejected = "KVOpRejected",
-  KVOpStoreApply = "KVOpStoreApply",
-  KVOpStoreSyncComplete = "KVOpStoreSyncComplete",
   KVOpAcceptedReceivedButCommited = "KVOpAcceptedReceivedButCommited",
   KVOpRequestComplete = "KVOpRequestComplete",
   KVOpRequestIncomplete = "KVOpRequestIncomplete",

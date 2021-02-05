@@ -65,7 +65,9 @@ export default class DiscoveryWorker {
         );
       }
     } else {
-      this.send(EMType.InvalidMessageType, message, EComponent.Logger);
+      this.send(EMType.LogMessage, {
+        message: `Received message for ${message.destination}`
+      }, EComponent.Logger);
     }
   };
 

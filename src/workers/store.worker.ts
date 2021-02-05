@@ -41,7 +41,7 @@ export default class StoreWorker {
 
     const destination = message.destination;
 
-    if (destination == EComponent.DiscoveryWorker) {
+    if (destination == EComponent.StoreWorker) {
       // deno-lint-ignore no-this-alias no-explicit-any
       const self: any = this;
       if (Object.keys(this).includes(message.type)) {
@@ -54,11 +54,13 @@ export default class StoreWorker {
         );
       }
     } else {
-      this.send(EMType.InvalidMessageType, message, EComponent.Logger);
+      this.send(EMType.LogMessage, {
+        message: `Received message for ${message.destination}`
+      }, EComponent.Logger);
     }
   };
 
-  [EMType.KVOpStoreApply]: H<EMType.KVOpStoreApply> = (message) => {
+  [EMType.StoreLogCommitRequest]: H<EMType.StoreLogCommitRequest> = (message) => {
     const log = message.payload.log;
 
     if (log.op === EKVOpType.Put) {

@@ -193,9 +193,7 @@ export interface IMPayload {
     },
   };
 
-  [EMType.KVOpStoreApply]: IEntry;
-
-  [EMType.KVOpStoreSyncComplete]: {
+  [EMType.StoreSyncComplete]: {
     report: {
       commited: IEntry[];
       appended: IEntry[];

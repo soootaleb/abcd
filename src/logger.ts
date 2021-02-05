@@ -10,6 +10,11 @@ export default class Logger extends Messenger {
 
   private console = false;
 
+  private exclude: EMType[] = [
+    EMType.HeartBeat,
+    EMType.DiscoveryBeaconSend
+  ]
+
   private _role = "starting";
 
   public set role(role: ENodeState) {
@@ -20,12 +25,12 @@ export default class Logger extends Messenger {
     super(messages);
 
     this.console = Boolean(args["console-messages"]) || Boolean(args["debug"]);
+
+    this.messages.bind(this.log);
   }
 
-
-  [EMType.LogMessage]: H<EMType.LogMessage> = (message) => {
-
-    if (this.console) {
+  private log = (message: IMessage<EMType>) => {
+    if (this.console && !this.exclude.includes(message.type)) {
       let icon = "🔄";
       let source = message.source;
       let destination = message.destination;
@@ -61,4 +66,6 @@ export default class Logger extends Messenger {
       message.source === EComponent.Node ? console.log(c.bold(log)) : console.log(log)
     }
   }
+
+  [EMType.LogMessage]: H<EMType.LogMessage> = this.log;
 }

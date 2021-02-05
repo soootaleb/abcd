@@ -60,8 +60,8 @@ export default class Client {
         const token = Math.random().toString(36).substr(2);
 
         this.ws.send(JSON.stringify({
-            type: "clientRequest",
-            source: "client",
+            type: EMType.ClientRequest,
+            source: "Client",
             destination: this._server.addr,
             payload: {
                 token: token,
