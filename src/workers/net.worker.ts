@@ -171,7 +171,7 @@ export default class NetWorker {
         this.send(
           EMType.LogMessage,
           { message: "Missing handler for " + message.type },
-          "Log",
+          "Logger",
         );
       }
 
