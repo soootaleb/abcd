@@ -1,7 +1,6 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { IMessage } from "./interfaces/interface.ts";
 import { EMType } from "./enumeration.ts";
-import { H } from "./type.ts";
 import { IMPayload } from "./interfaces/mpayload.ts";
 
 export default class Messenger extends Object {

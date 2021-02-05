@@ -1,14 +1,15 @@
-import type { IMessage } from "./interface.ts";
-
+import type { IMessage } from "./interfaces/interface.ts";
+import Messenger from "./messenger.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
+import { EMType } from "./enumeration.ts";
+import { H } from "./type.ts";
 
-export default class Discovery {
+export default class Discovery extends Messenger {
 
   public static PROTOCOLS = ["udp", "http"];
   public static DEFAULT = "udp";
 
   private worker: Worker;
-  private messages: Observe<IMessage>;
 
   private _ready = false;
   private _protocol = "udp";
@@ -20,25 +21,15 @@ export default class Discovery {
   public set protocol(mode: string) {
     if (Discovery.PROTOCOLS.includes(mode)) {
       this._protocol = mode;
-      this.messages.setValue({
-        type: "discoveryProtocolSet",
-        source: "discovery",
-        destination: "log",
-        payload: {
-          protocol: this.protocol
-        }
-      })
+      this.send(EMType.DiscoveryProtocolSet, {
+        protocol: this.protocol
+      }, "Logger");
     } else {
-      this.messages.setValue({
-        type: "invalidDiscoveryProtocol",
-        source: "discovery",
-        destination: "log",
-        payload: {
-          invalid: mode,
-          default: Discovery.DEFAULT,
-          available: Discovery.PROTOCOLS
-        }
-      })
+      this.send(EMType.InvalidDiscoveryProtocol, {
+        invalid: mode,
+        default: Discovery.DEFAULT,
+        available: Discovery.PROTOCOLS
+      }, "Logger")
     }
   }
 
@@ -46,80 +37,45 @@ export default class Discovery {
     return this._ready;
   }
 
-  constructor(messages: Observe<IMessage>) {
-    this.messages = messages;
+  constructor(messages: Observe<IMessage<EMType>>) {
+    super(messages);
 
-    this.worker = new Worker(new URL("./discovery.worker.ts", import.meta.url).href, {
+    this.worker = new Worker(new URL("discovery.worker.ts", import.meta.url + 'workers/').href, {
       type: "module",
       deno: true,
     });
 
-    this.worker.onmessage = (e: MessageEvent) => {
-      this.messages.setValue(e.data);
+    this.worker.onmessage = (ev: MessageEvent) => {
+      const message: IMessage<EMType> = ev.data;
+      this.send(message.type, message.payload, message.destination, message.source)
     };
 
-    this.messages.bind((message: IMessage<any>) => {
-      if (message.destination == "discovery") {
-        this.handleMessage(message);
-      } else if (message.destination === "discovery.worker") {
+    this.messages.bind((message) => {
+      if (message.destination === "DiscoveryWorker") {
         this.worker.postMessage(message);
       }
     });
   }
 
-  /**
-   * Method to handle message with destination DISCOVERY
-   * @param message message with destination == "discovery"
-   */
-  private handleMessage(message: IMessage<{
-    discover: boolean
-    addr: Deno.NetAddr
-  }>) {
-    switch (message.type) {
-      case "sendDiscoveryBeacon":
-        if (this.ready) {
-          this.messages.setValue({
-            type: "sendDiscoveryBeacon",
-            source: "discovery",
-            destination: "discovery.worker",
-            payload: {}
-          });
-        } else {
-          this.messages.setValue({
-            type: "sendDiscoveryBeaconFailed",
-            source: "discovery",
-            destination: "log",
-            payload: {
-              reason: "discoveryServiceNotReady",
-              ready: this.ready
-            }
-          })
-        }
-        break;
-      case "discoveryServerStarted":
-        this._ready = true;
-        this.messages.setValue({
-          type: "discoveryServerStarted",
-          source: "discovery",
-          destination: "node",
-          payload: {}
-        });
-        break;
-      case "discoveryBeaconReceived":
-        if (this.protocol === "udp") {
-          this.result(true, message.payload.addr.hostname, "beacon_received");
-        }
-        break;
-      default:
-        this.messages.setValue({
-          type: "invalidMessageType",
-          source: "discovery",
-          destination: "log",
-          payload: {
-            message: message,
-          },
-        });
-        break;
+  [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
+    if (this.ready) {
+      this.send(message.type, null, "DiscoveryWorker");
+    } else {
+      this.send(EMType.DiscoveryBeaconSendFail, {
+        reason: "discoveryServiceNotReady",
+        ready: this.ready
+      }, "Logger");
+    }
+  }
+
+  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (message) => {
+    this._ready = true;
+    this.send(EMType.DiscoveryServerStarted, null, "Node");
+  }
+
+  [EMType.DiscoveryBeaconReceived]: H<EMType.DiscoveryBeaconReceived> = (message) => {
+    if (this.protocol === "udp") {
+      this.result(true, message.payload.addr.hostname, "beacon_received");
     }
   }
 
@@ -138,15 +94,10 @@ export default class Discovery {
   }
 
   private result(success: boolean, result: string, source: string) {
-    this.messages.setValue({
-      type: "discoveryResult",
-      source: "discovery",
-      destination: "node",
-      payload: {
-        success: success,
-        result: result,
-        source: source
-      }
-    })
+    this.send(EMType.DiscoveryResult, {
+      success: success,
+      result: result,
+      source: source
+    }, "Node");
   }
 }

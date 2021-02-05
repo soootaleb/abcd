@@ -20,9 +20,7 @@ export interface IMPayload {
     leader: string;
   };
 
-  [EMType.DiscoveryServerStarted]: {
-    token: string;
-  };
+  [EMType.DiscoveryServerStarted]: null;
 
   [EMType.DiscoveryProtocolSet]: {
     protocol: string;
@@ -33,7 +31,7 @@ export interface IMPayload {
   [EMType.DiscoveryBeaconSend]: null; // OK
 
   [EMType.DiscoveryBeaconReceived]: {
-    payload: Deno.NetAddr;
+    addr: Deno.NetAddr;
     token: string;
   };
 
