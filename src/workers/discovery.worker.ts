@@ -29,7 +29,9 @@ export default class DiscoveryWorker {
 
     self.onmessage = this.onmessage;
 
-    this.send(EMType.DiscoveryServerStarted, null, EComponent.Discovery);
+    this.send(EMType.DiscoveryServerStarted, {
+      token: this.token
+    }, EComponent.Discovery);
   }
   
   private send<T extends EMType>(
@@ -81,9 +83,6 @@ export default class DiscoveryWorker {
 
   [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
     this.server.send(this.encoder.encode(this.token), this.multicast);
-    this.send(EMType.LogMessage, {
-      message: "DiscoveryBeaconSent with token " + this.token
-    }, EComponent.Logger)
   }
 }
 

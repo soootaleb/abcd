@@ -20,7 +20,9 @@ export interface IMPayload {
     leader: string;
   };
 
-  [EMType.DiscoveryServerStarted]: null;
+  [EMType.DiscoveryServerStarted]: {
+    token: string
+  };
 
   [EMType.DiscoveryProtocolSet]: {
     protocol: string;

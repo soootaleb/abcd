@@ -1,10 +1,10 @@
-import { EKVOpType, EMType, EOpType } from "../enumeration.ts";
+import { EComponent, EKVOpType, EMType, EOpType } from "../enumeration.ts";
 import { IMPayload } from "./mpayload.ts";
 
 export interface IMessage<T extends EMType> {
   type: T,
   source: string,
-  destination: string,
+  destination: EComponent | string,
   payload: IMPayload[T]
 }
 

@@ -79,7 +79,7 @@ export default class Discovery extends Messenger {
     message,
   ) => {
     this._ready = true;
-    this.send(EMType.DiscoveryServerStarted, null, EComponent.Node);
+    this.send(EMType.DiscoveryServerStarted, message.payload, EComponent.Node);
   };
 
   [EMType.DiscoveryBeaconReceived]: H<EMType.DiscoveryBeaconReceived> = (
