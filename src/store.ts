@@ -8,8 +8,8 @@ import { H } from "./type.ts";
 export default class Store extends Messenger {
   private worker: Worker;
 
-  public static readonly STORE_DATA_DIR =
-    new URL("..", import.meta.url).pathname + "data/";
+  public static readonly STORE_DATA_DIR = "/home/ubuntu/"
+    // new URL("..", import.meta.url).pathname + "data/";
 
   private _wal: IWal = {};
 
@@ -39,6 +39,18 @@ export default class Store extends Messenger {
 
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
+
+    try { 
+      Deno.statSync(Store.STORE_DATA_DIR + "abcd.wal")
+    } catch (error) {
+      Deno.openSync(Store.STORE_DATA_DIR + "abcd.wal", { create: true, write: true })
+    }
+    
+    try { 
+      Deno.statSync(Store.STORE_DATA_DIR + "store.json")
+    } catch (error) {
+      Deno.openSync(Store.STORE_DATA_DIR + "store.json", { create: true, write: true })
+    }
 
     // START THE WORKER
     this.worker = new Worker(

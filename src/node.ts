@@ -383,7 +383,7 @@ export default class Node extends Messenger {
     // either way, discovery is finished so node is ready
     this.send(EMType.NodeReady, {
       ready: true,
-    }, EComponent.Net)
+    }, EComponent.NetWorker)
 
     // discovery finishes by passing follower (may move to leader if no node found)
     this.transitionFunction(ENodeState.Follower);
