@@ -1,5 +1,10 @@
 import { EComponent, EKVOpType } from "../enumeration.ts";
-import type { IKeyValue, ILog, IMessage } from "../interfaces/interface.ts";
+import type {
+  IEntry,
+  IKeyValue,
+  ILog,
+  IMessage,
+} from "../interfaces/interface.ts";
 import { EMType } from "../enumeration.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
 import { H } from "../type.ts";
@@ -10,6 +15,10 @@ declare const self: Worker;
 export default class StoreWorker {
   private encoder = new TextEncoder();
 
+  private static readonly STORE_WRITE_INTERVAL = 1000;
+
+  private buffer: IEntry[] = [];
+
   private postMessage: <T extends EMType>(message: IMessage<T>) => void =
     self.postMessage;
 
@@ -18,8 +27,38 @@ export default class StoreWorker {
 
     Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
       .then((content) => {
-        this.send(EMType.StoreInit, JSON.parse(content || "{}"), EComponent.Store);
+        this.send(
+          EMType.StoreInit,
+          JSON.parse(content || "{}"),
+          EComponent.Store,
+        );
       });
+
+    setInterval(() => {
+      Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
+        .then((content) => {
+          const store: { [key: string]: IKeyValue } = JSON.parse(
+            content || "{}",
+          );
+          for (const entry of this.buffer) {
+            const log = entry.log;
+            if (log.op === EKVOpType.Put) {
+              store[log.next.key] = {
+                key: log.next.key,
+                value: log.next.value,
+              };
+            } else {
+              this.send(EMType.LogMessage, {
+                message: "Invalid EKVOPType " + log.op,
+              }, EComponent.Logger);
+            }
+          }
+          return store;
+        }).then((store) => {
+          const txt = this.encoder.encode(JSON.stringify(store));
+          Deno.writeFile(Store.STORE_DATA_DIR + "store.json", txt)
+        });
+    }, StoreWorker.STORE_WRITE_INTERVAL);
   }
 
   private send<T extends EMType>(
@@ -55,36 +94,15 @@ export default class StoreWorker {
       }
     } else {
       this.send(EMType.LogMessage, {
-        message: `Received message for ${message.destination}`
+        message: `Received message for ${message.destination}`,
       }, EComponent.Logger);
     }
   };
 
-  [EMType.StoreLogCommitRequest]: H<EMType.StoreLogCommitRequest> = (message) => {
-    const log = message.payload.log;
-
-    if (log.op === EKVOpType.Put) {
-      Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
-        .then((content) => {
-          const store: { [key: string]: IKeyValue } = JSON.parse(
-            content || "{}",
-          );
-          store[log.next.key] = {
-            key: log.next.key,
-            value: log.next.value,
-          };
-          return this.encoder.encode(JSON.stringify(store));
-        }).then((store) => {
-          Deno.writeFile(Store.STORE_DATA_DIR + "store.json", store)
-            .then(() =>
-              this.send(EMType.StoreLogCommitSuccess, message.payload, EComponent.Logger)
-            );
-        });
-    } else {
-      this.send(EMType.LogMessage, {
-        message: "Invalid EKVOPType " + log.op,
-      }, EComponent.Logger);
-    }
+  [EMType.StoreLogCommitRequest]: H<EMType.StoreLogCommitRequest> = (
+    message,
+  ) => {
+    this.buffer.push(message.payload);
   };
 }
 
