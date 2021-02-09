@@ -1,5 +1,6 @@
 import type { IKeyValue, ILog, IMessage } from "./interfaces/interface.ts";
 import type Observe from "https://deno.land/x/Observe/Observe.ts";
+import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 import { IEntry, IKVOp, IReport, IWal } from "./interfaces/interface.ts";
 import { EComponent, EKVOpType, EMType, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
@@ -8,8 +9,8 @@ import { H } from "./type.ts";
 export default class Store extends Messenger {
   private worker: Worker;
 
-  public static readonly STORE_DATA_DIR = "/home/ubuntu/";
-  // new URL("..", import.meta.url).pathname + "data/";
+  public static DEFAULT_DATA_DIR = "/home/ubuntu"
+  private _data_dir = Store.DEFAULT_DATA_DIR;
 
   private _wal: IWal = {};
 
@@ -40,20 +41,24 @@ export default class Store extends Messenger {
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
 
+    this._data_dir = typeof this.args["data-dir"] === "string"
+      ? this.args["data-dir"]
+      : Store.DEFAULT_DATA_DIR;
+
     try {
-      Deno.statSync(Store.STORE_DATA_DIR + "abcd.wal");
+      Deno.statSync(this._data_dir + "/abcd.wal");
     } catch (error) {
       Deno.openSync(
-        Store.STORE_DATA_DIR + "abcd.wal",
+        this._data_dir + "/abcd.wal",
         { create: true, write: true },
       );
     }
 
     try {
-      Deno.statSync(Store.STORE_DATA_DIR + "store.json");
+      Deno.statSync(this._data_dir + "/store.json");
     } catch (error) {
       Deno.openSync(
-        Store.STORE_DATA_DIR + "store.json",
+        this._data_dir + "/store.json",
         { create: true, write: true },
       );
     }
@@ -88,7 +93,7 @@ export default class Store extends Messenger {
     this._encoder = new TextEncoder();
 
     this._fwal = Deno.openSync(
-      Store.STORE_DATA_DIR + "abcd.wal",
+      this._data_dir + "/abcd.wal",
       { append: true, create: true },
     );
   }

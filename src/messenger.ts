@@ -1,9 +1,12 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { IMessage } from "./interfaces/interface.ts";
+import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { IMPayload } from "./interfaces/mpayload.ts";
 
 export default class Messenger extends Object {
+
+    protected args: Args = parse(Deno.args);
 
     protected messages: Observe<IMessage<EMType>>;
 

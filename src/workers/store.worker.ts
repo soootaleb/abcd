@@ -9,23 +9,30 @@ import { EMType } from "../enumeration.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
 import { H } from "../type.ts";
 import Store from "../store.ts";
+import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 
 declare const self: Worker;
 
 export default class StoreWorker {
-  private encoder = new TextEncoder();
-
-  private static readonly STORE_WRITE_INTERVAL = 1000;
-
+  
+  private args: Args = parse(Deno.args);
   private buffer: IEntry[] = [];
+  private encoder = new TextEncoder();
+  private _data_dir = Store.DEFAULT_DATA_DIR;
+  
+  private static readonly STORE_WRITE_INTERVAL = 1000;
 
   private postMessage: <T extends EMType>(message: IMessage<T>) => void =
     self.postMessage;
 
   constructor() {
     self.onmessage = this.onmessage;
+    
+    this._data_dir = typeof this.args["data-dir"] === "string"
+      ? this.args["data-dir"]
+      : Store.DEFAULT_DATA_DIR;
 
-    Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
+    Deno.readTextFile(this._data_dir + "/store.json")
       .then((content) => {
         this.send(
           EMType.StoreInit,
@@ -35,7 +42,7 @@ export default class StoreWorker {
       });
 
     setInterval(() => {
-      Deno.readTextFile(Store.STORE_DATA_DIR + "store.json")
+      Deno.readTextFile(this._data_dir + "/store.json")
         .then((content) => {
           const store: { [key: string]: IKeyValue } = JSON.parse(
             content || "{}",
@@ -56,7 +63,7 @@ export default class StoreWorker {
           return store;
         }).then((store) => {
           const txt = this.encoder.encode(JSON.stringify(store));
-          Deno.writeFile(Store.STORE_DATA_DIR + "store.json", txt)
+          Deno.writeFile(this._data_dir + "/store.json", txt)
         });
     }, StoreWorker.STORE_WRITE_INTERVAL);
   }

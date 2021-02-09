@@ -31,16 +31,18 @@ export default class Monitor extends Messenger {
             }
         })
 
-        setInterval(() => {
-            console.clear();
-            console.log(this.requests.length)
-            console.log("DEBUG", this.debugger / this.requests.length)
-            console.log("ACCEPTED", this.accepted / this.requests.length)
-            console.log("COMMITED", this.commited / this.requests.length)
-            console.log("REJECTED", this.rejected / this.requests.length)
-            console.log("TOTAL", (this.rejected + this.commited) / this.requests.length)
-            console.log("ANSWERED", this.answered / this.requests.length )
-        }, 100);
+        if (this.args["mon"]) {
+            setInterval(() => {
+                console.clear();
+                console.log(this.requests.length)
+                console.log("DEBUG", this.debugger / this.requests.length)
+                console.log("ACCEPTED", this.accepted / this.requests.length)
+                console.log("COMMITED", this.commited / this.requests.length)
+                console.log("REJECTED", this.rejected / this.requests.length)
+                console.log("TOTAL", (this.rejected + this.commited) / this.requests.length)
+                console.log("ANSWERED", this.answered / this.requests.length )
+            }, 100);
+        }
     }
 
     [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {

@@ -11,7 +11,6 @@ import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
 
 export default class Node extends Messenger {
-  private args: Args = parse(Deno.args);
 
   private leader = "";
   private requests: { [key: string]: string } = {};
