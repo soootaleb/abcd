@@ -50,12 +50,11 @@ new Client(addr, port).co.then((operations) => {
         const latency = latest.map((key) => mon.requests.all[key]).reduce((acc, curr) => {
           return acc + curr.received - curr.sent
         }, 0) / latest.length
-        console.log("[MON]", {
-          length: Object.keys(mon.requests.all).length,
-          count: mon.requests.count,
-          pending: Object.keys(mon.requests.all).length - mon.requests.count,
-          latency: Math.round(latency * 100) / 100,
-        });
+        console.clear();
+        console.log("SENT", Object.keys(mon.requests.all).length)
+        console.log("RECEIVED", mon.requests.count)
+        console.log("PENDING", Object.keys(mon.requests.all).length - mon.requests.count)
+        console.log("LATENCY", Math.round(latency * 100) / 100);
       }, 1000)
 
       // Loop every interval
