@@ -99,8 +99,9 @@ new Client(addr, port).co.then((operations) => {
               ) {
                 Deno.exit();
               }
-            }).catch(() => {
-              console.log("Shit happens...")
+            }).catch((error) => {
+              console.log(error)
+              Deno.exit();
             });
         }
 
@@ -108,6 +109,4 @@ new Client(addr, port).co.then((operations) => {
       }, interval);
     
   }
-}).catch(() => {
-  console.log("Shit happens.")
-});
+})
