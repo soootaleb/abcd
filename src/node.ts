@@ -219,11 +219,7 @@ export default class Node extends Messenger {
         log: log,
         token: message.payload.token,
       }).then((entry) => {
-        if (entry.log.commited) {
-          this.send(EMType.KVOpRequestComplete, message.payload, EComponent.Node);
-        } else {
-          this.send(EMType.KVOpRequestIncomplete, message.payload, EComponent.Logger);
-        }
+        this.send(EMType.KVOpRequestComplete, message.payload, EComponent.Node);
       });
     } else {
       this.send(EMType.KVOpAcceptedReceived, {
