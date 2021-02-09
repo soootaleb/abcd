@@ -8,6 +8,7 @@ import Discovery from "./discovery.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
+import Monitor from "./monitor.ts";
 
 export default class Node extends Messenger {
   private args: Args = parse(Deno.args);
@@ -41,6 +42,8 @@ export default class Node extends Messenger {
     this.net = new Net(messages);
     this.store = new Store(messages);
     this.discovery = new Discovery(messages);
+
+    new Monitor(messages);
 
     this.discovery.protocol = typeof this.args["discovery"] === "string"
       ? this.args["discovery"]

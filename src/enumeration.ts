@@ -10,6 +10,7 @@ export enum EComponent {
   Store = "Store",
   Discovery = "Discovery",
   Net = "Net",
+  Monitor = "Monitor",
   StoreWorker = "StoreWorker",
   NetWorker = "NetWorker",
   DiscoveryWorker = "DiscoveryWorker",

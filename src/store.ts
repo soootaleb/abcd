@@ -8,8 +8,8 @@ import { H } from "./type.ts";
 export default class Store extends Messenger {
   private worker: Worker;
 
-  public static readonly STORE_DATA_DIR = "/home/ubuntu/"
-    // new URL("..", import.meta.url).pathname + "data/";
+  public static readonly STORE_DATA_DIR = "/home/ubuntu/";
+  // new URL("..", import.meta.url).pathname + "data/";
 
   private _wal: IWal = {};
 
@@ -40,16 +40,22 @@ export default class Store extends Messenger {
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
 
-    try { 
-      Deno.statSync(Store.STORE_DATA_DIR + "abcd.wal")
+    try {
+      Deno.statSync(Store.STORE_DATA_DIR + "abcd.wal");
     } catch (error) {
-      Deno.openSync(Store.STORE_DATA_DIR + "abcd.wal", { create: true, write: true })
+      Deno.openSync(
+        Store.STORE_DATA_DIR + "abcd.wal",
+        { create: true, write: true },
+      );
     }
-    
-    try { 
-      Deno.statSync(Store.STORE_DATA_DIR + "store.json")
+
+    try {
+      Deno.statSync(Store.STORE_DATA_DIR + "store.json");
     } catch (error) {
-      Deno.openSync(Store.STORE_DATA_DIR + "store.json", { create: true, write: true })
+      Deno.openSync(
+        Store.STORE_DATA_DIR + "store.json",
+        { create: true, write: true },
+      );
     }
 
     // START THE WORKER
@@ -134,11 +140,13 @@ export default class Store extends Messenger {
     const bytes = this._encoder.encode(JSON.stringify(entry.log) + "\n");
     return this._fwal.write(bytes)
       .then((written: number) => {
+        this.send(EMType.LogMessage, {
+          message: entry.token
+        }, EComponent.Monitor)
         return Deno.fsync(this._fwal.rid)
           .then(() =>
             this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker)
-          )
-          .then(() => written === bytes.length);
+          ).then(() => written === bytes.length);
       }).catch(() => false);
   }
   public async commit(entry: {
@@ -155,6 +163,9 @@ export default class Store extends Messenger {
           this.bget(key).push(entry);
           this._store[key] = entry.log.next;
           delete this._votes[key];
+          this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
+        } else {
+          this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
         }
 
         return entry;
@@ -277,6 +288,11 @@ export default class Store extends Messenger {
             log: log,
             token: request.token,
           }, EComponent.Node);
+
+          this.send(EMType.KVOpAccepted, {
+            log: log,
+            token: request.token,
+          }, EComponent.Monitor); // 100%
           break;
         } else {
           this.send(EMType.KVOpRejected, {
