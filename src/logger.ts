@@ -9,6 +9,7 @@ import { H } from "./type.ts";
 export default class Logger extends Messenger {
 
   private console = false;
+  private payloads = false;
 
   private exclude: EMType[] = [
     EMType.HeartBeat,
@@ -21,10 +22,11 @@ export default class Logger extends Messenger {
     this._role = role
   }
 
-  constructor(messages: Observe<IMessage<EMType>>, args: Args) {
+  constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
 
-    this.console = Boolean(args["console-messages"]) || Boolean(args["debug"]);
+    this.console = Boolean(this.args["console-messages"]) || Boolean(this.args["debug"]);
+    this.payloads = this.args["console-messages"] === "full" || Boolean(this.args["debug"]);
 
     this.messages.bind(this.log);
   }
@@ -62,7 +64,7 @@ export default class Logger extends Messenger {
           break;
       }
 
-      const log = `${icon}[${role}][${source}]->[${destination}][${message.type}]${JSON.stringify(message.payload)}`;
+      const log = `${icon}[${role}][${source}]->[${destination}][${message.type}]${this.payloads ? JSON.stringify(message.payload): ''}`;
       message.source === EComponent.Node ? console.log(c.bold(log)) : console.log(log)
     }
   }

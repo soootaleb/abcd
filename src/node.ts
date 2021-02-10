@@ -36,17 +36,13 @@ export default class Node extends Messenger {
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
 
-    this.logger = new Logger(messages, this.args);
+    this.logger = new Logger(messages);
 
     this.net = new Net(messages);
     this.store = new Store(messages);
     this.discovery = new Discovery(messages);
 
     new Monitor(messages);
-
-    this.discovery.protocol = typeof this.args["discovery"] === "string"
-      ? this.args["discovery"]
-      : Discovery.DEFAULT;
   }
 
   /**

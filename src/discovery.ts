@@ -6,18 +6,14 @@ import { H } from "./type.ts";
 
 export default class Discovery extends Messenger {
   public static PROTOCOLS = ["udp", "http"];
-  public static DEFAULT = "udp";
+  public static DEFAULT_PROTOCOL = "udp";
 
   private worker: Worker;
 
   private _ready = false;
   private _protocol = "udp";
 
-  public get protocol() {
-    return this._protocol;
-  }
-
-  public set protocol(mode: string) {
+  private set protocol(mode: string) {
     if (Discovery.PROTOCOLS.includes(mode)) {
       this._protocol = mode;
       this.send(EMType.DiscoveryProtocolSet, {
@@ -26,7 +22,7 @@ export default class Discovery extends Messenger {
     } else {
       this.send(EMType.InvalidDiscoveryProtocol, {
         invalid: mode,
-        default: Discovery.DEFAULT,
+        default: Discovery.DEFAULT_PROTOCOL,
         available: Discovery.PROTOCOLS,
       }, EComponent.Logger);
     }
@@ -46,6 +42,10 @@ export default class Discovery extends Messenger {
         deno: true,
       },
     );
+
+    this.protocol = typeof this.args["discovery"] === "string"
+      ? this.args["discovery"]
+      : Discovery.DEFAULT_PROTOCOL;
 
     this.worker.onmessage = (ev: MessageEvent) => {
       const message: IMessage<EMType> = ev.data;
