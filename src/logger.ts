@@ -16,7 +16,7 @@ export default class Logger extends Messenger {
     EMType.DiscoveryBeaconSend
   ]
 
-  private _role = "starting";
+  private _role = ENodeState.Starting;
 
   public set role(role: ENodeState) {
     this._role = role
@@ -44,7 +44,7 @@ export default class Logger extends Messenger {
         source = c.blue(source);
       }
 
-      let role = this._role
+      let role = this._role.toString();
       switch (this._role) {
         case ENodeState.Starting:
           role = c.yellow(role);          
@@ -64,7 +64,11 @@ export default class Logger extends Messenger {
           break;
       }
 
-      const log = `${icon}[${role}][${source}]->[${destination}][${message.type}]${this.payloads ? JSON.stringify(message.payload): ''}`;
+      role = `[${role}]`.padEnd(22);
+      source = `[${source}]`.padEnd(20);
+      destination = `[${destination}]`.padEnd(20);
+
+      const log = `${icon}${role}${source}->${destination}[${message.type}]${this.payloads ? JSON.stringify(message.payload): ''}`;
       message.source === EComponent.Node ? console.log(c.bold(log)) : console.log(log)
     }
   }
