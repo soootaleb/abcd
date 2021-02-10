@@ -53,7 +53,11 @@ new Client(addr, port).co.then((operations) => {
         console.clear();
         console.log("SENT", Object.keys(mon.requests.all).length)
         console.log("RECEIVED", mon.requests.count)
-        console.log("PENDING", Object.keys(mon.requests.all).length - mon.requests.count)
+        console.log(
+          "PENDING",
+          Object.keys(mon.requests.all).length - mon.requests.count,
+          (Object.keys(mon.requests.all).length - mon.requests.count) / Object.keys(mon.requests.all).length
+        )
         console.log("LATENCY", Math.round(latency * 100) / 100);
       }, 1000)
 
