@@ -13,6 +13,10 @@ export default class Discovery extends Messenger {
   private _ready = false;
   private _protocol = "udp";
 
+  private get protocol() {
+    return this._protocol;
+  }
+
   private set protocol(mode: string) {
     if (Discovery.PROTOCOLS.includes(mode)) {
       this._protocol = mode;
