@@ -16,4 +16,10 @@ COPY . /app
 
 RUN deno cache --reload --unstable main.ts
 
-CMD deno run --unstable --allow-write --allow-net --allow-read main.ts
+RUN export ABCD_NODE_IP=$(hostname -i)
+
+EXPOSE 8080 8888
+
+ENTRYPOINT ["deno", "run", "--unstable", "--allow-all"]
+
+CMD ["main.ts", "--console-messages", "--data-dir", "/root"]
