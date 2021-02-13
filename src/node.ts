@@ -1,5 +1,10 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
-import type { ILog, IMessage, IOPayload, IKVOp, IKVWatch } from "./interfaces/interface.ts";
+import type {
+  IKVWatch,
+  ILog,
+  IMessage,
+  IOPayload,
+} from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Discovery from "./discovery.ts";
@@ -88,7 +93,7 @@ export default class Node extends Messenger {
         this.term += 1;
 
         this.state = ENodeState.Leader;
-        
+
         for (const peerIp of Object.keys(this.net.peers)) {
           this.send(EMType.NewTerm, {
             term: this.term,
@@ -122,38 +127,37 @@ export default class Node extends Messenger {
   }
 
   [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
-    if (this.state == ENodeState.Leader) {
-      this.requests[message.payload.token] = message.source;
-
-      switch (message.payload.type) {
-        case EOpType.KVOp: {
-          this.store.kvop(message.payload as {
-            token: string,
-            type: EOpType.KVOp,
-            payload: IOPayload[EOpType.KVOp],
-            timestamp: number
-          });
-          break;
-        }
-        case EOpType.KVWatch: {
-          const payload = message.payload.payload as IKVWatch
-          this.watcher.watch(payload.key, message.source, payload.expire);
-          break;
-        }
-        default:
-          this.send(EMType.InvalidClientRequestType, {
-            invalidType: message.payload.type,
+    switch (message.payload.type) {
+      case EOpType.KVOp: {
+        if (this.state == ENodeState.Leader) {
+          this.requests[message.payload.token] = message.source;
+          this.store.kvop(
+            message.payload as {
+              token: string;
+              type: EOpType.KVOp;
+              payload: IOPayload[EOpType.KVOp];
+              timestamp: number;
+            },
+          );
+        } else {
+          this.requests[message.payload.token] = message.source;
+          this.send(message.type, message.payload, this.leader);
+          this.send(EMType.ClientRequestForward, {
+            message: message,
           }, EComponent.Logger);
-          break;
+        }
+        break;
       }
-    } else {
-      this.requests[message.payload.token] = message.source;
-
-      this.send(message.type, message.payload, this.leader);
-
-      this.send(EMType.ClientRequestForward, {
-        message: message,
-      }, EComponent.Logger);
+      case EOpType.KVWatch: {
+        const payload = message.payload.payload as IKVWatch;
+        this.watcher.watch(payload.key, message.source, payload.expire);
+        break;
+      }
+      default:
+        this.send(EMType.InvalidClientRequestType, {
+          invalidType: message.payload.type,
+        }, EComponent.Logger);
+        break;
     }
   };
 
@@ -178,7 +182,6 @@ export default class Node extends Messenger {
 
     this.store.sync(message.payload.wal)
       .then((report) => {
-
         // Appended logs are notified to the leader
         for (const entry of report.appended) {
           this.send(EMType.KVOpAccepted, entry, message.source);
@@ -338,13 +341,15 @@ export default class Node extends Messenger {
     if (this.net.ready && this.discovery.ready) {
       this.discovery.discover();
     }
-  }
+  };
 
-  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (message) => {
+  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (
+    message,
+  ) => {
     if (this.net.ready && this.discovery.ready) {
       this.discovery.discover();
     }
-  }
+  };
 
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
     // If node is leader or knows a leader, break
@@ -353,7 +358,7 @@ export default class Node extends Messenger {
         result: message.payload,
         state: this.state,
         leader: this.leader,
-      }, EComponent.Logger)
+      }, EComponent.Logger);
       return;
     }
 
@@ -361,20 +366,24 @@ export default class Node extends Messenger {
     if (message.payload.success) {
       this.send(EMType.PeerConnectionRequest, {
         peerIp: message.payload.result,
-      }, EComponent.Net)
+      }, EComponent.Net);
     }
 
     // either way, discovery is finished so node is ready
     this.send(EMType.NodeReady, {
       ready: true,
-    }, EComponent.NetWorker)
+    }, EComponent.NetWorker);
 
     // discovery finishes by passing follower (may move to leader if no node found)
     this.transitionFunction(ENodeState.Follower);
-  }
+  };
 
   [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
-    this.send(message.type, message.payload, this.requests[message.payload.token]);
+    this.send(
+      message.type,
+      message.payload,
+      this.requests[message.payload.token],
+    );
     delete this.requests[message.payload.token];
-  }
+  };
 }

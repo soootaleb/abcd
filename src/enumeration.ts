@@ -14,7 +14,8 @@ export enum EComponent {
   StoreWorker = "StoreWorker",
   NetWorker = "NetWorker",
   DiscoveryWorker = "DiscoveryWorker",
-  Logger = "Logger"
+  Logger = "Logger",
+  Watcher = "Watcher"
 }
 
 export enum EKVOpType {

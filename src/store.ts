@@ -168,6 +168,7 @@ export default class Store extends Messenger {
           this.bget(key).push(entry);
           this._store[key] = entry.log.next;
           delete this._votes[key];
+          this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Watcher);
           this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
         } else {
           this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
