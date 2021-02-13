@@ -30,14 +30,12 @@ export default class Logger extends Messenger {
     super(messages);
 
     this.console = Boolean(this.args["console-messages"]) || Boolean(this.args["debug"]);
-    this.payloads = this.args["console-messages"] === "full" || Boolean(this.args["debug"]);
 
     this.messages.bind(this.log);
   }
 
   private filter = (message: IMessage<EMType>): boolean => {
     for (const filter of this.filters) {
-      // console.log(typeof filter)
       if(typeof filter === "function" && !filter(message)) {
         return false;
       } else if (!filter) {
@@ -50,9 +48,9 @@ export default class Logger extends Messenger {
 
   private log = (message: IMessage<EMType>) => {
     if (this.filter(message)) {
-      let icon = "🔄";
-      let source = message.source;
-      let destination = message.destination;
+      let icon = "🔄".padEnd(1);
+      let source = message.source.padEnd(20);
+      let destination = message.destination.padEnd(20);
       if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(message.destination)) {
         icon = "🟢"
         destination = c.green(destination)
@@ -60,20 +58,20 @@ export default class Logger extends Messenger {
         icon = "🔵"
         source = c.blue(source);
       }
-
+      
       let role = this.role.toString();
       switch (this.role) {
         case ENodeState.Starting:
-          role = c.yellow(role);          
+          role = "🟡";          
           break;
         case ENodeState.Follower:
-          role = c.gray(role);          
+          role = "🟤";          
           break;
         case ENodeState.Candidate:
-          role = c.cyan(role);          
+          role = "🟠";          
           break;
         case ENodeState.Leader:
-          role = c.brightMagenta(role);          
+          role = "🔴";          
           break;
       
         default:
@@ -81,11 +79,23 @@ export default class Logger extends Messenger {
           break;
       }
 
-      role = `[${role}]`.padEnd(22);
-      source = `[${source}]`.padEnd(20);
-      destination = `[${destination}]`.padEnd(20);
+      let payload = JSON.stringify(message.payload)
+      switch(this.args["console-messages"]) {
+        case "":
+          break;
+        case "full":
+          break;
+        case undefined:
+          payload = '';
+          break;
+        case "partial":
+          payload = payload.substr(0, 50)
+          break;
+        default:
+          break;
+      }
 
-      const log = `${icon}${role}${source}->${destination}[${message.type}]${this.payloads ? JSON.stringify(message.payload): ''}`;
+      const log = `${icon.padEnd(3)}${role.padEnd(3)}${source}${destination}${message.type.padEnd(25)}${payload}`;
       message.source === EComponent.Node ? console.log(c.bold(log)) : console.log(log)
     }
   }
