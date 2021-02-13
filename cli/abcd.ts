@@ -28,11 +28,13 @@ new Client(addr, port).co.then((operations) => {
     const [type, value] = watch.split(":")
     if (type === "mon") {
       operations.monwatch(value, 1, (notification) => {
-        console.log(notification)
+        console.clear()
+        console.table(notification.payload.payload)
       })
     } else if (type === "kv") {
       operations.kvwatch(value, 1, (notification) => {
-        console.log(notification)
+        console.clear()
+        console.table(notification.payload.payload)
       })
     }
   } else if (mon) {
@@ -66,14 +68,13 @@ new Client(addr, port).co.then((operations) => {
           return acc + curr.received - curr.sent
         }, 0) / latest.length
         console.clear();
-        console.log("SENT", Object.keys(mon.requests.all).length)
-        console.log("RECEIVED", mon.requests.count)
-        console.log(
-          "PENDING",
-          Object.keys(mon.requests.all).length - mon.requests.count,
-          (Object.keys(mon.requests.all).length - mon.requests.count) / Object.keys(mon.requests.all).length
-        )
-        console.log("LATENCY", Math.round(latency * 100) / 100);
+        console.table({
+          sent: Object.keys(mon.requests.all).length,
+          received: mon.requests.count,
+          pending_count: Object.keys(mon.requests.all).length - mon.requests.count,
+          pending_prop: (Object.keys(mon.requests.all).length - mon.requests.count) / Object.keys(mon.requests.all).length,
+          latency: Math.round(latency * 100) / 100
+        })
       }, 1000)
 
       // Loop every interval

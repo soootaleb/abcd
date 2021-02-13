@@ -41,16 +41,16 @@ export default class Monitor extends Messenger {
     if (this.args["mon"]) {
       setInterval(() => {
         console.clear();
-        console.log(this.requests.length);
-        console.log("DEBUG", this._mon.debugger / this.requests.length);
-        console.log("ACCEPTED", this._mon.accepted / this.requests.length);
-        console.log("COMMITED", this._mon.commited / this.requests.length);
-        console.log("REJECTED", this._mon.rejected / this.requests.length);
-        console.log(
-          "TOTAL",
-          (this._mon.rejected + this._mon.commited) / this.requests.length,
-        );
-        console.log("ANSWERED", this._mon.answered / this.requests.length);
+        console.table({
+          total: this.requests.length,
+          debug: this._mon.debugger / this.requests.length,
+          accepted: this._mon.accepted / this.requests.length,
+          commited: this._mon.commited / this.requests.length,
+          sum: (this._mon.rejected + this._mon.commited) / this.requests.length,
+          rejected: this._mon.rejected / this.requests.length,
+          answered: this._mon.answered / this.requests.length
+        })
+        console.table(Deno.metrics())
       }, this._watch_interval);
     }
   }
