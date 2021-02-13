@@ -1,7 +1,7 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import type { IKVOp, ILog, IMessage } from "../src/interfaces/interface.ts";
+import type { IKeyValue, IKVOp, ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
-import { EKVOpType, EMonOpType } from "../src/enumeration.ts";
+import { EKVOpType, EMonOpType, EMType, EOpType } from "../src/enumeration.ts";
 
 const ARGS = parse(Deno.args);
 
@@ -27,9 +27,9 @@ new Client(addr, port).co.then((operations) => {
   } else if (watch) {
     const [type, value] = watch.split(":")
     if (type === "mon") {
-      operations.monwatch(value, 1, (notification) => {
-        console.clear()
-        console.table(notification.payload.payload)
+      operations.monwatch(value, 15, (notification) => {
+        const payload = notification.payload.payload as IKeyValue<IMessage<EMType>>;
+        console.log(payload.value)
       })
     } else if (type === "kv") {
       operations.kvwatch(value, 1, (notification) => {

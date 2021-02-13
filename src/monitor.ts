@@ -21,6 +21,8 @@ export default class Monitor extends Messenger {
     [key: string]: number;
   } = {};
 
+  private loggers: string[] = [];
+
   private _watch_interval = 1000;
 
   constructor(messages: Observe<IMessage<EMType>>) {
@@ -36,6 +38,22 @@ export default class Monitor extends Messenger {
           this._mon.answered++;
         }
       }
+
+      if (
+        message.type != EMType.ClientNotification &&
+        message.type != EMType.HeartBeat &&
+        message.type != EMType.DiscoveryBeaconSend
+      ) {
+        for (const logger of this.loggers) {
+          this.send(EMType.ClientNotification, {
+            type: EOpType.MonWatch,
+            payload: {
+              key: "/abcd/logs",
+              value: message,
+            },
+          }, logger);
+        }
+      }
     });
 
     if (this.args["mon"]) {
@@ -48,9 +66,9 @@ export default class Monitor extends Messenger {
           commited: this._mon.commited / this.requests.length,
           sum: (this._mon.rejected + this._mon.commited) / this.requests.length,
           rejected: this._mon.rejected / this.requests.length,
-          answered: this._mon.answered / this.requests.length
-        })
-        console.table(Deno.metrics())
+          answered: this._mon.answered / this.requests.length,
+        });
+        console.table(Deno.metrics());
       }, this._watch_interval);
     }
   }
@@ -72,20 +90,27 @@ export default class Monitor extends Messenger {
     expire = 1,
     interval = this._watch_interval,
   ) {
-    this.watchers[watcher] = setInterval(() => {
-      this.send(EMType.ClientNotification, {
-        type: EOpType.MonWatch,
-        payload: {
-          key: key,
-          value: this.get(key),
-        },
-      }, watcher);
-    }, interval);
+    if (key.startsWith("/abcd/logs")) {
+      this.loggers.push(watcher);
+    } else {
+      this.watchers[watcher] = setInterval(() => {
+        this.send(EMType.ClientNotification, {
+          type: EOpType.MonWatch,
+          payload: {
+            key: key,
+            value: this.get(key),
+          },
+        }, watcher);
+      }, interval);
+    }
   }
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
     message,
   ) => {
+    this.loggers = this.loggers.filter((logger) =>
+      logger != message.payload.clientIp
+    );
     clearInterval(this.watchers[message.payload.clientIp]);
   };
 

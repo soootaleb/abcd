@@ -71,7 +71,7 @@ export interface IMPayload {
 
   [EMType.ClientNotification]: {
     type: EOpType.KVWatch | EOpType.MonWatch,
-    payload: ILog | IKeyValue
+    payload: ILog | IKeyValue | IKeyValue<IMessage<EMType>>
   }
 
   [EMType.ClientResponse]: {
