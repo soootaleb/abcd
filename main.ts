@@ -10,6 +10,8 @@ const messages = new Observe({
     payload: null
 })
 
+messages.maxHistorySize = 0;
+
 const logger = new Logger(messages);
 
 const node: Node = new Node(messages);
