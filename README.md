@@ -99,6 +99,16 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 > Cluster is able to receive put & get requests and persist data between executions
 
+# Version
+
+- v3.4:
+    - KVWatch operations
+    - New message of type ClientNotification
+
+- v3.0: Persistance layer
+- v2.0: Consensus layer
+- v1.0: Network layer
+
 # Next steps
 
 ## Architecture
