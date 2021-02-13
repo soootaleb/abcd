@@ -3,12 +3,13 @@ import type {
   IKVWatch,
   ILog,
   IMessage,
+  IMonOp,
   IOPayload,
 } from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Discovery from "./discovery.ts";
-import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
+import { EComponent, EMonOpType, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
@@ -20,6 +21,7 @@ export default class Node extends Messenger {
   private requests: { [key: string]: string } = {};
 
   private net: Net;
+  private mon: Monitor;
   private store: Store;
   private watcher: Watcher;
   private state: ENodeState = ENodeState.Starting;
@@ -45,7 +47,7 @@ export default class Node extends Messenger {
     this.discovery = new Discovery(messages);
     this.watcher = new Watcher(messages);
 
-    new Monitor(messages);
+    this.mon = new Monitor(messages);
   }
 
   /**
@@ -151,6 +153,22 @@ export default class Node extends Messenger {
       case EOpType.KVWatch: {
         const payload = message.payload.payload as IKVWatch;
         this.watcher.watch(payload.key, message.source, payload.expire);
+        break;
+      }
+      case EOpType.MonOp: {
+        const payload = message.payload.payload as IMonOp;
+        this.send(EMType.ClientResponse, {
+          token: message.payload.token,
+          payload: {
+            op: EMonOpType.Get,
+            metric: {
+              key: payload.metric.key,
+              value: this.mon.get(payload.metric.key)
+            }
+          },
+          type: message.payload.type,
+          timestamp: new Date().getTime()
+        }, message.source)
         break;
       }
       default:
@@ -321,20 +339,6 @@ export default class Node extends Messenger {
       knownPeers: knownPeers,
       wal: this.store.wal,
     }, message.payload.peerIp);
-  };
-
-  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = (message) => {
-    this.send(message.type, message.payload, EComponent.Logger);
-  };
-
-  [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
-    this.send(message.type, message.payload, EComponent.Logger);
-  };
-
-  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
-    message,
-  ) => {
-    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {

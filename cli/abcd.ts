@@ -1,7 +1,7 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import type { IKVOp, ILog, IMessage } from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
-import { EKVOpType } from "../src/enumeration.ts";
+import { EKVOpType, EMonOpType } from "../src/enumeration.ts";
 
 const ARGS = parse(Deno.args);
 
@@ -14,6 +14,7 @@ const duration: number = ARGS["d"] | 0;
 
 const get: string = ARGS["get"];
 const put: string = ARGS["put"] || ARGS["set"];
+const mon: string = ARGS["mon"];
 const watch: string = ARGS["watch"];
 
 new Client(addr, port).co.then((operations) => {
@@ -27,6 +28,8 @@ new Client(addr, port).co.then((operations) => {
     operations.kvwatch(watch, 1, (notification) => {
       console.log(notification)
     })
+  } else if (mon) {
+    operations.monop(EMonOpType.Get, mon).then(console.log)
   } else {
       
       let counter = 0;

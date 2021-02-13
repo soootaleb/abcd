@@ -9,12 +9,26 @@ import { H } from "./type.ts";
 export default class Monitor extends Messenger {
 
     private requests: string[] = [];
-    private answered = 0;
-    private commited = 0;
-    private accepted = 0;
-    private rejected = 0;
-    private debugger = 0;
+    private _mon: {
+        [key: string]: number
+    } = {
+        answered: 0,
+        commited: 0,
+        accepted: 0,
+        rejected: 0,
+        debugger: 0,
+    }
 
+    public get(key: string) {
+        if(Object.keys(this._mon).includes(key)) {
+            return this._mon[key];
+        } else if (key.startsWith("deno:")) {
+            const [deno, metric] = key.split(":")
+            return JSON.parse(JSON.stringify(Deno.metrics()))[metric];
+        } else {
+            return "undefined";
+        }
+    }
 
     constructor(messages: Observe<IMessage<EMType>>) {
         super(messages);
@@ -26,7 +40,7 @@ export default class Monitor extends Messenger {
                 this.requests.push(o.payload.token);
             } else if (message.type === EMType.ClientResponse) {
                 if(this.requests.includes(o.payload.token)) {
-                    this.answered++;
+                    this._mon.answered++;
                 }
             }
         })
@@ -35,29 +49,29 @@ export default class Monitor extends Messenger {
             setInterval(() => {
                 console.clear();
                 console.log(this.requests.length)
-                console.log("DEBUG", this.debugger / this.requests.length)
-                console.log("ACCEPTED", this.accepted / this.requests.length)
-                console.log("COMMITED", this.commited / this.requests.length)
-                console.log("REJECTED", this.rejected / this.requests.length)
-                console.log("TOTAL", (this.rejected + this.commited) / this.requests.length)
-                console.log("ANSWERED", this.answered / this.requests.length )
+                console.log("DEBUG", this._mon.debugger / this.requests.length)
+                console.log("ACCEPTED", this._mon.accepted / this.requests.length)
+                console.log("COMMITED", this._mon.commited / this.requests.length)
+                console.log("REJECTED", this._mon.rejected / this.requests.length)
+                console.log("TOTAL", (this._mon.rejected + this._mon.commited) / this.requests.length)
+                console.log("ANSWERED", this._mon.answered / this.requests.length )
             }, 100);
         }
     }
 
     [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
-        this.accepted++;
+        this._mon.accepted++;
     }
 
     [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = (message) => {
-        this.commited++;
+        this._mon.commited++;
     }
 
     [EMType.StoreLogCommitFail]: H<EMType.StoreLogCommitFail> = (message) => {
-        this.rejected++;
+        this._mon.rejected++;
     }
 
     [EMType.LogMessage]: H<EMType.LogMessage> = (message) => {
-        this.debugger++;
+        this._mon.debugger++;
     }
 }

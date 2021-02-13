@@ -1,5 +1,5 @@
 import type { ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
-import { EKVOpType, EMType, EOpType } from "./enumeration.ts";
+import { EKVOpType, EMonOpType, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Client {
@@ -114,6 +114,16 @@ export default class Client {
         this.send(EOpType.KVWatch, {
             key: key,
             expire: expire
+        })
+    }
+
+    public monop(op: EMonOpType, key: string, value?: string) {
+        return this.send(EOpType.MonOp, {
+            metric: {
+                key: key,
+                value: value,
+            },
+            op: op
         })
     }
 }
