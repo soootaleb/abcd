@@ -120,7 +120,6 @@ This list is a chronological feature implementation. Changes are not reflected b
 ## Features
 
 - Applied logs in store should be remove from WAL (need to match logApplied with correct log)
-- Starting node should apply WAL logs in store (store.worker.applyLog)
 - Candidate timeout for new callForVote
 - Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
 - Upgrade voting strategy (known issue #2)
