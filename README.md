@@ -4,17 +4,23 @@ Key Value Store with raft in TypeScript for Deno runtime (inspired by etcd, for 
 
 # Getting Started
 
-Start a node without parameters so it'll enter directly in LEADER mode
+You can start by just running the docker image with `main.ts`; Alternatively you can use the CLI by passing `cli/abcd.ts`. In both cases, the docker image passes parameters to the Deno runtime so you can use
 
-## Starting the leader
+- `--console-messages [full]` to log messages in console (adding _full_ arg will display payloads)
+- `--data-dir=/root` to custom the store persistance directory
+- `--etimeout=30` to set the election timeout
 
-`deno run --unstable --allow-write --allow-net --allow-read main.ts`
+## Starting one node
+
+`deno run abcd main.ts`
 
 ## Connecting a new node
 
-Start another node and provide the `--join` argument specifying the LEADER IP so that the node enters FOLLOWER mode
+By default starting a node will use UDP discovery by listening for UDP packets from a leader; After the election timeout the node will go leader if no discovery has been made. **If your nodes are in the same group for a multicast 224.0.0.1** you can just start the container like the first one
 
-`deno run --unstable --allow-write --allow-net --allow-read main.ts --join 178.12.0.2`
+`deno run abcd main.ts`
+
+If you prefer to use HTTP discovery, you need to provide nodes with `ABCD_NODE_IP` and `ABCD_CLUSTER_HOSTNAME` as environement variables. HTTP discovery is used if argument `--discovery http` is present
 
 # Implemented
 
