@@ -101,6 +101,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v3.5: KVWatch operations on followers
 - v3.4:
     - KVWatch operations
     - New message of type ClientNotification
