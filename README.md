@@ -101,6 +101,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v3.6: MonOp / MonWatch (/deno/*, /abcd/logs] implementation
 - v3.5: KVWatch operations on followers
 - v3.4:
     - KVWatch operations
