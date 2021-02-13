@@ -18,6 +18,14 @@ export default class Logger extends Messenger {
 
   private role = ENodeState.Starting;
 
+  /**
+   * Messages will print only if every filter is passed (returns True)
+   */
+  private filters: ((message: IMessage<EMType>) => boolean)[] = [
+    (message: IMessage<EMType>) => this.console,
+    (message: IMessage<EMType>) => !this.exclude.includes(message.type)
+  ]
+
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
 
@@ -27,8 +35,21 @@ export default class Logger extends Messenger {
     this.messages.bind(this.log);
   }
 
+  private filter = (message: IMessage<EMType>): boolean => {
+    for (const filter of this.filters) {
+      // console.log(typeof filter)
+      if(typeof filter === "function" && !filter(message)) {
+        return false;
+      } else if (!filter) {
+        console.log(filter)
+        return false;
+      }
+    }
+    return true;
+  }
+
   private log = (message: IMessage<EMType>) => {
-    if (this.console && !this.exclude.includes(message.type)) {
+    if (this.filter(message)) {
       let icon = "🔄";
       let source = message.source;
       let destination = message.destination;
