@@ -18,13 +18,20 @@ export enum EComponent {
 }
 
 export enum EKVOpType {
-  Put = "put",
-  Get = "get",
+  Put = "Put",
+  Get = "Get",
+}
+
+export enum EMonOpType {
+  Set = "Set",
+  Get = "Get"
 }
 
 export enum EOpType {
   KVOp = "KVOp",
   KVWatch = "KVWatch",
+  MonOp = "MonOp",
+  MonWatch = "MonWatch"
 }
 
 export enum EMType {
@@ -59,6 +66,7 @@ export enum EMType {
 
   ClientRequest = "ClientRequest",
   ClientResponse = "ClientResponse",
+  ClientNotification = "ClientNotification",
   ClientRequestForward = "ClientRequestForward",
   ClientConnectionOpen = "ClientConnectionOpen",
   ClientConnectionClose = "ClientConnectionClose",

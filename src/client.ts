@@ -1,5 +1,6 @@
 import type { ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
 import { EKVOpType, EMType, EOpType } from "./enumeration.ts";
+import { H } from "./type.ts";
 
 export default class Client {
 
@@ -20,6 +21,10 @@ export default class Client {
 
     private _requests: {
         [key: string]: (value: IMessage<EMType.ClientResponse>) => void
+    } = {};
+
+    private _watchers: {
+        [key: string]: (notification: IMessage<EMType.ClientNotification>) => void
     } = {};
 
     private _connection: {
@@ -46,13 +51,16 @@ export default class Client {
             this._connection.resolve(this);
         })
 
-        this.ws.onmessage = ((ev) => {
+        this.ws.onmessage = (ev: MessageEvent) => {
             const message = JSON.parse(ev.data);
-            if(Object.keys(this._requests).includes(message.payload.token)) {
-                this._requests[message.payload.token](message)
-                delete this._requests[message.payload.token]
+            // deno-lint-ignore no-explicit-any
+            const self: any = this;
+            if (Object.keys(this).includes(message.type)) {
+                self[message.type](message);
+            } else {
+                console.warn('Missing handler for message', message)
             }
-        })
+        };
     }
 
     private async send<T extends EOpType>(type:  T, payload: IOPayload[T]): Promise<IMessage<EMType.ClientResponse>> {
@@ -76,6 +84,19 @@ export default class Client {
         })
     }
 
+    [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
+        if(Object.keys(this._requests).includes(message.payload.token)) {
+            this._requests[message.payload.token](message)
+            delete this._requests[message.payload.token]
+        }
+    }
+
+    [EMType.ClientNotification]: H<EMType.ClientNotification> = (message) => {
+        if(Object.keys(this._watchers).includes(message.payload.payload.next.key)) {
+            this._watchers[message.payload.payload.next.key](message);
+        }
+    }
+
     public async kvop(op: EKVOpType, key: string, value?: string) {
         return this.send(EOpType.KVOp, {
             kv: {
@@ -83,6 +104,16 @@ export default class Client {
                 value: value,
             },
             op: op
+        })
+    }
+
+    public kvwatch(key: string, expire = 1, callback: (notification: IMessage<EMType.ClientNotification>) => void) {
+
+        this._watchers[key] = callback;
+
+        this.send(EOpType.KVWatch, {
+            key: key,
+            expire: expire
         })
     }
 }

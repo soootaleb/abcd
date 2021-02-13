@@ -1,14 +1,13 @@
 import Observe from "https://deno.land/x/Observe/Observe.ts";
-import { Args, parse } from "https://deno.land/std/flags/mod.ts";
-import type { ILog, IMessage } from "./interfaces/interface.ts";
+import type { ILog, IMessage, IOPayload, IKVOp, IKVWatch } from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
-import Logger from "./logger.ts";
 import Discovery from "./discovery.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
+import Watcher from "./watcher.ts";
 
 export default class Node extends Messenger {
 
@@ -17,6 +16,7 @@ export default class Node extends Messenger {
 
   private net: Net;
   private store: Store;
+  private watcher: Watcher;
   private state: ENodeState = ENodeState.Starting;
   private discovery: Discovery;
 
@@ -38,6 +38,7 @@ export default class Node extends Messenger {
     this.net = new Net(messages);
     this.store = new Store(messages);
     this.discovery = new Discovery(messages);
+    this.watcher = new Watcher(messages);
 
     new Monitor(messages);
   }
@@ -126,7 +127,17 @@ export default class Node extends Messenger {
 
       switch (message.payload.type) {
         case EOpType.KVOp: {
-          this.store.kvop(message.payload);
+          this.store.kvop(message.payload as {
+            token: string,
+            type: EOpType.KVOp,
+            payload: IOPayload[EOpType.KVOp],
+            timestamp: number
+          });
+          break;
+        }
+        case EOpType.KVWatch: {
+          const payload = message.payload.payload as IKVWatch
+          this.watcher.watch(payload.key, message.source, payload.expire);
           break;
         }
         default:

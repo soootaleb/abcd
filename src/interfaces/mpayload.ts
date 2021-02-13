@@ -1,5 +1,5 @@
 import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
-import { IEntry, IKeyValue, IKVOp, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
+import { IEntry, IKeyValue, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {
@@ -65,14 +65,19 @@ export interface IMPayload {
   [EMType.ClientRequest]: {
     token: string;
     type: EOpType,
-    payload: IOPayload[EOpType.KVOp], // Need to fix this for new KVOp....
+    payload: IOPayload[EOpType],
     timestamp: number;
   };
+
+  [EMType.ClientNotification]: {
+    type: EOpType.KVWatch | EOpType.MonWatch,
+    payload: ILog
+  }
 
   [EMType.ClientResponse]: {
     token: string;
     type: EOpType,
-    payload: IOPayload[EOpType.KVOp],
+    payload: IOPayload[EOpType],
     timestamp: number;
   };
 

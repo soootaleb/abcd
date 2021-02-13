@@ -1,4 +1,4 @@
-import { EComponent, EKVOpType, EMType, EOpType } from "../enumeration.ts";
+import { EComponent, EKVOpType, EMonOpType, EMType, EOpType } from "../enumeration.ts";
 import { IMPayload } from "./mpayload.ts";
 
 export interface IMessage<T extends EMType> {
@@ -45,7 +45,19 @@ export interface IKVWatch {
   expire: number // limit of notifies
 }
 
+export interface IMonOp {
+  op: EMonOpType,
+  metric: IKeyValue
+}
+
+export interface IMonWatch {
+  key: string,
+  expire: number // limit of notifies
+}
+
 export interface IOPayload {
   [EOpType.KVOp]: IKVOp,
   [EOpType.KVWatch]: IKVWatch,
+  [EOpType.MonOp]: IMonOp,
+  [EOpType.MonWatch]: IMonWatch
 }

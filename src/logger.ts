@@ -39,7 +39,6 @@ export default class Logger extends Messenger {
       if(typeof filter === "function" && !filter(message)) {
         return false;
       } else if (!filter) {
-        console.log(filter)
         return false;
       }
     }

@@ -2,7 +2,7 @@ import Messenger from "./messenger.ts";
 import Node from "./node.ts";
 import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { IMessage } from "./interfaces/interface.ts";
-import { EMType } from "./enumeration.ts";
+import { EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 

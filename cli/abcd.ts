@@ -1,5 +1,5 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import type { ILog, IMessage } from "../src/interfaces/interface.ts";
+import type { IKVOp, ILog, IMessage } from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
 import { EKVOpType } from "../src/enumeration.ts";
 
@@ -14,6 +14,7 @@ const duration: number = ARGS["d"] | 0;
 
 const get: string = ARGS["get"];
 const put: string = ARGS["put"] || ARGS["set"];
+const watch: string = ARGS["watch"];
 
 new Client(addr, port).co.then((operations) => {
 
@@ -22,6 +23,10 @@ new Client(addr, port).co.then((operations) => {
   } else if (put) {
     const [key, value] = put.split("=")
     operations.kvop(EKVOpType.Put, key, value).then(console.log)
+  } else if (watch) {
+    operations.kvwatch(watch, 1, (notification) => {
+      console.log(notification)
+    })
   } else {
       
       let counter = 0;
@@ -80,7 +85,8 @@ new Client(addr, port).co.then((operations) => {
           // Submit request & update monitoring
           operations.kvop(EKVOpType.Put, key, counter.toString())
             .then((message) => {
-              const key = message.payload.payload.kv.key
+              const payload = message.payload.payload as IKVOp
+              const key = payload.kv.key
               const sent = mon.requests.all[key].sent;
               mon.requests.all[key].received = new Date().getTime()
               mon.requests.count++;
