@@ -1,4 +1,4 @@
-import type { ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
+import type { IKeyValue, ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
 import { EKVOpType, EMonOpType, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
@@ -92,18 +92,26 @@ export default class Client {
     }
 
     [EMType.ClientNotification]: H<EMType.ClientNotification> = (message) => {
-        if(Object.keys(this._watchers).includes(message.payload.payload.next.key)) {
-            this._watchers[message.payload.payload.next.key](message);
+        if(message.payload.type === EOpType.KVWatch) {
+            const payload = message.payload.payload as ILog
+            if(Object.keys(this._watchers).includes(payload.next.key)) {
+                this._watchers[payload.next.key](message);
+            }
+        } else if (message.payload.type === EOpType.MonWatch) {
+            const payload = message.payload.payload as IKeyValue
+            if(Object.keys(this._watchers).includes(payload.key)) {
+                this._watchers[payload.key](message);
+            }
         }
     }
 
     public async kvop(op: EKVOpType, key: string, value?: string) {
         return this.send(EOpType.KVOp, {
+            op: op,
             kv: {
                 key: key,
                 value: value,
-            },
-            op: op
+            }
         })
     }
 
@@ -119,11 +127,21 @@ export default class Client {
 
     public monop(op: EMonOpType, key: string, value?: string) {
         return this.send(EOpType.MonOp, {
+            op: op,
             metric: {
                 key: key,
                 value: value,
-            },
-            op: op
+            }
+        })
+    }
+
+    public monwatch(key: string, expire = 1, callback: (notification: IMessage<EMType.ClientNotification>) => void) {
+
+        this._watchers[key] = callback;
+
+        this.send(EOpType.MonWatch, {
+            key: key,
+            expire: expire
         })
     }
 }

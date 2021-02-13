@@ -4,6 +4,7 @@ import type {
   ILog,
   IMessage,
   IMonOp,
+  IMonWatch,
   IOPayload,
 } from "./interfaces/interface.ts";
 import Net from "./net.ts";
@@ -169,6 +170,11 @@ export default class Node extends Messenger {
           type: message.payload.type,
           timestamp: new Date().getTime()
         }, message.source)
+        break;
+      }
+      case EOpType.MonWatch: {
+        const payload = message.payload.payload as IMonWatch;
+        this.mon.watch(payload.key, message.source, payload.expire);
         break;
       }
       default:

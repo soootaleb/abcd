@@ -25,9 +25,16 @@ new Client(addr, port).co.then((operations) => {
     const [key, value] = put.split("=")
     operations.kvop(EKVOpType.Put, key, value).then(console.log)
   } else if (watch) {
-    operations.kvwatch(watch, 1, (notification) => {
-      console.log(notification)
-    })
+    const [type, value] = watch.split(":")
+    if (type === "mon") {
+      operations.monwatch(value, 1, (notification) => {
+        console.log(notification)
+      })
+    } else if (type === "kv") {
+      operations.kvwatch(value, 1, (notification) => {
+        console.log(notification)
+      })
+    }
   } else if (mon) {
     operations.monop(EMonOpType.Get, mon).then(console.log)
   } else {
