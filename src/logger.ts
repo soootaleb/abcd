@@ -16,11 +16,7 @@ export default class Logger extends Messenger {
     EMType.DiscoveryBeaconSend
   ]
 
-  private _role = ENodeState.Starting;
-
-  public set role(role: ENodeState) {
-    this._role = role
-  }
+  private role = ENodeState.Starting;
 
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
@@ -44,8 +40,8 @@ export default class Logger extends Messenger {
         source = c.blue(source);
       }
 
-      let role = this._role.toString();
-      switch (this._role) {
+      let role = this.role.toString();
+      switch (this.role) {
         case ENodeState.Starting:
           role = c.yellow(role);          
           break;
@@ -60,7 +56,7 @@ export default class Logger extends Messenger {
           break;
       
         default:
-          role = this._role
+          role = this.role
           break;
       }
 
@@ -74,4 +70,8 @@ export default class Logger extends Messenger {
   }
 
   [EMType.LogMessage]: H<EMType.LogMessage> = this.log;
+
+  [EMType.NewState]: H<EMType.NewState> = (message) => {
+    this.role = message.payload.to
+  }
 }

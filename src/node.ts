@@ -17,7 +17,6 @@ export default class Node extends Messenger {
 
   private net: Net;
   private store: Store;
-  private logger: Logger;
   private state: ENodeState = ENodeState.Starting;
   private discovery: Discovery;
 
@@ -36,8 +35,6 @@ export default class Node extends Messenger {
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
 
-    this.logger = new Logger(messages);
-
     this.net = new Net(messages);
     this.store = new Store(messages);
     this.discovery = new Discovery(messages);
@@ -50,7 +47,11 @@ export default class Node extends Messenger {
    * @param to state to transition to
    */
   private transitionFunction(to: ENodeState) {
-    const oldState: ENodeState = this.state;
+
+    this.send(EMType.NewState, {
+      from: this.state,
+      to: to,
+    }, EComponent.Logger);
 
     clearTimeout(this.electionTimeoutId);
     clearInterval(this.heartBeatIntervalId);
@@ -60,7 +61,6 @@ export default class Node extends Messenger {
 
     switch (to) {
       case ENodeState.Starting:
-        this.logger.role = ENodeState.Starting;
         break;
       case ENodeState.Follower:
         this.electionTimeoutId = setTimeout(() => {
@@ -68,13 +68,6 @@ export default class Node extends Messenger {
         }, this.electionTimeout);
 
         this.state = ENodeState.Follower;
-        this.logger.role = ENodeState.Follower;
-
-        this.send(EMType.NewState, {
-          oldState: oldState,
-          newState: this.state,
-        }, EComponent.Logger);
-
         break;
       case ENodeState.Leader:
         this.heartBeatIntervalId = setInterval(() => {
@@ -94,13 +87,7 @@ export default class Node extends Messenger {
         this.term += 1;
 
         this.state = ENodeState.Leader;
-        this.logger.role = ENodeState.Leader;
-
-        this.send(EMType.NewState, {
-          oldState: oldState,
-          newState: this.state,
-        }, EComponent.Logger);
-
+        
         for (const peerIp of Object.keys(this.net.peers)) {
           this.send(EMType.NewTerm, {
             term: this.term,
@@ -111,13 +98,7 @@ export default class Node extends Messenger {
         break;
       case ENodeState.Candidate:
         this.state = ENodeState.Candidate;
-        this.logger.role = ENodeState.Candidate;
         this.votesCounter = 1;
-
-        this.send(EMType.NewState, {
-          oldState: oldState,
-          newState: this.state,
-        }, EComponent.Logger);
 
         if (Object.keys(this.net.peers).length == 0) {
           this.transitionFunction(ENodeState.Leader);
@@ -275,9 +256,7 @@ export default class Node extends Messenger {
         this.votesCounter += 1;
       }
 
-      if (
-        this.votesCounter >= this.net.quorum
-      ) {
+      if (this.votesCounter >= this.net.quorum) {
         this.votesCounter = 0;
         this.transitionFunction(ENodeState.Leader);
       }
