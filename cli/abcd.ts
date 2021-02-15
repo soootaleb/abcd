@@ -52,7 +52,8 @@ new Client(addr, port).co.then((operations) => {
             sent: number,
             received: number
           } },
-          count: 0,
+          sent: 0,
+          received: 0,
           latency: {
             sum: 0,
             total: 0,
@@ -62,27 +63,49 @@ new Client(addr, port).co.then((operations) => {
       };
 
       setInterval(() => {
-        const total = Object.keys(mon.requests.all).length;
-        const latest = Object.keys(mon.requests.all).slice(total - 100)
-        const latency = latest.map((key) => mon.requests.all[key]).reduce((acc, curr) => {
+
+        const received_count = Object
+          .entries(mon.requests.all)
+          .filter(e => e[1].received > e[1].sent)
+          .length;
+
+        const received_latest = Object
+          .entries(mon.requests.all)
+          .filter(e => e[1].received > e[1].sent)
+          .map((e) => e[0])
+          .slice(received_count - 100)
+
+        const latency = received_latest.map((key) => mon.requests.all[key]).reduce((acc, curr) => {
           return acc + curr.received - curr.sent
-        }, 0) / latest.length
+        }, 0) / received_latest.length
         console.clear();
         console.table({
-          sent: Object.keys(mon.requests.all).length,
-          received: mon.requests.count,
-          pending_count: Object.keys(mon.requests.all).length - mon.requests.count,
-          pending_prop: (Object.keys(mon.requests.all).length - mon.requests.count) / Object.keys(mon.requests.all).length,
+          sent: mon.requests.sent,
+          received: mon.requests.received,
+          pending_count: mon.requests.sent - mon.requests.received,
+          pending_prop: (mon.requests.sent - mon.requests.received) / mon.requests.sent,
           latency: Math.round(latency * 100) / 100
         })
-      }, 1000)
+
+        mon.requests.all = Object
+          .entries(mon.requests.all)
+          .filter(e => e[1].received == e[1].sent || received_latest.includes(e[0]))
+          .reduce((acc, curr) => {
+            acc[curr[0]] = curr[1];
+            return acc;
+          }, {} as { [key: string]: {
+            sent: number,
+            received: number
+          }})
+
+      }, 200);
 
       // Loop every interval
       const proc = setInterval(() => {
         
         // If duration passed or counter reached objective, stop
         if ((duration && new Date().getTime() < start + duration * 1000)
-          || (!duration && Object.keys(mon.requests.all).length < mon.objective)) {
+          || (!duration && mon.requests.sent < mon.objective)) {
 
 
           // Generate random key & request timestamp
@@ -93,6 +116,8 @@ new Client(addr, port).co.then((operations) => {
             received: sent
           };
 
+          mon.requests.sent++;
+
           // Submit request & update monitoring
           operations.kvop(EKVOpType.Put, key, counter.toString())
             .then((message) => {
@@ -100,21 +125,21 @@ new Client(addr, port).co.then((operations) => {
               const key = payload.kv.key
               const sent = mon.requests.all[key].sent;
               mon.requests.all[key].received = new Date().getTime()
-              mon.requests.count++;
+              mon.requests.received++;
               mon.requests.latency.sum += new Date().getTime() - sent;
               mon.requests.latency.total = Math.round((new Date().getTime() - start) / 10) / 100;
               mon.requests.latency.average = mon.requests.latency.sum /
-                mon.requests.count;
+                mon.requests.received;
 
               const report = {
-                length: Object.keys(mon.requests.all).length,
-                count: mon.requests.count,
+                length: mon.requests.sent,
+                received: mon.requests.received,
                 ...mon.requests.latency,
               };
 
-              if ((!duration && mon.requests.count === mon.objective)
+              if ((!duration && mon.requests.received === mon.objective)
                   || (duration
-                      && report.count === report.length
+                      && report.received === report.length
                       && new Date().getTime() >= start + duration * 1000)
               ) {
                 Deno.exit();
