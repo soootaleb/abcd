@@ -9,34 +9,16 @@ import { H } from "./type.ts";
 export default class Store extends Messenger {
   private worker: Worker;
 
-  public static DEFAULT_DATA_DIR = "/home/ubuntu"
+  public static DEFAULT_DATA_DIR = "/home/ubuntu";
   private _data_dir = Store.DEFAULT_DATA_DIR;
 
   private _wal: IWal = {};
-
-  /**
-   * In order to prevent master node to send a log mutliple times (until it's commited)
-   * the node will read the latest logs using Store.buffer get method;
-   * The getter erases the buffer each time, so logs in buffer are read only once
-   */
-  private _buffer: IWal = {};
 
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
 
   private _fwal: Deno.File;
   private _encoder: TextEncoder;
-
-  /**
-   * WARNING: The getter exists ONLY for the master node to send logs only one time
-   * Reading the buffer will erase it, preventing the master from sending the latest logs
-   * If you need to read the WAL, use Store.wget(key)
-   */
-  public get buffer(): IWal {
-    const outcome = { ...this._buffer };
-    this._buffer = {};
-    return outcome;
-  }
 
   constructor(messages: Observe<IMessage<EMType>>) {
     super(messages);
@@ -126,56 +108,40 @@ export default class Store extends Messenger {
     return this.wal[key];
   }
 
-  private bget(key: string): { log: ILog; token: string }[] {
-    if (!(key in this._buffer)) {
-      this._buffer[key] = [];
-    }
-    return this._buffer[key];
-  }
-
   public get(key: string): IKeyValue {
     return this._store[key];
   }
 
-  private async persist(entry: {
+  private persist(entry: {
     log: ILog;
     token: string;
-  }): Promise<boolean> {
-    // return Promise.resolve(true);
+  }): boolean {
     const bytes = this._encoder.encode(JSON.stringify(entry.log) + "\n");
-    return this._fwal.write(bytes)
-      .then((written: number) => {
-        this.send(EMType.LogMessage, {
-          message: entry.token
-        }, EComponent.Monitor)
-        return Deno.fsync(this._fwal.rid)
-          .then(() =>
-            this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker)
-          ).then(() => written === bytes.length);
-      }).catch(() => false);
+    const written = this._fwal.writeSync(bytes);
+    Deno.fsyncSync(this._fwal.rid);
+    this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker);
+    return written === bytes.length;
   }
-  public async commit(entry: {
+
+  public commit(entry: {
     log: ILog;
     token: string;
-  }): Promise<IEntry> {
-    return this.persist(entry)
-      .then((ok: boolean) => {
-        const key: string = entry.log.next.key;
+  }): IEntry {
+    const ok = this.persist(entry);
+    const key: string = entry.log.next.key;
 
-        if (ok) {
-          this.wget(key).push(entry);
-          entry.log.commited = true;
-          this.bget(key).push(entry);
-          this._store[key] = entry.log.next;
-          delete this._votes[key];
-          this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Watcher);
-          this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
-        } else {
-          this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
-        }
+    if (ok) {
+      this.wget(key).push(entry);
+      entry.log.commited = true;
+      this._store[key] = entry.log.next;
+      delete this._votes[key];
+      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Watcher);
+      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
+    } else {
+      this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
+    }
 
-        return entry;
-      });
+    return entry;
   }
 
   public empty() {
@@ -185,62 +151,27 @@ export default class Store extends Messenger {
   }
 
   /**
-   * Synchronizes the node's wall with the incoming wal from leader. On the node's wal (leader has the truth)
-   * - Removes uncommited logs
-   * - Commits incoming logs with a higher timestamp that the latest commited log
-   * - Appends uncommited logs
+   * Synchronizes the node's wal with the incoming wal from leader.
+   * Only commited logs are coming so all of them are commited
    * @param wal the incoming wal from which to sync the current node's wall
-   * @returns a report listing the logs that have been commited & the ones appended only (for the node to notify the leader)
+   * @returns true if all logs have been commited, false otherwise
    */
-  public async sync(wal: IWal): Promise<IReport> {
-    const report: IReport = {
-      commited: [],
-      appended: [],
-    };
+  public sync(wal: IWal): boolean {
+    let all_commited = true;
 
-    // For each key of the store
-    for (const key in wal) {
-      // [DEPRECATED] Remove uncommited logs => no uncommited logs in WAL (.set() will only fill buffer for master to send)
-
-      // [DEPRECATED] Get latest log (if any, otherwise undefined)
-
-      // [DEPRECATED] Keep only incoming logs with higher timestamp => useless since logs are sent once
-      // /!\ This may be necessary in case of SPLIT BRAIN (old master / logs received)
-
-      // [TODO] Filter logs from current term (c.f README) => SPLIT BRAIN problem should be solved
-
-      // [DEPRECATED] We need to sort() in order to commit in the right order later
-
-      // For all incoming logs, in the correct order (sort)
+    for (const [key, logs] of Object.entries(wal)) {
       for (
-        const entry of wal[key].sort((a, b) =>
+        const entry of logs.sort((a, b) =>
           a.log.timestamp < b.log.timestamp ? -1 : 1
         )
       ) {
-        // We commit if the log is commited
-        if (entry.log.commited) {
-          // It's important to call .commit() instead of just .append() with log.commited = true
-          // That's because later, .commit() will actually perform I/O operations that .append() won't
-          await this.commit(entry)
-            .then((entry) => {
-              if (entry.log.commited) {
-                report.commited.push(entry);
-                this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Logger);
-              } else {
-                this.send(EMType.StoreLogCommitFail, entry, EComponent.Logger);
-              }
-            });
-        } else {
-          // [DEPRECATED] We simple .append() the log if it's not commited
-          // Appended logs in report will be sent as KVOpAccepted
-          // [TODO] Some logic before appending (e.g check term for SPLIT BRAIN)
-
-          report.appended.push(entry);
+        if (!this.commit(entry)) {
+          all_commited = false;
         }
       }
     }
 
-    return report;
+    return all_commited;
   }
 
   /**
@@ -264,11 +195,6 @@ export default class Store extends Messenger {
         value: val,
       },
     };
-
-    this.bget(key).push({
-      log: log,
-      token: token,
-    });
 
     return log;
   }

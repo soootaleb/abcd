@@ -12,6 +12,7 @@ export default class Logger extends Messenger {
   private payloads = false;
 
   private exclude: EMType[] = [
+    EMType.NewState,
     EMType.HeartBeat,
     EMType.DiscoveryBeaconSend
   ]

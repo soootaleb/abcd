@@ -143,10 +143,9 @@ export interface IMPayload {
     ready: true;
   };
 
-  [EMType.HeartBeat]: {
-    wal: IWal;
-    heartBeatCounter: number;
-  };
+  [EMType.HeartBeat]: null;
+
+  [EMType.AppendEntry]: IEntry;
 
   [EMType.NewState]: {
     from: ENodeState;

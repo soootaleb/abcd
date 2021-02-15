@@ -81,10 +81,7 @@ export default class Node extends Messenger {
       case ENodeState.Leader:
         this.heartBeatIntervalId = setInterval(() => {
           for (const peerIp of Object.keys(this.net.peers)) {
-            this.send(EMType.HeartBeat, {
-              wal: this.store.buffer,
-              heartBeatCounter: this.heartBeatCounter,
-            }, peerIp);
+            this.send(EMType.HeartBeat, null, peerIp);
             this.heartBeatCounter += 1;
           }
         }, this.heartBeatInterval);
@@ -134,6 +131,7 @@ export default class Node extends Messenger {
       case EOpType.KVOp: {
         if (this.state == ENodeState.Leader) {
           this.requests[message.payload.token] = message.source;
+          // [TODO] Implement EMType.KVOpRequest (to allow components to store data)
           this.store.kvop(
             message.payload as {
               token: string;
@@ -188,42 +186,43 @@ export default class Node extends Messenger {
   [EMType.HeartBeat]: H<EMType.HeartBeat> = (message) => {
     if (
       this.state === ENodeState.Candidate ||
-      this.state === ENodeState.Starting
+      this.state === ENodeState.Starting ||
+      this.state === ENodeState.Follower
     ) {
-      // Check performance here (called very often)
       this.transitionFunction(ENodeState.Follower);
       return;
     }
-
-    this.leader = message.source;
-    this.heartBeatCounter += 1;
-
-    clearTimeout(this.electionTimeoutId);
-
-    this.electionTimeoutId = setTimeout(() => {
-      this.transitionFunction(ENodeState.Candidate);
-    }, this.electionTimeout);
-
-    this.store.sync(message.payload.wal)
-      .then((report) => {
-        // Appended logs are notified to the leader
-        for (const entry of report.appended) {
-          this.send(EMType.KVOpAccepted, entry, message.source);
-        }
-
-        return report;
-      }).then((report) => {
-        if (report.appended.length + report.commited.length) {
-          this.send(EMType.StoreSyncComplete, {
-            report: report,
-          }, EComponent.Logger);
-        }
-      });
   };
+
+  /**
+   * [TODO] Before accepting, the follower should
+   * - Verify the term (split brain)
+   * - Verify the entry is the latest (timestamp)
+   * - ... check RAFT paper
+   * @param message 
+   */
+  [EMType.AppendEntry]: H<EMType.AppendEntry> = (message) => {
+    this.transitionFunction(ENodeState.Follower);
+    if(message.payload.log.commited) {
+      this.store.commit(message.payload);
+    } else {
+      this.send(EMType.KVOpAccepted, message.payload, message.source)
+    }
+  }
 
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
     const log: ILog = message.payload.log;
     const votes: number = this.store.voteFor(log.next.key);
+
+    // [TODO] Find a cleaner logic
+    if(message.source === EComponent.Store) {
+      for (const peer of Object.keys(this.net.peers)) {
+        this.send(EMType.AppendEntry, {
+          log: log,
+          token: message.payload.token,
+        }, peer);
+      }
+    }
 
     if (votes === -1) { // Key is not currently under vote
       this.send(
@@ -232,19 +231,14 @@ export default class Node extends Messenger {
         EComponent.Logger,
       );
     } else if (votes >= this.net.quorum) {
-      this.store.commit({
+      const entry = this.store.commit({
         log: log,
         token: message.payload.token,
-      }).then((entry) => {
-        this.send(EMType.KVOpRequestComplete, message.payload, EComponent.Node);
-      });
-    } else {
-      this.send(EMType.KVOpAcceptedReceived, {
-        message: message,
-        qorum: this.net.quorum,
-        votes: votes,
-        token: message.payload.token,
-      }, EComponent.Logger);
+      })
+      for (const peer of Object.keys(this.net.peers)) {
+        this.send(EMType.AppendEntry, entry, peer);
+      }
+      this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
     }
   };
 
@@ -311,9 +305,7 @@ export default class Node extends Messenger {
   ) => {
     this.term = message.payload.term;
 
-    if (message.payload.wal) {
-      this.store.sync(message.payload.wal);
-    }
+    this.store.sync(message.payload.wal);
 
     this.send(EMType.PeerConnectionComplete, {
       peerIp: message.source,
