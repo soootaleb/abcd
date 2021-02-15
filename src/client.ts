@@ -56,7 +56,11 @@ export default class Client {
             // deno-lint-ignore no-explicit-any
             const self: any = this;
             if (Object.keys(this).includes(message.type)) {
-                self[message.type](message);
+                self[message.type]({
+                    ...message,
+                    source: this._server.addr,
+                    destination: "Client"
+                });
             } else {
                 console.warn('Missing handler for message', message)
             }
