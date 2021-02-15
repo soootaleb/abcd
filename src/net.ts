@@ -79,12 +79,10 @@ export default class Net extends Messenger {
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
     delete this.peers[message.payload.peerIp];
-    this.send(message.type, message.payload, EComponent.Node);
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
     this.clients[message.payload.clientIp] = message.payload;
-    this.send(message.type, message.payload, EComponent.Node);
   };
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (

@@ -90,6 +90,7 @@ export enum EMType {
 
   NodeReady = "NodeReady",
   HeartBeat = "HeartBeat",
+  AppendEntry = "AppendEntry",
 
   NewState = "NewState",
   NewTerm = "NewTerm",
