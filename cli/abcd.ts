@@ -75,7 +75,7 @@ new Client(addr, port).co.then((operations) => {
           pending_prop: (Object.keys(mon.requests.all).length - mon.requests.count) / Object.keys(mon.requests.all).length,
           latency: Math.round(latency * 100) / 100
         })
-      }, 1000)
+      }, 100)
 
       // Loop every interval
       const proc = setInterval(() => {
@@ -117,7 +117,7 @@ new Client(addr, port).co.then((operations) => {
                       && report.count === report.length
                       && new Date().getTime() >= start + duration * 1000)
               ) {
-                Deno.exit();
+                // Deno.exit();
               }
             }).catch((error) => {
               console.log(error)

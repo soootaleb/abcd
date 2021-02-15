@@ -137,45 +137,44 @@ export default class Store extends Messenger {
     return this._store[key];
   }
 
-  private async persist(entry: {
+  private persist(entry: {
     log: ILog;
     token: string;
-  }): Promise<boolean> {
+  }): boolean {
     // return Promise.resolve(true);
     const bytes = this._encoder.encode(JSON.stringify(entry.log) + "\n");
-    return this._fwal.write(bytes)
-      .then((written: number) => {
-        this.send(EMType.LogMessage, {
-          message: entry.token
-        }, EComponent.Monitor)
-        return Deno.fsync(this._fwal.rid)
-          .then(() =>
-            this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker)
-          ).then(() => written === bytes.length);
-      }).catch(() => false);
+    const written = this._fwal.writeSync(bytes)
+    if(written === bytes.length) {
+      Deno.fsyncSync(this._fwal.rid);
+      this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker);
+      return true;
+    } else {
+      this.send(EMType.LogMessage, {
+        message: `Log not persisted written = ${written} / ${bytes.length} total`
+      }, EComponent.StoreWorker);
+      return false;
+    }
   }
-  public async commit(entry: {
+  public commit(entry: {
     log: ILog;
     token: string;
-  }): Promise<IEntry> {
-    return this.persist(entry)
-      .then((ok: boolean) => {
-        const key: string = entry.log.next.key;
+  }): IEntry {
+    const ok = this.persist(entry)
+    const key: string = entry.log.next.key;
 
-        if (ok) {
-          this.wget(key).push(entry);
-          entry.log.commited = true;
-          this.bget(key).push(entry);
-          this._store[key] = entry.log.next;
-          delete this._votes[key];
-          this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Watcher);
-          this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
-        } else {
-          this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
-        }
+    if (ok) {
+      this.wget(key).push(entry);
+      entry.log.commited = true;
+      this.bget(key).push(entry);
+      this._store[key] = entry.log.next;
+      delete this._votes[key];
+      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Watcher);
+      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
+    } else {
+      this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
+    }
 
-        return entry;
-      });
+    return entry;
   }
 
   public empty() {
@@ -192,7 +191,7 @@ export default class Store extends Messenger {
    * @param wal the incoming wal from which to sync the current node's wall
    * @returns a report listing the logs that have been commited & the ones appended only (for the node to notify the leader)
    */
-  public async sync(wal: IWal): Promise<IReport> {
+  public sync(wal: IWal): IReport {
     const report: IReport = {
       commited: [],
       appended: [],
@@ -221,15 +220,13 @@ export default class Store extends Messenger {
         if (entry.log.commited) {
           // It's important to call .commit() instead of just .append() with log.commited = true
           // That's because later, .commit() will actually perform I/O operations that .append() won't
-          await this.commit(entry)
-            .then((entry) => {
-              if (entry.log.commited) {
-                report.commited.push(entry);
-                this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Logger);
-              } else {
-                this.send(EMType.StoreLogCommitFail, entry, EComponent.Logger);
-              }
-            });
+          const commited = this.commit(entry)
+          if (commited.log.commited) {
+            report.commited.push(commited);
+            this.send(EMType.StoreLogCommitSuccess, commited, EComponent.Logger);
+          } else {
+            this.send(EMType.StoreLogCommitFail, commited, EComponent.Logger);
+          }
         } else {
           // [DEPRECATED] We simple .append() the log if it's not commited
           // Appended logs in report will be sent as KVOpAccepted

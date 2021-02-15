@@ -204,21 +204,17 @@ export default class Node extends Messenger {
       this.transitionFunction(ENodeState.Candidate);
     }, this.electionTimeout);
 
-    this.store.sync(message.payload.wal)
-      .then((report) => {
-        // Appended logs are notified to the leader
-        for (const entry of report.appended) {
-          this.send(EMType.KVOpAccepted, entry, message.source);
-        }
+    const report = this.store.sync(message.payload.wal)
 
-        return report;
-      }).then((report) => {
-        if (report.appended.length + report.commited.length) {
-          this.send(EMType.StoreSyncComplete, {
-            report: report,
-          }, EComponent.Logger);
-        }
-      });
+    for (const entry of report.appended) {
+      this.send(EMType.KVOpAccepted, entry, message.source);
+    }
+
+    if (report.appended.length + report.commited.length) {
+      this.send(EMType.StoreSyncComplete, {
+        report: report,
+      }, EComponent.Logger);
+    }
   };
 
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
@@ -232,12 +228,12 @@ export default class Node extends Messenger {
         EComponent.Logger,
       );
     } else if (votes >= this.net.quorum) {
-      this.store.commit({
+      // Measured this.store.commit() @1-3ms
+      const entry = this.store.commit({
         log: log,
         token: message.payload.token,
-      }).then((entry) => {
-        this.send(EMType.KVOpRequestComplete, message.payload, EComponent.Node);
-      });
+      })
+      this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
     } else {
       this.send(EMType.KVOpAcceptedReceived, {
         message: message,
