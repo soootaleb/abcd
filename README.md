@@ -99,14 +99,19 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 > Cluster is able to receive put & get requests and persist data between executions
 
+- Logs are appended at each request
+- HeartBeat doesn't send a buffer anymore
+- WAL file written & fsync() synchronously
+- Store file written every 1000ms asynchronously
+
 # Version
 
+- v4.0: Synchronous replication & writes
 - v3.6: MonOp / MonWatch (/deno/*, /abcd/logs] implementation
 - v3.5: KVWatch operations on followers
 - v3.4:
     - KVWatch operations
     - New message of type ClientNotification
-
 - v3.0: Persistance layer
 - v2.0: Consensus layer
 - v1.0: Network layer
@@ -118,6 +123,8 @@ This list is a chronological feature implementation. Changes are not reflected b
 - Update Kubernetes ready signal (wait for store to sync)
 - KVOpRequests tracing (mon, responses, ...)
 - Add file logging
+- More coherent message naming
+- Client API
 
 ## Features
 
@@ -130,6 +137,11 @@ This list is a chronological feature implementation. Changes are not reflected b
 - Network latency
 - MVCC
 - WASI
+- Pub/Sub
+- IAM
+- Indexes
+- ORM
+- Query language
 
 # Known issues
 
