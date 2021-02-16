@@ -106,6 +106,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v5.0: Use Deno native events with addEventListener & dispatch
 - v4.0: Synchronous replication & writes
 - v3.6: MonOp / MonWatch (/deno/*, /abcd/logs] implementation
 - v3.5: KVWatch operations on followers
