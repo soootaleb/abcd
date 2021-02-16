@@ -44,6 +44,6 @@ export default class Messenger extends Object {
           destination.substring(1),
         payload: payload,
       },
-    }););
+    }));
   }
 }

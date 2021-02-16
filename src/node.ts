@@ -86,7 +86,6 @@ export default class Node extends Messenger {
         this.heartBeatIntervalId = setInterval(() => {
           for (const peerIp of Object.keys(this.net.peers)) {
             this.send(EMType.HeartBeat, null, peerIp);
-            this.heartBeatCounter += 1;
           }
         }, this.heartBeatInterval);
 
@@ -102,7 +101,6 @@ export default class Node extends Messenger {
           this.send(EMType.NewTerm, {
             term: this.term,
           }, peerIp);
-          this.heartBeatCounter += 1;
         }
 
         break;
