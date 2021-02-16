@@ -18,7 +18,7 @@ export default class StoreWorker {
   private args: Args = parse(Deno.args);
   private buffer: IEntry[] = [];
   private encoder = new TextEncoder();
-  private _data_dir = Store.DEFAULT_DATA_DIR;
+  private _data_dir = "/home/ubuntu"; // Store.DEFAULT_DATA_DIR;
   
   private static readonly STORE_WRITE_INTERVAL = 1000;
 

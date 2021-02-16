@@ -1,8 +1,6 @@
 import Messenger from "./messenger.ts";
-import Node from "./node.ts";
-import Observe from "https://deno.land/x/Observe/Observe.ts";
 import { IMessage } from "./interfaces/interface.ts";
-import { EMType, EOpType } from "./enumeration.ts";
+import { EComponent, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Monitor extends Messenger {
@@ -25,36 +23,40 @@ export default class Monitor extends Messenger {
 
   private _watch_interval = 1000;
 
-  constructor(messages: Observe<IMessage<EMType>>) {
-    super(messages);
+  constructor() {
+    super();
 
-    this.messages.bind((message) => {
-      // deno-lint-ignore no-explicit-any
-      const o: any = message;
-      if (message.type === EMType.ClientRequest) {
-        this.requests.push(o.payload.token);
-      } else if (message.type === EMType.ClientResponse) {
-        if (this.requests.includes(o.payload.token)) {
-          this._mon.answered++;
+    for (const component of Object.keys(EComponent)) {
+      addEventListener(component, (ev: Event) => {
+        const event: CustomEvent = ev as CustomEvent;
+        const message: IMessage<EMType> = event.detail;
+        // deno-lint-ignore no-explicit-any
+        const o: any = message;
+        if (message.type === EMType.ClientRequest) {
+          this.requests.push(o.payload.token);
+        } else if (message.type === EMType.ClientResponse) {
+          if (this.requests.includes(o.payload.token)) {
+            this._mon.answered++;
+          }
         }
-      }
 
-      if (
-        message.type != EMType.ClientNotification &&
-        message.type != EMType.HeartBeat &&
-        message.type != EMType.DiscoveryBeaconSend
-      ) {
-        for (const logger of this.loggers) {
-          this.send(EMType.ClientNotification, {
-            type: EOpType.MonWatch,
-            payload: {
-              key: "/abcd/logs",
-              value: message,
-            },
-          }, logger);
+        if (
+          message.type != EMType.ClientNotification &&
+          message.type != EMType.HeartBeat &&
+          message.type != EMType.DiscoveryBeaconSend
+        ) {
+          for (const logger of this.loggers) {
+            this.send(EMType.ClientNotification, {
+              type: EOpType.MonWatch,
+              payload: {
+                key: "/abcd/logs",
+                value: message,
+              },
+            }, logger);
+          }
         }
-      }
-    });
+      });
+    }
 
     if (this.args["mon"]) {
       setInterval(() => {

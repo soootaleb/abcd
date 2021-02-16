@@ -1,6 +1,4 @@
 import type { IKeyValue, ILog, IMessage } from "./interfaces/interface.ts";
-import type Observe from "https://deno.land/x/Observe/Observe.ts";
-import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 import { IEntry, IKVOp, IReport, IWal } from "./interfaces/interface.ts";
 import { EComponent, EKVOpType, EMType, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
@@ -20,8 +18,8 @@ export default class Store extends Messenger {
   private _fwal: Deno.File;
   private _encoder: TextEncoder;
 
-  constructor(messages: Observe<IMessage<EMType>>) {
-    super(messages);
+  constructor() {
+    super();
 
     this._data_dir = typeof this.args["data-dir"] === "string"
       ? this.args["data-dir"]
@@ -66,10 +64,9 @@ export default class Store extends Messenger {
       );
     };
 
-    this.messages.bind((message) => {
-      if (message.destination == EComponent.StoreWorker) {
-        this.worker.postMessage(message);
-      }
+    addEventListener(EComponent.StoreWorker, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      this.worker.postMessage(event.detail);
     });
 
     this._encoder = new TextEncoder();
@@ -126,7 +123,7 @@ export default class Store extends Messenger {
     } else {
       this.send(EMType.LogMessage, {
         message: `Log not persisted written = ${written} / ${bytes.length} total`
-      }, EComponent.StoreWorker);
+      }, EComponent.Logger);
       return false;
     }
   }

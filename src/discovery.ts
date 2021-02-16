@@ -1,6 +1,5 @@
 import type { IMessage } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
-import type Observe from "https://deno.land/x/Observe/Observe.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
@@ -36,8 +35,8 @@ export default class Discovery extends Messenger {
     return this._ready;
   }
 
-  constructor(messages: Observe<IMessage<EMType>>) {
-    super(messages);
+  constructor() {
+    super();
 
     this.worker = new Worker(
       new URL('.', import.meta.url).href + 'workers/discovery.worker.ts',
@@ -61,10 +60,9 @@ export default class Discovery extends Messenger {
       );
     };
 
-    this.messages.bind((message) => {
-      if (message.destination === EComponent.DiscoveryWorker) {
-        this.worker.postMessage(message);
-      }
+    addEventListener(EComponent.DiscoveryWorker, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      this.worker.postMessage(event.detail);
     });
   }
 

@@ -1,6 +1,4 @@
 import Messenger from "./messenger.ts";
-import type Observe from "https://deno.land/x/Observe/Observe.ts";
-import type { IMessage, IKVWatch } from "./interfaces/interface.ts";
 import { EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
@@ -8,11 +6,7 @@ export default class Watcher extends Messenger {
 
     private watchers: {
         [key: string]: string[]
-    } = {}
-
-    constructor(messages: Observe<IMessage<EMType>>) {
-        super(messages);
-    }
+    } = {};
 
     [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = (message) => {
         if(Object.keys(this.watchers).includes(message.payload.log.next.key)) {

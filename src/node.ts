@@ -1,4 +1,3 @@
-import Observe from "https://deno.land/x/Observe/Observe.ts";
 import type {
   IKVWatch,
   ILog,
@@ -10,14 +9,21 @@ import type {
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Discovery from "./discovery.ts";
-import { EComponent, EMonOpType, EMType, ENodeState, EOpType } from "./enumeration.ts";
+import {
+  EComponent,
+  EMonOpType,
+  EMType,
+  ENodeState,
+  EOpType,
+} from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
 import Watcher from "./watcher.ts";
+import StoreWorker from "./workers/store.worker.ts";
+import Logger from "./logger.ts";
 
 export default class Node extends Messenger {
-
   private leader = "";
   private requests: { [key: string]: string } = {};
 
@@ -30,25 +36,24 @@ export default class Node extends Messenger {
 
   private term = 0;
   private votesCounter = 0;
-  private heartBeatCounter = 1;
-  private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 30;
+  private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 150;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"]
     ? this.args["etimeout"]
-    : (Math.random() + 0.150) * 1000;
+    : (Math.random() + 0.300) * 1000;
   private electionTimeoutId: number | undefined;
 
   private discoveryBeaconIntervalId: number | undefined;
 
-  constructor(messages: Observe<IMessage<EMType>>) {
-    super(messages);
+  constructor() {
+    super();
 
-    this.net = new Net(messages);
-    this.store = new Store(messages);
-    this.discovery = new Discovery(messages);
-    this.watcher = new Watcher(messages);
+    this.net = new Net();
+    this.store = new Store();
+    this.discovery = new Discovery();
+    this.watcher = new Watcher();
 
-    this.mon = new Monitor(messages);
+    this.mon = new Monitor();
   }
 
   /**
@@ -56,7 +61,6 @@ export default class Node extends Messenger {
    * @param to state to transition to
    */
   private transitionFunction(to: ENodeState) {
-
     this.send(EMType.NewState, {
       from: this.state,
       to: to,
@@ -162,12 +166,12 @@ export default class Node extends Messenger {
             op: EMonOpType.Get,
             metric: {
               key: payload.metric.key,
-              value: this.mon.get(payload.metric.key)
-            }
+              value: this.mon.get(payload.metric.key),
+            },
           },
           type: message.payload.type,
-          timestamp: new Date().getTime()
-        }, message.source)
+          timestamp: new Date().getTime(),
+        }, message.source);
         break;
       }
       case EOpType.MonWatch: {
@@ -203,19 +207,19 @@ export default class Node extends Messenger {
    */
   [EMType.AppendEntry]: H<EMType.AppendEntry> = (message) => {
     this.transitionFunction(ENodeState.Follower);
-    if(message.payload.log.commited) {
+    if (message.payload.log.commited) {
       this.store.commit(message.payload);
     } else {
-      this.send(EMType.KVOpAccepted, message.payload, message.source)
+      this.send(EMType.KVOpAccepted, message.payload, message.source);
     }
-  }
+  };
 
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
     const log: ILog = message.payload.log;
     const votes: number = this.store.voteFor(log.next.key);
 
     // [TODO] Find a cleaner logic
-    if(message.source === EComponent.Store) {
+    if (message.source === EComponent.Store) {
       for (const peer of Object.keys(this.net.peers)) {
         this.send(EMType.AppendEntry, {
           log: log,
@@ -235,7 +239,7 @@ export default class Node extends Messenger {
       const entry = this.store.commit({
         log: log,
         token: message.payload.token,
-      })
+      });
       for (const peer of Object.keys(this.net.peers)) {
         this.send(EMType.AppendEntry, entry, peer);
       }

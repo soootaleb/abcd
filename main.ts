@@ -1,17 +1,6 @@
-import Observe from "https://deno.land/x/Observe/Observe.ts";
-import { EComponent, EMType } from "./src/enumeration.ts";
 import Logger from "./src/logger.ts";
 import Node from "./src/node.ts";
 
-const messages = new Observe({
-    type: EMType.InitialMessage,
-    source: "Root",
-    destination: EComponent.Logger,
-    payload: null
-})
-
-messages.maxHistorySize = 0;
-
-const logger = new Logger(messages);
-
-const node: Node = new Node(messages);
+// Register Logger first so eventListener will print message first
+new Logger();
+new Node();

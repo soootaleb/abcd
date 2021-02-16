@@ -1,6 +1,4 @@
 import type { IMessage } from "./interfaces/interface.ts";
-
-import type Observe from "https://deno.land/x/Observe/Observe.ts";
 import Messenger from "./messenger.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
@@ -28,8 +26,8 @@ export default class Net extends Messenger {
     return Math.floor((Object.keys(this.peers).length + 1) / 2) + 1;
   }
 
-  constructor(messages: Observe<IMessage<EMType>>) {
-    super(messages);
+  constructor() {
+    super();
 
     // START THE WORKER
     this.worker = new Worker(
@@ -52,23 +50,18 @@ export default class Net extends Messenger {
       );
     };
 
-    // MESSAGES RECEIVED FROM QUEUE WILL GO EITHER TO
-    // handleMessage if destination is NET
-    // this.worker.postMessage if it's a peer, a client or "ui"
-    this.messages.bind((message) => {
-      if (
-        Object.keys(this.peers).includes(message.destination) ||
-        Object.keys(this.clients).includes(message.destination) ||
-        message.destination === "Ui" ||
-        message.destination === EComponent.NetWorker
-      ) {
-        this.worker.postMessage(message);
-      }
+    addEventListener(EComponent.NetWorker, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      this.worker.postMessage(event.detail);
     });
   }
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.peers[message.payload.peerIp] = message.payload;
+    addEventListener(message.payload.peerIp, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      this.worker.postMessage(event.detail);
+    });
     this.send(message.type, message.payload, EComponent.Node);
   };
 
@@ -79,10 +72,15 @@ export default class Net extends Messenger {
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
     delete this.peers[message.payload.peerIp];
+    // removeEventListener(message.payload.peerIp, () => {});
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
     this.clients[message.payload.clientIp] = message.payload;
+    addEventListener(message.payload.clientIp, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      this.worker.postMessage(event.detail);
+    });
   };
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
@@ -104,6 +102,10 @@ export default class Net extends Messenger {
     this._peers[message.payload.peerIp] = {
       peerIp: message.payload.peerIp,
     };
+    addEventListener(message.payload.peerIp, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      this.worker.postMessage(event.detail);
+    });
     this.send(EMType.PeerAdded, message.payload, EComponent.Logger);
   };
 
