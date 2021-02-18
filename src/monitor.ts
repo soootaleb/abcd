@@ -57,22 +57,6 @@ export default class Monitor extends Messenger {
         }
       });
     }
-
-    if (this.args["mon"]) {
-      setInterval(() => {
-        console.clear();
-        console.table({
-          total: this.requests.length,
-          debug: this._mon.debugger / this.requests.length,
-          accepted: this._mon.accepted / this.requests.length,
-          commited: this._mon.commited / this.requests.length,
-          sum: (this._mon.rejected + this._mon.commited) / this.requests.length,
-          rejected: this._mon.rejected / this.requests.length,
-          answered: this._mon.answered / this.requests.length,
-        });
-        console.table(Deno.metrics());
-      }, this._watch_interval);
-    }
   }
 
   public get(key: string) {
