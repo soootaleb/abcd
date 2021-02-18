@@ -5,7 +5,6 @@ import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
 export default class Store extends Messenger {
-  private worker: Worker;
 
   public static DEFAULT_DATA_DIR = "/home/ubuntu";
   private _data_dir = Store.DEFAULT_DATA_DIR;
@@ -26,48 +25,26 @@ export default class Store extends Messenger {
       : Store.DEFAULT_DATA_DIR;
 
     try {
-      Deno.statSync(this._data_dir + "/abcd.wal");
-    } catch (error) {
       Deno.openSync(
         this._data_dir + "/abcd.wal",
         { create: true, write: true },
       );
+    } catch (error) {
+      this.send(EMType.LogMessage, {
+        message: `File ${this._data_dir + "/abcd.wal"} failed to open`
+      }, EComponent.Logger);
     }
 
     try {
-      Deno.statSync(this._data_dir + "/store.json");
-    } catch (error) {
       Deno.openSync(
         this._data_dir + "/store.json",
         { create: true, write: true },
       );
+    } catch (error) {
+      this.send(EMType.LogMessage, {
+        message: `File ${this._data_dir + "/store.json"} failed to open`
+      }, EComponent.Logger);
     }
-
-    // START THE WORKER
-    this.worker = new Worker(
-      new URL(".", import.meta.url).href + "workers/store.worker.ts",
-      {
-        type: "module",
-        deno: true,
-      },
-    );
-
-    // Push worker messages to queue
-    // If destination is Net, message will be handled by messages.bind()
-    this.worker.onmessage = (ev: MessageEvent) => {
-      const message: IMessage<EMType> = ev.data;
-      this.send(
-        message.type,
-        message.payload,
-        message.destination,
-        message.source,
-      );
-    };
-
-    addEventListener(EComponent.StoreWorker, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      this.worker.postMessage(event.detail);
-    });
 
     this._encoder = new TextEncoder();
 

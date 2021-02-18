@@ -7,8 +7,6 @@ export default class Discovery extends Messenger {
   public static PROTOCOLS = ["udp", "http"];
   public static DEFAULT_PROTOCOL = "udp";
 
-  private worker: Worker;
-
   private _ready = false;
   private _protocol = "udp";
 
@@ -38,32 +36,9 @@ export default class Discovery extends Messenger {
   constructor() {
     super();
 
-    this.worker = new Worker(
-      new URL('.', import.meta.url).href + 'workers/discovery.worker.ts',
-      {
-        type: "module",
-        deno: true,
-      },
-    );
-
     this.protocol = typeof this.args["discovery"] === "string"
       ? this.args["discovery"]
       : Discovery.DEFAULT_PROTOCOL;
-
-    this.worker.onmessage = (ev: MessageEvent) => {
-      const message: IMessage<EMType> = ev.data;
-      this.send(
-        message.type,
-        message.payload,
-        message.destination,
-        message.source,
-      );
-    };
-
-    addEventListener(EComponent.DiscoveryWorker, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      this.worker.postMessage(event.detail);
-    });
   }
 
   [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
