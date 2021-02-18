@@ -82,7 +82,8 @@ export default class Monitor extends Messenger {
       const [_, deno, metric] = key.split("/");
       return metric ? {
         ...JSON.parse(JSON.stringify(Deno.metrics())),
-         loadavg: Deno.loadavg()
+         loadavg: Deno.loadavg(),
+         hostname: Deno.hostname(),
       }[metric] : Deno.metrics();
     } else {
       return "undefined";
