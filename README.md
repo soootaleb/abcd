@@ -126,6 +126,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 - Add file logging
 - More coherent message naming
 - Client API
+- More coherent monitoring approach (e.g logs in store)
 
 ## Features
 
@@ -143,6 +144,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 - Indexes
 - ORM
 - Query language
+- Requests tracer
 
 # Known issues
 
