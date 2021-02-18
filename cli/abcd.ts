@@ -199,4 +199,4 @@ new Client(addr, port).co.then((operations) => {
       counter++;
     }, interval);
   }
-});
+}).catch(console.error);

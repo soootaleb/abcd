@@ -80,7 +80,10 @@ export default class Monitor extends Messenger {
       return this._mon[key];
     } else if (key.startsWith("/deno/")) {
       const [_, deno, metric] = key.split("/");
-      return JSON.parse(JSON.stringify(Deno.metrics()))[metric];
+      return {
+        ...JSON.parse(JSON.stringify(Deno.metrics())),
+         loadavg: Deno.loadavg()
+      }[metric];
     } else {
       return "undefined";
     }

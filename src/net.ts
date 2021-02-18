@@ -24,15 +24,21 @@ export default class Net extends Messenger {
     return Math.floor((Object.keys(this.peers).length + 1) / 2) + 1;
   }
 
+  private workerForward = (ev: Event) => {
+    const event: CustomEvent = ev as CustomEvent;
+    const worker: Worker = this.worker as Worker;
+    worker.postMessage(event.detail);
+  }
+
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.peers[message.payload.peerIp] = message.payload;
-    addEventListener(message.payload.peerIp, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const worker: Worker = this.worker as Worker;
-      worker.postMessage(event.detail);
-    });
+    addEventListener(message.payload.peerIp, this.workerForward);
     this.send(message.type, message.payload, EComponent.Node);
     this.send(message.type, message.payload, EComponent.Logger);
+  };
+
+  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
+    removeEventListener(message.payload.peerIp, this.workerForward);
   };
 
   [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
@@ -46,11 +52,7 @@ export default class Net extends Messenger {
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
     this.clients[message.payload.clientIp] = message.payload;
-    addEventListener(message.payload.clientIp, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const worker: Worker = this.worker as Worker;
-      worker.postMessage(event.detail);
-    });
+    addEventListener(message.payload.clientIp, this.workerForward);
     this.send(message.type, message.payload, EComponent.Logger);
   };
 
@@ -59,6 +61,7 @@ export default class Net extends Messenger {
   ) => {
     delete this.clients[message.payload.clientIp];
     this.send(message.type, message.payload, EComponent.Monitor);
+    removeEventListener(message.payload.clientIp, this.workerForward);
   };
 
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (
@@ -73,11 +76,7 @@ export default class Net extends Messenger {
     this._peers[message.payload.peerIp] = {
       peerIp: message.payload.peerIp,
     };
-    addEventListener(message.payload.peerIp, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const worker: Worker = this.worker as Worker;
-      worker.postMessage(event.detail);
-    });
+    addEventListener(message.payload.peerIp, this.workerForward);
     this.send(message.type, message.payload, EComponent.Logger);
   };
 
