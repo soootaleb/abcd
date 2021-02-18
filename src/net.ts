@@ -63,6 +63,7 @@ export default class Net extends Messenger {
       this.worker.postMessage(event.detail);
     });
     this.send(message.type, message.payload, EComponent.Node);
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
@@ -72,7 +73,6 @@ export default class Net extends Messenger {
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
     delete this.peers[message.payload.peerIp];
-    // removeEventListener(message.payload.peerIp, () => {});
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
@@ -81,6 +81,7 @@ export default class Net extends Messenger {
       const event: CustomEvent = ev as CustomEvent;
       this.worker.postMessage(event.detail);
     });
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
@@ -106,7 +107,7 @@ export default class Net extends Messenger {
       const event: CustomEvent = ev as CustomEvent;
       this.worker.postMessage(event.detail);
     });
-    this.send(EMType.PeerAdded, message.payload, EComponent.Logger);
+    this.send(message.type, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {

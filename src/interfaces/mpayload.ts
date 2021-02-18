@@ -94,10 +94,6 @@ export interface IMPayload {
   [EMType.ClientConnectionClose]: {
     clientIp: string;
   };
-  
-  [EMType.PeerAdded]: IMPayload[EMType.PeerConnectionComplete];
-
-  [EMType.PeerConnected]: IMPayload[EMType.PeerConnectionComplete];
 
   [EMType.PeerConnectionRequest]: {
     peerIp: string

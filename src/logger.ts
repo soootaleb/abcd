@@ -115,4 +115,28 @@ export default class Logger extends Messenger {
   [EMType.NewState]: H<EMType.NewState> = (message) => {
     this.role = message.payload.to;
   };
+
+  [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = message => {
+    addEventListener(message.payload.clientIp, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      const message: IMessage<EMType> = event.detail;
+      this.log(message);
+    });
+  }
+
+  [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = message => {
+    addEventListener(message.payload.peerIp, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      const message: IMessage<EMType> = event.detail;
+      this.log(message);
+    });
+  }
+
+  [EMType.PeerConnectionComplete]: H<EMType.PeerConnectionComplete> = message => {
+    addEventListener(message.payload.peerIp, (ev: Event) => {
+      const event: CustomEvent = ev as CustomEvent;
+      const message: IMessage<EMType> = event.detail;
+      this.log(message);
+    });
+  }
 }

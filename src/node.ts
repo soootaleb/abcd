@@ -191,6 +191,7 @@ export default class Node extends Messenger {
       this.state === ENodeState.Starting ||
       this.state === ENodeState.Follower
     ) {
+      this.leader = message.source;
       this.transitionFunction(ENodeState.Follower);
       return;
     }

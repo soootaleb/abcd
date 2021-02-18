@@ -74,8 +74,6 @@ export enum EMType {
 
   // PEER CONNECTION
 
-  PeerAdded = "PeerAdded",
-  PeerConnected = "PeerConnected",
   PeerConnectionRequest = "PeerConnectionRequest",
   PeerConnectionAccepted = "PeerConnectionAccepted",
   PeerConnectionOpen = "PeerConnectionOpen",
