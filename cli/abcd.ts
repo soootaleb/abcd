@@ -1,5 +1,9 @@
 import { parse } from "https://deno.land/std/flags/mod.ts";
-import type { IKeyValue, IKVOp, ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
+import type {
+  IKeyValue,
+  IKVOp,
+  IMessage,
+} from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
 import { EKVOpType, EMonOpType, EMType, EOpType } from "../src/enumeration.ts";
 
@@ -18,140 +22,181 @@ const mon: string = ARGS["mon"];
 const watch: string = ARGS["watch"];
 
 new Client(addr, port).co.then((operations) => {
-
   if (get) {
-    operations.kvop(EKVOpType.Get, get).then(console.log)
+    operations.kvop(EKVOpType.Get, get).then((response) => {
+      console.log(response);
+      Deno.exit();
+    });
   } else if (put) {
-    const [key, value] = put.split("=")
-    operations.kvop(EKVOpType.Put, key, value).then(console.log)
+    const [key, value] = put.split("=");
+    operations.kvop(EKVOpType.Put, key, value).then((response) => {
+      console.log(response);
+      Deno.exit();
+    });
   } else if (watch) {
-    const [type, value] = watch.split(":")
+    const [type, value] = watch.split(":");
     if (type === "mon") {
       operations.monwatch(value, 15, (notification) => {
-        const payload = notification.payload.payload as IKeyValue<IMessage<EMType>>;
-        console.log(payload.value)
-      })
+        const payload = notification.payload.payload as IKeyValue<
+          IMessage<EMType>
+        >;
+        console.log(payload.value);
+      });
     } else if (type === "kv") {
       operations.kvwatch(value, 1, (notification) => {
-        console.clear()
-        console.table(notification.payload.payload)
-      })
+        console.clear();
+        console.table(notification.payload.payload);
+      });
     }
   } else if (mon) {
-    operations.monop(EMonOpType.Get, mon).then(console.log)
+    operations.monop(EMonOpType.Get, mon).then((response) => {
+      console.log(response);
+      Deno.exit();
+    });
   } else {
-      
-      let counter = 0;
-      const start: number = new Date().getTime();
+    let counter = 0;
+    const start: number = new Date().getTime();
 
-      // Init monitoring
-      const mon = {
-        objective: n,
-        requests: {
-          all: {} as { [key: string]: {
-            sent: number,
-            received: number
-          } },
-          sent: 0,
-          received: 0,
-          latency: {
-            sum: 0,
-            total: 0,
-            average: 0,
-          },
-        },
-      };
-
-      setInterval(() => {
-
-        const received_count = Object
-          .entries(mon.requests.all)
-          .filter(e => e[1].received > e[1].sent)
-          .length;
-
-        const received_latest = Object
-          .entries(mon.requests.all)
-          .filter(e => e[1].received > e[1].sent)
-          .map((e) => e[0])
-          .slice(received_count - 100)
-
-        const latency = received_latest.map((key) => mon.requests.all[key]).reduce((acc, curr) => {
-          return acc + curr.received - curr.sent
-        }, 0) / received_latest.length
-        console.clear();
-        console.table({
-          sent: mon.requests.sent,
-          received: mon.requests.received,
-          pending_count: mon.requests.sent - mon.requests.received,
-          pending_prop: (mon.requests.sent - mon.requests.received) / mon.requests.sent,
-          latency: Math.round(latency * 100) / 100
-        })
-
-        mon.requests.all = Object
-          .entries(mon.requests.all)
-          .filter(e => e[1].received == e[1].sent || received_latest.includes(e[0]))
-          .reduce((acc, curr) => {
-            acc[curr[0]] = curr[1];
-            return acc;
-          }, {} as { [key: string]: {
-            sent: number,
-            received: number
-          }})
-
-      }, 200);
-
-      // Loop every interval
-      const proc = setInterval(() => {
-        
-        // If duration passed or counter reached objective, stop
-        if ((duration && new Date().getTime() < start + duration * 1000)
-          || (!duration && mon.requests.sent < mon.objective)) {
-
-
-          // Generate random key & request timestamp
-          const key = Math.random().toString(36).substr(2);
-          const sent = new Date().getTime();
-          mon.requests.all[key] = {
-            sent: sent,
-            received: sent
+    // Init monitoring
+    const mon = {
+      objective: n,
+      requests: {
+        all: {} as {
+          [key: string]: {
+            sent: number;
+            received: number;
           };
+        },
+        sent: 0,
+        received: 0,
+        latency: {
+          sum: 0,
+          total: 0,
+          average: 0,
+        },
+      },
+    };
 
-          mon.requests.sent++;
+    setInterval(() => {
+      const received_count = Object
+        .entries(mon.requests.all)
+        .filter((e) => e[1].received > e[1].sent)
+        .length;
 
-          // Submit request & update monitoring
-          operations.kvop(EKVOpType.Put, key, counter.toString())
-            .then((message) => {
-              const payload = message.payload.payload as IKVOp
-              const key = payload.kv.key
-              const sent = mon.requests.all[key].sent;
-              mon.requests.all[key].received = new Date().getTime()
-              mon.requests.received++;
-              mon.requests.latency.sum += new Date().getTime() - sent;
-              mon.requests.latency.total = Math.round((new Date().getTime() - start) / 10) / 100;
-              mon.requests.latency.average = mon.requests.latency.sum /
-                mon.requests.received;
+      const received_latest = Object
+        .entries(mon.requests.all)
+        .filter((e) => e[1].received > e[1].sent)
+        .map((e) => e[0])
+        .slice(received_count - 100);
 
-              const report = {
-                length: mon.requests.sent,
+      const latency = received_latest.map((key) =>
+        mon.requests.all[key]
+      ).reduce((acc, curr) => {
+        return acc + curr.received - curr.sent;
+      }, 0) / received_latest.length;
+      console.clear();
+      console.table({
+        sent: mon.requests.sent,
+        received: mon.requests.received,
+        pending_count: mon.requests.sent - mon.requests.received,
+        pending_prop: (mon.requests.sent - mon.requests.received) /
+          mon.requests.sent,
+        latency: Math.round(latency * 100) / 100,
+      });
+
+      mon.requests.all = Object
+        .entries(mon.requests.all)
+        .filter((e) =>
+          e[1].received == e[1].sent || received_latest.includes(e[0])
+        )
+        .reduce((acc, curr) => {
+          acc[curr[0]] = curr[1];
+          return acc;
+        }, {} as {
+          [key: string]: {
+            sent: number;
+            received: number;
+          };
+        });
+    }, 200);
+
+    // Loop every interval
+    const proc = setInterval(() => {
+      // If duration passed or counter reached objective, stop
+      if (
+        (duration && new Date().getTime() < start + duration * 1000) ||
+        (!duration && mon.requests.sent < mon.objective)
+      ) {
+        // Generate random key & request timestamp
+        const key = Math.random().toString(36).substr(2);
+        const sent = new Date().getTime();
+        mon.requests.all[key] = {
+          sent: sent,
+          received: sent,
+        };
+
+        mon.requests.sent++;
+
+        // Submit request & update monitoring
+        operations.kvop(EKVOpType.Put, key, counter.toString())
+          .then((message) => {
+            const payload = message.payload.payload as IKVOp;
+            const key = payload.kv.key;
+            const sent = mon.requests.all[key].sent;
+            mon.requests.all[key].received = new Date().getTime();
+            mon.requests.received++;
+            mon.requests.latency.sum += new Date().getTime() - sent;
+            mon.requests.latency.total =
+              Math.round((new Date().getTime() - start) / 10) / 100;
+            mon.requests.latency.average = mon.requests.latency.sum /
+              mon.requests.received;
+
+            const report = {
+              length: mon.requests.sent,
+              received: mon.requests.received,
+              ...mon.requests.latency,
+            };
+
+            if (
+              (!duration && mon.requests.received === mon.objective) ||
+              (duration &&
+                report.received === report.length &&
+                new Date().getTime() >= start + duration * 1000)
+            ) {
+              const received_count = Object
+                .entries(mon.requests.all)
+                .filter((e) => e[1].received > e[1].sent)
+                .length;
+
+              const received_latest = Object
+                .entries(mon.requests.all)
+                .filter((e) => e[1].received > e[1].sent)
+                .map((e) => e[0])
+                .slice(received_count - 100);
+
+              const latency = received_latest.map((key) =>
+                mon.requests.all[key]
+              ).reduce((acc, curr) => {
+                return acc + curr.received - curr.sent;
+              }, 0) / received_latest.length;
+              console.clear();
+              console.table({
+                sent: mon.requests.sent,
                 received: mon.requests.received,
-                ...mon.requests.latency,
-              };
-
-              if ((!duration && mon.requests.received === mon.objective)
-                  || (duration
-                      && report.received === report.length
-                      && new Date().getTime() >= start + duration * 1000)
-              ) {
-                // Deno.exit();
-              }
-            }).catch((error) => {
-              console.log(error)
+                pending_count: mon.requests.sent - mon.requests.received,
+                pending_prop: (mon.requests.sent - mon.requests.received) /
+                  mon.requests.sent,
+                latency: Math.round(latency * 100) / 100,
+              });
               Deno.exit();
-            });
-        }
+            }
+          }).catch((error) => {
+            console.log(error);
+            Deno.exit();
+          });
+      }
 
-        counter++;
-      }, interval);
-    
+      counter++;
+    }, interval);
   }
-})
+});
