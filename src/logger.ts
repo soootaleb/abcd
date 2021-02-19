@@ -110,6 +110,12 @@ export default class Logger extends Messenger {
     }
   };
 
+  private formatAndLog = (ev: Event) => {
+    const event: CustomEvent = ev as CustomEvent;
+    const message: IMessage<EMType> = event.detail;
+    this.log(message);
+  }
+
   [EMType.LogMessage]: H<EMType.LogMessage> = this.log;
 
   [EMType.NewState]: H<EMType.NewState> = (message) => {
@@ -117,26 +123,22 @@ export default class Logger extends Messenger {
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = message => {
-    addEventListener(message.payload.clientIp, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const message: IMessage<EMType> = event.detail;
-      this.log(message);
-    });
+    addEventListener(message.payload.clientIp, this.formatAndLog);
+  }
+
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = message => {
+    removeEventListener(message.payload.clientIp, this.formatAndLog)
+  }
+
+  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = message => {
+    removeEventListener(message.payload.peerIp, this.formatAndLog)
   }
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = message => {
-    addEventListener(message.payload.peerIp, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const message: IMessage<EMType> = event.detail;
-      this.log(message);
-    });
+    addEventListener(message.payload.peerIp, this.formatAndLog);
   }
 
   [EMType.PeerConnectionComplete]: H<EMType.PeerConnectionComplete> = message => {
-    addEventListener(message.payload.peerIp, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const message: IMessage<EMType> = event.detail;
-      this.log(message);
-    });
+    addEventListener(message.payload.peerIp, this.formatAndLog);
   }
 }

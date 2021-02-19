@@ -5,6 +5,7 @@ import { IMPayload } from "./interfaces/mpayload.ts";
 
 export default class Messenger extends Object {
   protected args: Args = parse(Deno.args);
+  protected worker: Worker | undefined;
 
   constructor() {
     super();
@@ -26,6 +27,37 @@ export default class Messenger extends Object {
         );
       }
     });
+
+    const workerfile = new URL(".", import.meta.url).href +
+    `workers/${this.constructor.name.toLowerCase()}.worker.ts`;
+
+    if (Object.keys(EComponent).includes(this.constructor.name + "Worker")) {
+      // START THE WORKER
+      this.worker = new Worker(workerfile, { type: "module", deno: true });
+
+      // Push worker messages to queue
+      // If destination is Net, message will be handled by messages.bind()
+      const worker: Worker = this.worker as Worker;
+      worker.onmessage = (ev: MessageEvent) => {
+        const message: IMessage<EMType> = ev.data;
+        this.send(
+          message.type,
+          message.payload,
+          message.destination,
+          message.source,
+        );
+      };
+
+      addEventListener(this.constructor.name + "Worker", (ev: Event) => {
+        const event: CustomEvent = ev as CustomEvent;
+        const worker: Worker = this.worker as Worker;
+        worker.postMessage(event.detail);
+      });
+
+      this.send(EMType.LogMessage, {
+        message: `Registered ${this.constructor.name + "Worker"}`,
+      }, EComponent.Logger);
+    }
   }
 
   protected send<T extends EMType>(
@@ -34,16 +66,18 @@ export default class Messenger extends Object {
     destination: EComponent | string,
     source?: string,
   ) {
-    dispatchEvent(new CustomEvent(destination, {
-      detail: {
-        type: type,
-        source: source
-          ? source.toUpperCase().substring(0, 1) + source.substring(1)
-          : this.constructor.name,
-        destination: destination.toUpperCase().substring(0, 1) +
-          destination.substring(1),
-        payload: payload,
-      },
-    }));
+    dispatchEvent(
+      new CustomEvent(destination, {
+        detail: {
+          type: type,
+          source: source
+            ? source.toUpperCase().substring(0, 1) + source.substring(1)
+            : this.constructor.name,
+          destination: destination.toUpperCase().substring(0, 1) +
+            destination.substring(1),
+          payload: payload,
+        },
+      }),
+    );
   }
 }
