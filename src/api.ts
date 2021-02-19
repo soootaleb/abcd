@@ -58,10 +58,10 @@ export default class Api extends Messenger {
         this.send(
           EMType.MonWatchRequest,
           message.payload as {
-            token: string,
-            type: EOpType.MonWatch,
-            payload: IMonWatch,
-            timestamp: number
+            token: string;
+            type: EOpType.MonWatch;
+            payload: IMonWatch;
+            timestamp: number;
           },
           EComponent.Monitor,
           message.source,
