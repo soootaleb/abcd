@@ -42,7 +42,6 @@ export default class Node extends Messenger {
 
     new Api();
     new Monitor();
-    new Watcher();
   }
 
   /**
