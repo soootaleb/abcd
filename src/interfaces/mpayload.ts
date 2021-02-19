@@ -1,5 +1,19 @@
-import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
-import { IEntry, IKeyValue, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
+import {
+  EComponent,
+  EMType,
+  ENodeState,
+  EOpType,
+} from "../enumeration.ts";
+import {
+  IEntry,
+  IKeyValue,
+  ILog,
+  IMessage,
+  IMonOp,
+  IMonWatch,
+  IOPayload,
+  IWal,
+} from "./interface.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {
@@ -21,7 +35,7 @@ export interface IMPayload {
   };
 
   [EMType.DiscoveryServerStarted]: {
-    token: string
+    token: string;
   };
 
   [EMType.DiscoveryProtocolSet]: {
@@ -43,8 +57,8 @@ export interface IMPayload {
   };
 
   [EMType.StoreInit]: {
-    [key: string]: IKeyValue
-  }
+    [key: string]: IKeyValue;
+  };
 
   [EMType.UILogMessage]: {
     message: IMessage<EMType>;
@@ -64,20 +78,20 @@ export interface IMPayload {
 
   [EMType.ClientRequest]: {
     token: string;
-    type: EOpType,
-    payload: IOPayload[EOpType],
+    type: EOpType;
+    payload: IOPayload[EOpType];
     timestamp: number;
   };
 
   [EMType.ClientNotification]: {
-    type: EOpType.KVWatch | EOpType.MonWatch,
-    payload: ILog | IKeyValue | IKeyValue<IMessage<EMType>>
-  }
+    type: EOpType.KVWatch | EOpType.MonWatch;
+    payload: ILog | IKeyValue | IKeyValue<IMessage<EMType>>;
+  };
 
   [EMType.ClientResponse]: {
     token: string;
-    type: EOpType,
-    payload: IOPayload[EOpType],
+    type: EOpType;
+    payload: IOPayload[EOpType];
     timestamp: number;
   };
 
@@ -96,8 +110,8 @@ export interface IMPayload {
   };
 
   [EMType.PeerConnectionRequest]: {
-    peerIp: string
-  }
+    peerIp: string;
+  };
 
   [EMType.PeerConnectionOpen]: {
     peerIp: string;
@@ -124,14 +138,14 @@ export interface IMPayload {
   };
 
   [EMType.PeerConnectionAccepted]: {
-    term: number,
+    term: number;
     knownPeers: {
       [key: string]: {
-        peerIp: string
-      }
-    },
-    wal: IWal
-  }
+        peerIp: string;
+      };
+    };
+    wal: IWal;
+  };
 
   [EMType.PeerServerStarted]: Deno.Addr;
 
@@ -184,13 +198,13 @@ export interface IMPayload {
   [EMType.KVOpAccepted]: IEntry;
 
   [EMType.KVOpRejected]: {
-    reason: string,
+    reason: string;
     request: {
       token: string;
-      type: EOpType,
-      payload: IOPayload[EOpType.KVOp], // Need to fix this for new KVOp....
+      type: EOpType;
+      payload: IOPayload[EOpType.KVOp]; // Need to fix this for new KVOp....
       timestamp: number;
-    },
+    };
   };
 
   [EMType.StoreSyncComplete]: {
@@ -200,6 +214,20 @@ export interface IMPayload {
     };
   };
 
+  [EMType.KVOpRequest]: {
+    token: string;
+    type: EOpType.KVOp;
+    payload: IOPayload[EOpType.KVOp];
+    timestamp: number;
+  };
+
+  [EMType.KVWatchRequest]: {
+    token: string;
+    type: EOpType.KVWatch;
+    payload: IOPayload[EOpType.KVWatch];
+    timestamp: number;
+  };
+
   [EMType.KVOpAcceptedReceivedButCommited]: IEntry;
 
   [EMType.KVOpRequestComplete]: IEntry;
@@ -207,10 +235,24 @@ export interface IMPayload {
   [EMType.KVOpRequestIncomplete]: IEntry;
 
   [EMType.KVOpAcceptedReceived]: {
-      token: string,
-      qorum: number,
-      votes: number,
-      message: IMessage<EMType.KVOpAccepted>
+    token: string;
+    qorum: number;
+    votes: number;
+    message: IMessage<EMType.KVOpAccepted>;
+  };
+
+  [EMType.MonOpRequest]: {
+    token: string,
+    type: EOpType.MonOp,
+    payload: IMonOp,
+    timestamp: number
+  }
+
+  [EMType.MonWatchRequest]: {
+    token: string,
+    type: EOpType.MonWatch,
+    payload: IMonWatch,
+    timestamp: number
   };
 
   [EMType.InvalidDiscoveryProtocol]: {
@@ -222,22 +264,22 @@ export interface IMPayload {
   [EMType.InvalidMessageType]: IMessage<EMType>;
 
   [EMType.InvalidMessageDestination]: {
-    invalidMessageDestination: EComponent | string,
-    availablePeers: string[],
-    availableClients: string[],
-    message: IMessage<EMType>
+    invalidMessageDestination: EComponent | string;
+    availablePeers: string[];
+    availableClients: string[];
+    message: IMessage<EMType>;
   };
 
   [EMType.InvalidTransitionToState]: {
-      currentState: ENodeState,
-      transitionTo: ENodeState
+    currentState: ENodeState;
+    transitionTo: ENodeState;
   };
 
   [EMType.InvalidUIMessageType]: {
-      message: IMessage<EMType>
+    message: IMessage<EMType>;
   };
 
   [EMType.InvalidClientRequestType]: {
-      invalidType: string
+    invalidType: string;
   };
 }

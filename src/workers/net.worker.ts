@@ -95,7 +95,7 @@ export default class NetWorker {
               this.postMessage({
                 ...JSON.parse(ev),
                 source: hostname,
-                destination: EComponent.Node,
+                destination: EComponent.Api,
               });
             }
           }
