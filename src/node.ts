@@ -12,7 +12,7 @@ import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
 import Watcher from "./watcher.ts";
-import Api from "./Api.ts";
+import Api from "./api.ts";
 
 export default class Node extends Messenger {
   private leader = "";
