@@ -10,4 +10,5 @@ before_script:
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin hub.sotaleb.ch
 
 script:
-  - docker build -t hub.sotaleb.ch/abcd/abcd:latest . && docker push hub.sotaleb.ch/abcd/abcd:latest
+  - TAG=$([ "$TRAVIS_TAG" == "" ] && echo "latest" || echo "$TRAVIS_TAG")
+  - docker build -t hub.sotaleb.ch/abcd/abcd:$TAG . && docker push hub.sotaleb.ch/abcd/abcd:$TAG
