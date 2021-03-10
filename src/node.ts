@@ -261,7 +261,8 @@ export default class Node extends Messenger {
   };
 
   [EMType.NewTerm]: H<EMType.NewTerm> = (message) => {
-    if (message.payload.term > this.term) {
+    if (message.payload.term > this.term
+      && (this.state === ENodeState.Follower || this.state === ENodeState.Starting)) {
       this.term = message.payload.term;
 
       this.send(EMType.NewTermAccepted, {
