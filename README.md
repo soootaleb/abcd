@@ -106,6 +106,10 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v6.0:
+    - Use Deno v1.8.1
+    - Handle KVOpRejected (answer client)
+    - NewTermRejected if node is candidate
 - v5.0: Use Deno native events with addEventListener & dispatch
 - v4.0: Synchronous replication & writes
 - v3.6: MonOp / MonWatch (/deno/*, /abcd/logs] implementation
