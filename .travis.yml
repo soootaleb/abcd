@@ -6,14 +6,8 @@ node_js:
 services:
 - docker
 
-before_install:
+before_script:
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin hub.sotaleb.ch
 
-jobs:
-  include:
-    - stage: build
-      name: "Build Docker image"
-      script: docker build -t hub.sotaleb.ch/abcd/abcd:latest .
-    - stage: deploy
-      name: "Deploy Docker image"
-      script: docker push hub.sotaleb.ch/abcd/abcd:latest
+script:
+  - docker build -t hub.sotaleb.ch/abcd/abcd:latest . && docker push hub.sotaleb.ch/abcd/abcd:latest
