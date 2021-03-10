@@ -82,7 +82,7 @@ export default class StoreWorker {
     });
   }
 
-  onmessage = async (ev: MessageEvent<IMessage<EMType>>) => {
+  onmessage = (ev: MessageEvent<IMessage<EMType>>) => {
     const message = ev.data;
 
     const destination = message.destination;

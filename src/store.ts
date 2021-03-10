@@ -138,7 +138,7 @@ export default class Store extends Messenger {
    * @returns true if all logs have been commited, false otherwise
    */
   public sync(wal: IWal): boolean {
-    let all_commited = true;
+    let allCommited = true;
 
     for (const [key, logs] of Object.entries(wal)) {
       for (
@@ -147,12 +147,12 @@ export default class Store extends Messenger {
         )
       ) {
         if (!this.commit(entry)) {
-          all_commited = false;
+          allCommited = false;
         }
       }
     }
 
-    return all_commited;
+    return allCommited;
   }
 
   /**
