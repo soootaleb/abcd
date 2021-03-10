@@ -1,0 +1,19 @@
+language: node_js
+
+node_js:
+- '10'
+
+services:
+- docker
+
+before_install:
+  - docker login hub.sotaleb.ch
+
+jobs:
+  include:
+    - stage: build
+      name: "Build Docker image"
+      script: docker build -t hub.sotaleb.ch/abcd/abcd:latest .
+    - stage: deploy
+      name: "Deploy Docker image"
+      script: docker push hub.sotaleb.ch/abcd/abcd:latest
