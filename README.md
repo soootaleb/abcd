@@ -1,5 +1,7 @@
 # abcd
 
+![status](https://www.travis-ci.com/soootaleb/abcd.svg?branch=master)
+
 Key Value Store with raft in TypeScript for Deno runtime (inspired by etcd, for pedagogical purpose only)
 
 # Getting Started
