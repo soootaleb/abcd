@@ -6,9 +6,6 @@ RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 
 ENV PATH="/root/.deno/bin:${PATH}"
 
-# Necessary until they fix the TLA in Worker bug
-RUN deno upgrade --version 1.4.6
-
 EXPOSE 8080
 
 WORKDIR /app
