@@ -37,7 +37,7 @@ export default class Node extends Messenger {
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 150;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"]
-    ? (Math.random() + this.args["etimeout"]) * 1000
+    ? this.args["etimeout"] + Math.random() * 1000
     : (Math.random() + 0.300) * 1000;
   private electionTimeoutId: number | undefined;
 
@@ -45,6 +45,10 @@ export default class Node extends Messenger {
 
   constructor() {
     super();
+
+    this.send(EMType.LogMessage, {
+      message: this.electionTimeout.toString()
+    }, EComponent.Logger)
 
     this.net = new Net();
     this.store = new Store();

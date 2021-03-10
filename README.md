@@ -108,6 +108,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v6.2: fixed etimeout random calculation
 - v6.1: etimeout stays random even when specified as argument
 - v6.0:
     - Use Deno v1.8.1
