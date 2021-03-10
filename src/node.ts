@@ -20,8 +20,6 @@ import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
 import Watcher from "./watcher.ts";
-import StoreWorker from "./workers/store.worker.ts";
-import Logger from "./logger.ts";
 
 export default class Node extends Messenger {
   private leader = "";
@@ -39,7 +37,7 @@ export default class Node extends Messenger {
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 150;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"]
-    ? this.args["etimeout"]
+    ? (Math.random() + this.args["etimeout"]) * 1000
     : (Math.random() + 0.300) * 1000;
   private electionTimeoutId: number | undefined;
 
