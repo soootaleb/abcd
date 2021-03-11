@@ -1,5 +1,6 @@
 import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
-import { IEntry, IKeyValue, ILog, IMessage, IOPayload, IWal } from "./interface.ts";
+import { TWal } from "../type.ts";
+import { IEntry, IKeyValue, ILog, IMessage, IOPayload } from "./interface.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {
@@ -130,7 +131,7 @@ export interface IMPayload {
         peerIp: string
       }
     },
-    wal: IWal
+    wal: TWal
   }
 
   [EMType.PeerServerStarted]: Deno.Addr;

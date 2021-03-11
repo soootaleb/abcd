@@ -21,10 +21,6 @@ export interface ILog<T = string | number> {
   next: IKeyValue<T>;
 }
 
-export interface IWal {
-  [key: string]: {log: ILog, token: string}[];
-}
-
 export interface IEntry {
   log: ILog,
   token: string

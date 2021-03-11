@@ -1,15 +1,15 @@
-import type { IKeyValue, ILog, IMessage } from "./interfaces/interface.ts";
-import { IEntry, IKVOp, IReport, IWal } from "./interfaces/interface.ts";
+import type { IKeyValue, ILog } from "./interfaces/interface.ts";
+import { IEntry, IKVOp } from "./interfaces/interface.ts";
 import { EComponent, EKVOpType, EMType, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
-import { H } from "./type.ts";
+import { H, TWal } from "./type.ts";
 
 export default class Store extends Messenger {
 
   public static DEFAULT_DATA_DIR = "/home/ubuntu";
   private _data_dir = Store.DEFAULT_DATA_DIR;
 
-  private _wal: IWal = {};
+  private _wal: TWal = [];
 
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
@@ -62,7 +62,7 @@ export default class Store extends Messenger {
     this._votes = {};
   }
 
-  public get wal(): IWal {
+  public get wal(): TWal {
     return this._wal;
   }
 
@@ -73,13 +73,6 @@ export default class Store extends Messenger {
   public voteFor(key: string): number {
     this._votes[key] += 1;
     return this._votes[key];
-  }
-
-  private wget(key: string): { log: ILog; token: string }[] {
-    if (!(key in this.wal)) {
-      this.wal[key] = [];
-    }
-    return this.wal[key];
   }
 
   public get(key: string): IKeyValue {
@@ -104,6 +97,7 @@ export default class Store extends Messenger {
       return false;
     }
   }
+
   public commit(entry: {
     log: ILog;
     token: string;
@@ -112,7 +106,7 @@ export default class Store extends Messenger {
     const key: string = entry.log.next.key;
 
     if (ok) {
-      this.wget(key).push(entry);
+      this._wal.push(entry);
       entry.log.commited = true;
       this._store[key] = entry.log.next;
       delete this._votes[key];
@@ -127,7 +121,7 @@ export default class Store extends Messenger {
 
   public empty() {
     this._store = {};
-    this._wal = {};
+    this._wal = [];
     this._votes = {};
   }
 
@@ -137,22 +131,20 @@ export default class Store extends Messenger {
    * @param wal the incoming wal from which to sync the current node's wall
    * @returns true if all logs have been commited, false otherwise
    */
-  public sync(wal: IWal): boolean {
-    let allCommited = true;
+  public sync(wal: TWal): boolean {
 
-    for (const [key, logs] of Object.entries(wal)) {
-      for (
-        const entry of logs.sort((a, b) =>
-          a.log.timestamp < b.log.timestamp ? -1 : 1
-        )
-      ) {
-        if (!this.commit(entry)) {
-          allCommited = false;
-        }
-      }
-    }
+    const str = wal.map((log) => JSON.stringify(log))
+      .join("\n");
 
-    return allCommited;
+    const bytes = this._encoder.encode(str);
+    const written = this._fwal.writeSync(bytes)
+    Deno.fsyncSync(this._fwal.rid);
+
+    this.send(EMType.LogMessage, {
+      message: `Synchronized ${wal.length} logs & ${written} bytes`
+    }, EComponent.Logger);
+
+    return written === bytes.length;
   }
 
   /**
