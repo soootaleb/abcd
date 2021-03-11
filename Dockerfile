@@ -6,7 +6,7 @@ RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 
 ENV PATH="/root/.deno/bin:${PATH}"
 
-EXPOSE 8080
+EXPOSE 8080 8888
 
 WORKDIR /app
 COPY . /app
