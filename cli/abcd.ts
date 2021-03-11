@@ -200,3 +200,7 @@ new Client(addr, port).co.then((operations) => {
     }, interval);
   }
 }).catch(console.error);
+
+for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {
+  Deno.exit();
+}
