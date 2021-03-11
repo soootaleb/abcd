@@ -11,4 +11,4 @@ before_script:
 
 script:
   - TAG=$([ "$TRAVIS_TAG" == "" ] && echo "latest" || echo "$TRAVIS_TAG")
-  - docker build -t hub.sotaleb.ch/abcd/abcd:$TAG . && docker push hub.sotaleb.ch/abcd/abcd:$TAG
+  - docker build -t hub.sotaleb.ch/abcd/abcd:$TAG --no-cache . && docker push hub.sotaleb.ch/abcd/abcd:$TAG
