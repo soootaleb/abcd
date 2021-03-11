@@ -78,22 +78,22 @@ new Client(addr, port).co.then((operations) => {
     };
 
     setInterval(() => {
-      const received_count = Object
+      const receivedCount = Object
         .entries(mon.requests.all)
         .filter((e) => e[1].received > e[1].sent)
         .length;
 
-      const received_latest = Object
+      const receivedLatest = Object
         .entries(mon.requests.all)
         .filter((e) => e[1].received > e[1].sent)
         .map((e) => e[0])
-        .slice(received_count - 100);
+        .slice(receivedCount - 100);
 
-      const latency = received_latest.map((key) =>
+      const latency = receivedLatest.map((key) =>
         mon.requests.all[key]
       ).reduce((acc, curr) => {
         return acc + curr.received - curr.sent;
-      }, 0) / received_latest.length;
+      }, 0) / receivedLatest.length;
       console.clear();
       console.table({
         sent: mon.requests.sent,
@@ -107,7 +107,7 @@ new Client(addr, port).co.then((operations) => {
       mon.requests.all = Object
         .entries(mon.requests.all)
         .filter((e) =>
-          e[1].received == e[1].sent || received_latest.includes(e[0])
+          e[1].received == e[1].sent || receivedLatest.includes(e[0])
         )
         .reduce((acc, curr) => {
           acc[curr[0]] = curr[1];
@@ -163,22 +163,22 @@ new Client(addr, port).co.then((operations) => {
                 report.received === report.length &&
                 new Date().getTime() >= start + duration * 1000)
             ) {
-              const received_count = Object
+              const receivedCount = Object
                 .entries(mon.requests.all)
                 .filter((e) => e[1].received > e[1].sent)
                 .length;
 
-              const received_latest = Object
+              const receivedLatest = Object
                 .entries(mon.requests.all)
                 .filter((e) => e[1].received > e[1].sent)
                 .map((e) => e[0])
-                .slice(received_count - 100);
+                .slice(receivedCount - 100);
 
-              const latency = received_latest.map((key) =>
+              const latency = receivedLatest.map((key) =>
                 mon.requests.all[key]
               ).reduce((acc, curr) => {
                 return acc + curr.received - curr.sent;
-              }, 0) / received_latest.length;
+              }, 0) / receivedLatest.length;
               console.clear();
               console.table({
                 sent: mon.requests.sent,
