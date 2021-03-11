@@ -67,7 +67,7 @@ export default class Client {
         };
     }
 
-    private async send<T extends EOpType>(type:  T, payload: IOPayload[T]): Promise<IMessage<EMType.ClientResponse>> {
+    private send<T extends EOpType>(type:  T, payload: IOPayload[T]): Promise<IMessage<EMType.ClientResponse>> {
 
         const token = Math.random().toString(36).substr(2);
 
@@ -109,7 +109,7 @@ export default class Client {
         }
     }
 
-    public async kvop(op: EKVOpType, key: string, value?: string) {
+    public kvop(op: EKVOpType, key: string, value?: string) {
         return this.send(EOpType.KVOp, {
             op: op,
             kv: {
