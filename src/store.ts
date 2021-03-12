@@ -152,6 +152,8 @@ export default class Store extends Messenger {
     const written = this._fwal.writeSync(bytes)
     Deno.fsyncSync(this._fwal.rid);
 
+    this._wal = wal;
+
     this.send(EMType.LogMessage, {
       message: `Synchronized ${wal.length} logs & ${written} bytes`
     }, EComponent.Logger);
