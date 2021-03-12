@@ -108,6 +108,10 @@ export default class Node extends Messenger {
           }
         }
 
+        this.electionTimeoutId = setTimeout(() => {
+          this.transitionFunction(ENodeState.Candidate);
+        }, this.electionTimeout);
+
         break;
       default:
         this.send(EMType.InvalidTransitionToState, {
@@ -222,6 +226,7 @@ export default class Node extends Messenger {
         !this.voteGrantedDuringTerm,
     }, message.source);
     this.voteGrantedDuringTerm = true;
+    this.transitionFunction(ENodeState.Follower);
   };
 
   [EMType.CallForVoteResponse]: H<EMType.CallForVoteResponse> = (message) => {
