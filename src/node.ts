@@ -106,11 +106,11 @@ export default class Node extends Messenger {
               peerIp: peerIp
             }, peerIp);
           }
+          this.electionTimeoutId = setTimeout(() => {
+            this.transitionFunction(ENodeState.Candidate);
+          }, this.electionTimeout);
         }
 
-        this.electionTimeoutId = setTimeout(() => {
-          this.transitionFunction(ENodeState.Candidate);
-        }, this.electionTimeout);
 
         break;
       default:
