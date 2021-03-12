@@ -1,6 +1,6 @@
 import Messenger from "./messenger.ts";
-import { IMessage } from "./interfaces/interface.ts";
-import { EComponent, EMType, EOpType } from "./enumeration.ts";
+import { IMessage, IMonOp, IMonWatch } from "./interfaces/interface.ts";
+import { EComponent, EMonOpType, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Monitor extends Messenger {
@@ -59,39 +59,20 @@ export default class Monitor extends Messenger {
     }
   }
 
-  public get(key: string) {
+  private get(key: string) {
     if (Object.keys(this._mon).includes(key)) {
       return this._mon[key];
     } else if (key.startsWith("/deno/")) {
       const [_, deno, metric] = key.split("/");
-      return metric ? {
-        ...JSON.parse(JSON.stringify(Deno.metrics())),
-         loadavg: Deno.loadavg(),
-         hostname: Deno.hostname(),
-      }[metric] : Deno.metrics();
+      return metric
+        ? {
+          ...JSON.parse(JSON.stringify(Deno.metrics())),
+          loadavg: Deno.loadavg(),
+          hostname: Deno.hostname(),
+        }[metric]
+        : Deno.metrics();
     } else {
       return "undefined";
-    }
-  }
-
-  public watch(
-    key: string,
-    watcher: string,
-    expire = 1,
-    interval = this._watch_interval,
-  ) {
-    if (key.startsWith("/abcd/logs")) {
-      this.loggers.push(watcher);
-    } else {
-      this.watchers[watcher] = setInterval(() => {
-        this.send(EMType.ClientNotification, {
-          type: EOpType.MonWatch,
-          payload: {
-            key: key,
-            value: this.get(key),
-          },
-        }, watcher);
-      }, interval);
     }
   }
 
@@ -121,4 +102,39 @@ export default class Monitor extends Messenger {
   [EMType.LogMessage]: H<EMType.LogMessage> = (message) => {
     this._mon.debugger++;
   };
+
+  [EMType.MonOpRequest]: H<EMType.MonOpRequest> = message => {
+    const payload = message.payload.payload as IMonOp;
+    this.send(EMType.ClientResponse, {
+      token: message.payload.token,
+      payload: {
+        op: EMonOpType.Get,
+        metric: {
+          key: payload.metric.key,
+          value: this.get(payload.metric.key),
+        },
+      },
+      type: message.payload.type,
+      timestamp: message.payload.timestamp,
+    }, message.source);
+  }
+
+  [EMType.MonWatchRequest]: H<EMType.MonWatchRequest> = message => {
+    const payload = message.payload.payload as IMonWatch;
+    const key = payload.key;
+    const watcher = message.source;
+    if (key.startsWith("/abcd/logs")) {
+      this.loggers.push(watcher);
+    } else {
+      this.watchers[watcher] = setInterval(() => {
+        this.send(EMType.ClientNotification, {
+          type: EOpType.MonWatch,
+          payload: {
+            key: key,
+            value: this.get(key),
+          },
+        }, watcher);
+      }, this._watch_interval);
+    }
+  }
 }

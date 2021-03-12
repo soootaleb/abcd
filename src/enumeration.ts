@@ -15,7 +15,7 @@ export enum EComponent {
   NetWorker = "NetWorker",
   DiscoveryWorker = "DiscoveryWorker",
   Logger = "Logger",
-  Watcher = "Watcher"
+  Api = "Api"
 }
 
 export enum EKVOpType {
@@ -99,10 +99,15 @@ export enum EMType {
   NewTermRejected = "NewTermRejected",
   VoteReceivedButNotCandidate = "VoteReceivedButNotCandidate",
 
+  // MONOPERATIONS
+  MonOpRequest = "MonOpRequest",
+  MonWatchRequest = "MonWatchRequest",
+
   // KVOPERATIONS
-  
+  KVOpRequest = "KVOpRequest",
   KVOpAccepted = "KVOpAccepted",
   KVOpRejected = "KVOpRejected",
+  KVWatchRequest = "KVWatchRequest",
   KVOpAcceptedReceivedButCommited = "KVOpAcceptedReceivedButCommited",
   KVOpRequestComplete = "KVOpRequestComplete",
   KVOpRequestIncomplete = "KVOpRequestIncomplete",

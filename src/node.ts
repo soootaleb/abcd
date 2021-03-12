@@ -1,17 +1,9 @@
-import type {
-  IKVWatch,
-  ILog,
-  IMessage,
-  IMonOp,
-  IMonWatch,
-  IOPayload,
-} from "./interfaces/interface.ts";
+import type { ILog } from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Discovery from "./discovery.ts";
 import {
   EComponent,
-  EMonOpType,
   EMType,
   ENodeState,
   EOpType,
@@ -19,16 +11,14 @@ import {
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
-import Watcher from "./watcher.ts";
+import Api from "./api.ts";
 
 export default class Node extends Messenger {
   private leader = "";
   private requests: { [key: string]: string } = {};
 
   private net: Net;
-  private mon: Monitor;
   private store: Store;
-  private watcher: Watcher;
   private state: ENodeState = ENodeState.Starting;
   private discovery: Discovery;
 
@@ -53,9 +43,9 @@ export default class Node extends Messenger {
     this.net = new Net();
     this.store = new Store();
     this.discovery = new Discovery();
-    this.watcher = new Watcher();
 
-    this.mon = new Monitor();
+    new Api();
+    new Monitor();
   }
 
   /**
@@ -129,63 +119,6 @@ export default class Node extends Messenger {
         }, EComponent.Logger);
     }
   }
-
-  [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
-    switch (message.payload.type) {
-      case EOpType.KVOp: {
-        if (this.state == ENodeState.Leader) {
-          this.requests[message.payload.token] = message.source;
-          // [TODO] Implement EMType.KVOpRequest (to allow components to store data)
-          this.store.kvop(
-            message.payload as {
-              token: string;
-              type: EOpType.KVOp;
-              payload: IOPayload[EOpType.KVOp];
-              timestamp: number;
-            },
-          );
-        } else {
-          this.requests[message.payload.token] = message.source;
-          this.send(message.type, message.payload, this.leader);
-          this.send(EMType.ClientRequestForward, {
-            message: message,
-          }, EComponent.Logger);
-        }
-        break;
-      }
-      case EOpType.KVWatch: {
-        const payload = message.payload.payload as IKVWatch;
-        this.watcher.watch(payload.key, message.source, payload.expire);
-        break;
-      }
-      case EOpType.MonOp: {
-        const payload = message.payload.payload as IMonOp;
-        this.send(EMType.ClientResponse, {
-          token: message.payload.token,
-          payload: {
-            op: EMonOpType.Get,
-            metric: {
-              key: payload.metric.key,
-              value: this.mon.get(payload.metric.key),
-            },
-          },
-          type: message.payload.type,
-          timestamp: new Date().getTime(),
-        }, message.source);
-        break;
-      }
-      case EOpType.MonWatch: {
-        const payload = message.payload.payload as IMonWatch;
-        this.mon.watch(payload.key, message.source, payload.expire);
-        break;
-      }
-      default:
-        this.send(EMType.InvalidClientRequestType, {
-          invalidType: message.payload.type,
-        }, EComponent.Logger);
-        break;
-    }
-  };
 
   [EMType.HeartBeat]: H<EMType.HeartBeat> = (message) => {
     if (
@@ -403,5 +336,18 @@ export default class Node extends Messenger {
       payload: message.payload.request.payload,
       timestamp: new Date().getTime(),
     }, this.requests[message.payload.request.token])
+  }
+
+  [EMType.KVOpRequest]: H<EMType.KVOpRequest> = message => {
+    if (this.state == ENodeState.Leader) {
+      this.requests[message.payload.token] = message.source;
+      this.send(message.type, message.payload, EComponent.Store)
+    } else {
+      this.requests[message.payload.token] = message.source;
+      this.send(message.type, message.payload, this.leader);
+      this.send(EMType.ClientRequestForward, {
+        message: message,
+      }, EComponent.Logger);
+    }
   }
 }

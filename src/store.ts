@@ -17,6 +17,10 @@ export default class Store extends Messenger {
   private _fwal: Deno.File;
   private _encoder: TextEncoder;
 
+  private watchers: {
+    [key: string]: string[];
+  } = {};
+
   constructor() {
     super();
 
@@ -31,7 +35,7 @@ export default class Store extends Messenger {
       );
     } catch (error) {
       this.send(EMType.LogMessage, {
-        message: `File ${this._data_dir + "/abcd.wal"} failed to open`
+        message: `File ${this._data_dir + "/abcd.wal"} failed to open`,
       }, EComponent.Logger);
     }
 
@@ -42,7 +46,7 @@ export default class Store extends Messenger {
       );
     } catch (error) {
       this.send(EMType.LogMessage, {
-        message: `File ${this._data_dir + "/store.json"} failed to open`
+        message: `File ${this._data_dir + "/store.json"} failed to open`,
       }, EComponent.Logger);
     }
 
@@ -85,14 +89,15 @@ export default class Store extends Messenger {
   }): boolean {
     // return Promise.resolve(true);
     const bytes = this._encoder.encode(JSON.stringify(entry.log) + "\n");
-    const written = this._fwal.writeSync(bytes)
-    if(written === bytes.length) {
+    const written = this._fwal.writeSync(bytes);
+    if (written === bytes.length) {
       Deno.fsyncSync(this._fwal.rid);
       this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker);
       return true;
     } else {
       this.send(EMType.LogMessage, {
-        message: `Log not persisted written = ${written} / ${bytes.length} total`
+        message:
+          `Log not persisted written = ${written} / ${bytes.length} total`,
       }, EComponent.Logger);
       return false;
     }
@@ -110,7 +115,14 @@ export default class Store extends Messenger {
       entry.log.commited = true;
       this._store[key] = entry.log.next;
       delete this._votes[key];
-      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Watcher);
+      if (Object.keys(this.watchers).includes(entry.log.next.key)) {
+        for (const watcher of this.watchers[entry.log.next.key]) {
+          this.send(EMType.ClientNotification, {
+            type: EOpType.KVWatch,
+            payload: entry.log,
+          }, watcher);
+        }
+      }
       this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
     } else {
       this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
@@ -172,12 +184,8 @@ export default class Store extends Messenger {
     return log;
   }
 
-  public kvop(request: {
-    token: string;
-    type: EOpType;
-    payload: IKVOp;
-    timestamp: number;
-  }) {
+  [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
+    const request = message.payload;
     switch (request.payload.op) {
       case EKVOpType.Put: {
         const key = request.payload.kv.key;
@@ -214,7 +222,7 @@ export default class Store extends Messenger {
             log: {
               commited: true,
               op: EKVOpType.Get,
-              timestamp: new Date().getTime(),
+              timestamp: request.timestamp,
               next: this.get(request.payload.kv.key),
             },
             token: request.token,
@@ -233,5 +241,15 @@ export default class Store extends Messenger {
           reason: `KVOp ${request.payload.op} is not implemented`,
         }, EComponent.Logger);
     }
-  }
+  };
+
+  [EMType.KVWatchRequest]: H<EMType.KVWatchRequest> = (message) => {
+    const key = message.payload.payload.key;
+    const watcher = message.source;
+    if (Object.keys(this.watchers).includes(key)) {
+      this.watchers[key].push(watcher);
+    } else {
+      this.watchers[key] = [watcher];
+    }
+  };
 }
