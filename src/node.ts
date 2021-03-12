@@ -103,8 +103,7 @@ export default class Node extends Messenger {
           for (const peerIp of Object.keys(this.net.peers)) {
             this.send(EMType.CallForVoteRequest, {
               term: this.term,
-              peerIp: peerIp,
-              latestLog: this.store.wal[this.store.wal.length - 1].log,
+              peerIp: peerIp
             }, peerIp);
           }
         }
@@ -220,8 +219,6 @@ export default class Node extends Messenger {
     this.send(EMType.CallForVoteResponse, {
       voteGranted: this.state != ENodeState.Leader &&
         message.payload.term > this.term &&
-        message.payload.latestLog.timestamp >=
-          this.store.wal[this.store.wal.length - 1].log.timestamp &&
         !this.voteGrantedDuringTerm,
     }, message.source);
     this.voteGrantedDuringTerm = true;

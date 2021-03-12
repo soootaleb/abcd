@@ -171,7 +171,6 @@ export interface IMPayload {
   [EMType.CallForVoteRequest]: {
     term: number;
     peerIp: string;
-    latestLog: ILog
   };
 
   [EMType.CallForVoteResponse]: {

@@ -158,7 +158,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Known issues
 
-2. [DONE] Upgrade the voting strategy:
+2. Upgrade the voting strategy:
  - grant vote only if latest log is before latest log from candidate calling for vote (https://youtu.be/RHDP_KCrjUc?t=1063)
 3. Upgrade log commitment safety (https://youtu.be/RHDP_KCrjUc?t=1157)
  - Accept a log only if it's from the current term ?
