@@ -260,6 +260,10 @@ export default class Node extends Messenger {
         }, EComponent.Net);
       }
     } else { // If all peers are known (all are connected), then go follower
+      this.send(EMType.NodeReady, {
+        ready: true,
+      }, EComponent.NetWorker);
+      
       this.transitionFunction(ENodeState.Follower);
     }
   };
