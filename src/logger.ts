@@ -23,8 +23,11 @@ export default class Logger extends Messenger {
     (message: IMessage<EMType>) => this.console,
     (message: IMessage<EMType>) => !this.exclude.includes(message.type),
     (message: IMessage<EMType>) => {
-      return message.type === EMType.NewState
-        && message.payload.to != message.payload.from
+      if (message.type === EMType.NewState) {
+        return message.payload.to != message.payload.from
+      } else {
+        return true
+      }
     },
   ];
 
