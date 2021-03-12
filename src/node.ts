@@ -320,22 +320,14 @@ export default class Node extends Messenger {
     this.transitionFunction(ENodeState.Follower);
   };
 
-  [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
-    this.send(
-      message.type,
-      message.payload,
-      this.requests[message.payload.token],
-    );
-    delete this.requests[message.payload.token];
-  };
-
   [EMType.KVOpRejected]: H<EMType.KVOpRejected> = message => {
     this.send(EMType.ClientResponse, {
       token: message.payload.request.token,
       type: EOpType.KVOp,
       payload: message.payload.request.payload,
       timestamp: new Date().getTime(),
-    }, this.requests[message.payload.request.token])
+    }, this.requests[message.payload.request.token]);
+    delete this.requests[message.payload.token];
   }
 
   [EMType.KVOpRequest]: H<EMType.KVOpRequest> = message => {
