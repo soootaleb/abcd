@@ -10,7 +10,6 @@ export default class Logger extends Messenger {
   private payloads = false;
 
   private exclude: EMType[] = [
-    EMType.NewState,
     EMType.HeartBeat,
     EMType.DiscoveryBeaconSend
   ]
@@ -23,6 +22,10 @@ export default class Logger extends Messenger {
   private filters: ((message: IMessage<EMType>) => boolean)[] = [
     (message: IMessage<EMType>) => this.console,
     (message: IMessage<EMType>) => !this.exclude.includes(message.type),
+    (message: IMessage<EMType>) => {
+      return message.type === EMType.NewState
+        && message.payload.to != message.payload.from
+    },
   ];
 
   constructor() {
