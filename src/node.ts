@@ -2,12 +2,7 @@ import type { ILog } from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Discovery from "./discovery.ts";
-import {
-  EComponent,
-  EMType,
-  ENodeState,
-  EOpType,
-} from "./enumeration.ts";
+import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 import Monitor from "./monitor.ts";
@@ -38,8 +33,8 @@ export default class Node extends Messenger {
     super();
 
     this.send(EMType.LogMessage, {
-      message: this.electionTimeout.toString()
-    }, EComponent.Logger)
+      message: this.electionTimeout.toString(),
+    }, EComponent.Logger);
 
     this.net = new Net();
     this.store = new Store();
@@ -197,8 +192,10 @@ export default class Node extends Messenger {
   };
 
   [EMType.NewTerm]: H<EMType.NewTerm> = (message) => {
-    if (message.payload.term > this.term
-      && (this.state === ENodeState.Follower || this.state === ENodeState.Starting)) {
+    if (
+      message.payload.term > this.term &&
+      (this.state === ENodeState.Follower || this.state === ENodeState.Starting)
+    ) {
       this.term = message.payload.term;
 
       this.send(EMType.NewTermAccepted, {
@@ -252,15 +249,19 @@ export default class Node extends Messenger {
       peerIp: message.source,
     }, EComponent.Net);
 
-    for (const peerIp of Object.keys(message.payload.knownPeers)) {
-      if (!Object.keys(this.net.peers).includes(peerIp)) {
+    const unknownPeers = Object.keys(message.payload.knownPeers)
+      .filter((peer) => !Object.keys(this.net.peers).includes(peer));
+
+    // If some peers are uknown and left to be connected to, do it
+    if (unknownPeers.length) {
+      for (const peerIp of unknownPeers) {
         this.send(EMType.PeerConnectionRequest, {
           peerIp: peerIp,
         }, EComponent.Net);
       }
+    } else { // If all peers are known (all are connected), then go follower
+      this.transitionFunction(ENodeState.Follower);
     }
-
-    this.transitionFunction(ENodeState.Follower);
   };
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
@@ -297,7 +298,6 @@ export default class Node extends Messenger {
   };
 
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
-
     clearTimeout(this.discoveryBeaconTimeoutId);
 
     // If node is leader or knows a leader, break
@@ -313,19 +313,17 @@ export default class Node extends Messenger {
         peerIp: message.payload.result,
       }, EComponent.Net);
     } else {
-
-      this.discoveryBeaconTimeoutId = setTimeout(() => {        
+      this.discoveryBeaconTimeoutId = setTimeout(() => {
         this.send(EMType.NodeReady, {
           ready: true,
         }, EComponent.NetWorker);
-    
+
         this.transitionFunction(ENodeState.Follower);
       }, this.heartBeatInterval * 3); // Wait for a potential discoveryBeacon
-
     }
   };
 
-  [EMType.KVOpRejected]: H<EMType.KVOpRejected> = message => {
+  [EMType.KVOpRejected]: H<EMType.KVOpRejected> = (message) => {
     this.send(EMType.ClientResponse, {
       token: message.payload.request.token,
       type: EOpType.KVOp,
@@ -333,12 +331,12 @@ export default class Node extends Messenger {
       timestamp: new Date().getTime(),
     }, this.requests[message.payload.request.token]);
     delete this.requests[message.payload.request.token];
-  }
+  };
 
-  [EMType.KVOpRequest]: H<EMType.KVOpRequest> = message => {
+  [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
     if (this.state == ENodeState.Leader) {
       this.requests[message.payload.token] = message.source;
-      this.send(message.type, message.payload, EComponent.Store)
+      this.send(message.type, message.payload, EComponent.Store);
     } else {
       this.requests[message.payload.token] = message.source;
       this.send(message.type, message.payload, this.leader);
@@ -346,7 +344,7 @@ export default class Node extends Messenger {
         message: message,
       }, EComponent.Logger);
     }
-  }
+  };
 
   /**
    * Even though a node won't self send a ClientResponse,
