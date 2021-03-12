@@ -103,14 +103,13 @@ export default class Node extends Messenger {
           for (const peerIp of Object.keys(this.net.peers)) {
             this.send(EMType.CallForVoteRequest, {
               term: this.term,
-              peerIp: peerIp
+              peerIp: peerIp,
             }, peerIp);
           }
           this.electionTimeoutId = setTimeout(() => {
             this.transitionFunction(ENodeState.Candidate);
           }, this.electionTimeout);
         }
-
 
         break;
       default:
@@ -220,13 +219,19 @@ export default class Node extends Messenger {
   };
 
   [EMType.CallForVoteRequest]: H<EMType.CallForVoteRequest> = (message) => {
-    this.send(EMType.CallForVoteResponse, {
-      voteGranted: this.state != ENodeState.Leader &&
-        message.payload.term >= this.term &&
-        !this.voteGrantedDuringTerm,
-    }, message.source);
-    this.voteGrantedDuringTerm = true;
-    this.transitionFunction(ENodeState.Follower);
+    if (this.state === ENodeState.Leader) {
+      this.send(EMType.CallForVoteResponse, {
+        voteGranted: false,
+      }, message.source);
+    } else {
+      this.send(EMType.CallForVoteResponse, {
+        voteGranted: message.payload.term >= this.term &&
+          !this.voteGrantedDuringTerm,
+      }, message.source);
+
+      this.voteGrantedDuringTerm = true;
+      this.transitionFunction(ENodeState.Follower);
+    }
   };
 
   [EMType.CallForVoteResponse]: H<EMType.CallForVoteResponse> = (message) => {
