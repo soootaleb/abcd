@@ -20,7 +20,7 @@ export default class Node extends Messenger {
   private term = 0;
   private voteGrantedDuringTerm = false;
   private votesCounter = 0;
-  private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 150;
+  private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 50;
   private heartBeatIntervalId: number | undefined;
   private electionTimeout: number = this.args["etimeout"]
     ? this.args["etimeout"] + Math.random() * 1000
