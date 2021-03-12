@@ -342,4 +342,19 @@ export default class Node extends Messenger {
       }, EComponent.Logger);
     }
   }
+
+  /**
+   * Even though a node won't self send a ClientResponse,
+   * It can receive it from another node in case of ClientRequestForward
+   * TODO: Implement a ClientResponseForward
+   * @param message 
+   */
+  [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
+    this.send(
+      message.type,
+      message.payload,
+      this.requests[message.payload.token],
+    );
+    delete this.requests[message.payload.token];
+  };
 }
