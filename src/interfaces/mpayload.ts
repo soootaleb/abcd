@@ -1,6 +1,6 @@
 import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
 import { TWal } from "../type.ts";
-import { IEntry, IKeyValue, ILog, IMessage, IOPayload } from "./interface.ts";
+import { IEntry, IKeyValue, ILog, IMessage, IMonOp, IMonWatch, IOPayload } from "./interface.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {

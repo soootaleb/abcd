@@ -327,7 +327,7 @@ export default class Node extends Messenger {
       payload: message.payload.request.payload,
       timestamp: new Date().getTime(),
     }, this.requests[message.payload.request.token]);
-    delete this.requests[message.payload.token];
+    delete this.requests[message.payload.request.token];
   }
 
   [EMType.KVOpRequest]: H<EMType.KVOpRequest> = message => {
