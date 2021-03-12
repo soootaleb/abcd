@@ -31,6 +31,7 @@ export default class Node extends Messenger {
     : (Math.random() + 0.300) * 1000;
   private electionTimeoutId: number | undefined;
 
+  private discoveryBeaconTimeoutId: number | undefined;
   private discoveryBeaconIntervalId: number | undefined;
 
   constructor() {
@@ -258,6 +259,8 @@ export default class Node extends Messenger {
         }, EComponent.Net);
       }
     }
+
+    this.transitionFunction(ENodeState.Follower);
   };
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
@@ -275,7 +278,7 @@ export default class Node extends Messenger {
     this.send(EMType.PeerConnectionAccepted, {
       term: this.term,
       knownPeers: knownPeers,
-      wal: this.store.wal,
+      wal: this.state === ENodeState.Leader ? this.store.wal : [],
     }, message.payload.peerIp);
   };
 
@@ -294,6 +297,9 @@ export default class Node extends Messenger {
   };
 
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
+
+    clearTimeout(this.discoveryBeaconTimeoutId);
+
     // If node is leader or knows a leader, break
     if (this.state === ENodeState.Leader || this.leader.length) {
       this.send(EMType.DiscoveredResultIgnored, {
@@ -302,22 +308,21 @@ export default class Node extends Messenger {
         leader: this.leader,
       }, EComponent.Logger);
       return;
-    }
-
-    // If discovery found a node, connect to it
-    if (message.payload.success) {
+    } else if (message.payload.success) {
       this.send(EMType.PeerConnectionRequest, {
         peerIp: message.payload.result,
       }, EComponent.Net);
+    } else {
+
+      this.discoveryBeaconTimeoutId = setTimeout(() => {        
+        this.send(EMType.NodeReady, {
+          ready: true,
+        }, EComponent.NetWorker);
+    
+        this.transitionFunction(ENodeState.Follower);
+      }, this.heartBeatInterval * 3); // Wait for a potential discoveryBeacon
+
     }
-
-    // either way, discovery is finished so node is ready
-    this.send(EMType.NodeReady, {
-      ready: true,
-    }, EComponent.NetWorker);
-
-    // discovery finishes by passing follower (may move to leader if no node found)
-    this.transitionFunction(ENodeState.Follower);
   };
 
   [EMType.KVOpRejected]: H<EMType.KVOpRejected> = message => {
