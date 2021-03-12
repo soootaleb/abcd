@@ -222,7 +222,7 @@ export default class Node extends Messenger {
   [EMType.CallForVoteRequest]: H<EMType.CallForVoteRequest> = (message) => {
     this.send(EMType.CallForVoteResponse, {
       voteGranted: this.state != ENodeState.Leader &&
-        message.payload.term > this.term &&
+        message.payload.term >= this.term &&
         !this.voteGrantedDuringTerm,
     }, message.source);
     this.voteGrantedDuringTerm = true;
