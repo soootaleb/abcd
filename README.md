@@ -108,6 +108,13 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v7.0:
+    - Upgraded leader election
+        - electionTimeout for candidates
+        - voteGranted only once per term
+    - Sync WAL in RAM
+    - End discovery once all peers are connected
+    - NodeReady once all peers are connected
 - v6.4: Adds new Api component to handle client requests
 - v6.3: Wal sync in bulk
 - v6.2: fixed etimeout random calculation
@@ -158,6 +165,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Known issues
 
+1. WAL sync is totally broken...
 2. Upgrade the voting strategy:
  - grant vote only if latest log is before latest log from candidate calling for vote (https://youtu.be/RHDP_KCrjUc?t=1063)
 3. Upgrade log commitment safety (https://youtu.be/RHDP_KCrjUc?t=1157)
