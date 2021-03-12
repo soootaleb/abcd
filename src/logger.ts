@@ -3,6 +3,7 @@ import type { IMessage } from "./interfaces/interface.ts";
 import { EComponent, EMType, ENodeState } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
+import { IMPayload } from "./interfaces/mpayload.ts";
 
 export default class Logger extends Messenger {
 
@@ -24,7 +25,8 @@ export default class Logger extends Messenger {
     (message: IMessage<EMType>) => !this.exclude.includes(message.type),
     (message: IMessage<EMType>) => {
       if (message.type === EMType.NewState) {
-        return message.payload.to != message.payload.from
+        const payload: IMPayload[EMType.NewState] = message.payload as IMPayload[EMType.NewState];
+        return payload.to != payload.from
       } else {
         return true
       }
