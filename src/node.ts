@@ -18,6 +18,7 @@ export default class Node extends Messenger {
   private discovery: Discovery;
 
   private term = 0;
+  private voteGrantedDuringTerm = false;
   private votesCounter = 0;
   private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 150;
   private heartBeatIntervalId: number | undefined;
@@ -103,6 +104,7 @@ export default class Node extends Messenger {
             this.send(EMType.CallForVoteRequest, {
               term: this.term,
               peerIp: peerIp,
+              latestLog: this.store.wal[this.store.wal.length - 1].log,
             }, peerIp);
           }
         }
@@ -197,6 +199,7 @@ export default class Node extends Messenger {
       (this.state === ENodeState.Follower || this.state === ENodeState.Starting)
     ) {
       this.term = message.payload.term;
+      this.voteGrantedDuringTerm = false;
 
       this.send(EMType.NewTermAccepted, {
         term: this.term,
@@ -216,8 +219,12 @@ export default class Node extends Messenger {
   [EMType.CallForVoteRequest]: H<EMType.CallForVoteRequest> = (message) => {
     this.send(EMType.CallForVoteResponse, {
       voteGranted: this.state != ENodeState.Leader &&
-        message.payload.term >= this.term,
+        message.payload.term > this.term &&
+        message.payload.latestLog.timestamp >=
+          this.store.wal[this.store.wal.length - 1].log.timestamp &&
+        !this.voteGrantedDuringTerm,
     }, message.source);
+    this.voteGrantedDuringTerm = true;
   };
 
   [EMType.CallForVoteResponse]: H<EMType.CallForVoteResponse> = (message) => {
@@ -263,7 +270,7 @@ export default class Node extends Messenger {
       this.send(EMType.NodeReady, {
         ready: true,
       }, EComponent.NetWorker);
-      
+
       this.transitionFunction(ENodeState.Follower);
     }
   };
