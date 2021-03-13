@@ -75,8 +75,11 @@ export default class Store extends Messenger {
   private writeWal() {
     const entries = this._bwal.map((entry) => {
       return {
-        ...entry,
-        commited: true,
+        token: entry.token,
+        log: {
+          ...entry.log,
+          commited: true
+        },
       };
     });
 

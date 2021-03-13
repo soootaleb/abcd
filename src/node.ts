@@ -179,17 +179,19 @@ export default class Node extends Messenger {
   };
 
   [EMType.KVOpRequestComplete]: H<EMType.KVOpRequestComplete> = (message) => {
-    this.send(EMType.ClientResponse, {
-      token: message.payload.token,
-      type: EOpType.KVOp,
-      payload: {
-        kv: message.payload.log.next,
-        op: message.payload.log.op,
-      },
-      timestamp: new Date().getTime(),
-    }, this.requests[message.payload.token]);
-
-    delete this.requests[message.payload.token];
+    if (Object.keys(this.requests).includes(message.payload.token)) {
+      this.send(EMType.ClientResponse, {
+        token: message.payload.token,
+        type: EOpType.KVOp,
+        payload: {
+          kv: message.payload.log.next,
+          op: message.payload.log.op,
+        },
+        timestamp: new Date().getTime(),
+      }, this.requests[message.payload.token]);
+  
+      delete this.requests[message.payload.token];
+    }
   };
 
   [EMType.NewTerm]: H<EMType.NewTerm> = (message) => {
@@ -379,8 +381,10 @@ export default class Node extends Messenger {
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = message => {
     const entry = message.payload;
     this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
-    for (const peer of Object.keys(this.net.peers)) {
-      this.send(EMType.AppendEntry, entry, peer);
+    if (this.state === ENodeState.Leader) {
+      for (const peer of Object.keys(this.net.peers)) {
+        this.send(EMType.AppendEntry, entry, peer);
+      }
     }
   }
 }

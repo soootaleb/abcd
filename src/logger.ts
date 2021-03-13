@@ -12,6 +12,7 @@ export default class Logger extends Messenger {
 
   private exclude: EMType[] = [
     EMType.HeartBeat,
+    EMType.StoreVotesReset,
     EMType.DiscoveryBeaconSend
   ]
 
