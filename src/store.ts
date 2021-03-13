@@ -37,6 +37,12 @@ export default class Store extends Messenger {
       { append: true, create: true },
     );
 
+    // To create file if not existing
+    Deno.openSync(
+      this._data_dir + "/store.json",
+      { append: true, create: true },
+    );
+
     setInterval(() => {
       this.writeStore();
     }, Store.STORE_WRITE_INTERVAL);
