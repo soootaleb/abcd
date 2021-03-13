@@ -19,7 +19,10 @@ export default class StoreWorker {
   private buffer: IEntry[] = [];
   private encoder = new TextEncoder();
   private _data_dir = "/home/ubuntu"; // Store.DEFAULT_DATA_DIR;
-  
+
+  private _fwal: Deno.File;
+  private _encoder: TextEncoder;
+
   private static readonly STORE_WRITE_INTERVAL = 1000;
 
   private postMessage: <T extends EMType>(message: IMessage<T>) => void =
@@ -41,31 +44,56 @@ export default class StoreWorker {
         );
       });
 
+    this._fwal = Deno.openSync(
+      this._data_dir + "/abcd.wal",
+      { append: true, create: true },
+    );
+
+    this._encoder = new TextEncoder();
+
+    // setInterval(() => {
+    //   Deno.readTextFile(this._data_dir + "/store.json")
+    //     .then((content) => {
+    //       const store: { [key: string]: IKeyValue } = JSON.parse(
+    //         content || "{}",
+    //       );
+    //       for (const entry of this.buffer) {
+    //         const log = entry.log;
+    //         if (log.op === EKVOpType.Put) {
+    //           store[log.next.key] = {
+    //             key: log.next.key,
+    //             value: log.next.value,
+    //           };
+    //         } else {
+    //           this.send(EMType.LogMessage, {
+    //             message: "Invalid EKVOPType " + log.op,
+    //           }, EComponent.Logger);
+    //         }
+    //       }
+    //       return store;
+    //     }).then((store) => {
+    //       const txt = this.encoder.encode(JSON.stringify(store));
+    //       Deno.writeFile(this._data_dir + "/store.json", txt)
+    //     });
+    // }, StoreWorker.STORE_WRITE_INTERVAL);
+
     setInterval(() => {
-      Deno.readTextFile(this._data_dir + "/store.json")
-        .then((content) => {
-          const store: { [key: string]: IKeyValue } = JSON.parse(
-            content || "{}",
-          );
-          for (const entry of this.buffer) {
-            const log = entry.log;
-            if (log.op === EKVOpType.Put) {
-              store[log.next.key] = {
-                key: log.next.key,
-                value: log.next.value,
-              };
-            } else {
-              this.send(EMType.LogMessage, {
-                message: "Invalid EKVOPType " + log.op,
-              }, EComponent.Logger);
-            }
-          }
-          return store;
-        }).then((store) => {
-          const txt = this.encoder.encode(JSON.stringify(store));
-          Deno.writeFile(this._data_dir + "/store.json", txt)
-        });
-    }, StoreWorker.STORE_WRITE_INTERVAL);
+      const entries = this.buffer.map((entry) => {
+        return {
+          ...entry,
+          commited: true
+        }
+      })
+
+      const str = entries.map((entry) => JSON.stringify(entry)).join("\n")
+      const bytes = this._encoder.encode(str);
+      this._fwal.writeSync(bytes);
+      Deno.fsyncSync(this._fwal.rid);
+      for (const entry of entries) {
+        this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Store);
+      }
+      this.buffer = [];
+    }, 30);
   }
 
   private send<T extends EMType>(

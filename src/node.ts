@@ -142,7 +142,8 @@ export default class Node extends Messenger {
   [EMType.AppendEntry]: H<EMType.AppendEntry> = (message) => {
     this.transitionFunction(ENodeState.Follower);
     if (message.payload.log.commited) {
-      this.store.commit(message.payload);
+      this.send(EMType.StoreLogCommitRequest, message.payload, EComponent.StoreWorker);
+      // this.store.commit(message.payload);
     } else {
       this.send(EMType.KVOpAccepted, message.payload, message.source);
     }
@@ -170,14 +171,18 @@ export default class Node extends Messenger {
       );
     } else if (votes >= this.net.quorum) {
       // Measured this.store.commit() @1-3ms
-      const entry = this.store.commit({
+      this.send(EMType.StoreLogCommitRequest, {
         log: log,
         token: message.payload.token,
-      });
-      for (const peer of Object.keys(this.net.peers)) {
-        this.send(EMType.AppendEntry, entry, peer);
-      }
-      this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
+      }, EComponent.StoreWorker);
+      // const entry = this.store.commit({
+      //   log: log,
+      //   token: message.payload.token,
+      // });
+      // for (const peer of Object.keys(this.net.peers)) {
+      //   this.send(EMType.AppendEntry, entry, peer);
+      // }
+      // this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
     }
   };
 
@@ -257,7 +262,7 @@ export default class Node extends Messenger {
   ) => {
     this.term = message.payload.term;
 
-    this.store.sync(message.payload.wal);
+    // this.store.sync(message.payload.wal);
 
     this.send(EMType.PeerConnectionComplete, {
       peerIp: message.source,
@@ -378,4 +383,12 @@ export default class Node extends Messenger {
     );
     delete this.requests[message.payload.token];
   };
+
+  [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = message => {
+    const entry = message.payload;
+    this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
+    for (const peer of Object.keys(this.net.peers)) {
+      this.send(EMType.AppendEntry, entry, peer);
+    }
+  }
 }

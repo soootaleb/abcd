@@ -14,8 +14,8 @@ export default class Store extends Messenger {
   private _votes: { [key: string]: number } = {};
   private _store: { [key: string]: IKeyValue } = {};
 
-  private _fwal: Deno.File;
-  private _encoder: TextEncoder;
+  // private _fwal: Deno.File;
+  // private _encoder: TextEncoder;
 
   private watchers: {
     [key: string]: string[];
@@ -50,12 +50,12 @@ export default class Store extends Messenger {
       }, EComponent.Logger);
     }
 
-    this._encoder = new TextEncoder();
+    // this._encoder = new TextEncoder();
 
-    this._fwal = Deno.openSync(
-      this._data_dir + "/abcd.wal",
-      { append: true, create: true },
-    );
+    // this._fwal = Deno.openSync(
+    //   this._data_dir + "/abcd.wal",
+    //   { append: true, create: true },
+    // );
   }
 
   [EMType.StoreInit]: H<EMType.StoreInit> = (message) => {
@@ -83,53 +83,51 @@ export default class Store extends Messenger {
     return this._store[key];
   }
 
-  private persist(entry: {
-    log: ILog;
-    token: string;
-  }): boolean {
-    // return Promise.resolve(true);
-    const bytes = this._encoder.encode(JSON.stringify(entry.log) + "\n");
-    const written = this._fwal.writeSync(bytes);
-    if (written === bytes.length) {
-      Deno.fsyncSync(this._fwal.rid);
-      this.send(EMType.StoreLogCommitRequest, entry, EComponent.StoreWorker);
-      return true;
-    } else {
-      this.send(EMType.LogMessage, {
-        message:
-          `Log not persisted written = ${written} / ${bytes.length} total`,
-      }, EComponent.Logger);
-      return false;
-    }
-  }
+  // private persist(entry: {
+  //   log: ILog;
+  //   token: string;
+  // }): void {
+  //   const bytes = this._encoder.encode(JSON.stringify(entry.log) + "\n");
+  //   const written = this._fwal.writeSync(bytes);
+  //   if (written === bytes.length) {
+  //     Deno.fsyncSync(this._fwal.rid);
+  //     return true;
+  //   } else {
+  //     this.send(EMType.LogMessage, {
+  //       message:
+  //         `Log not persisted written = ${written} / ${bytes.length} total`,
+  //     }, EComponent.Logger);
+  //     return false;
+  //   }
+  // }
 
-  public commit(entry: {
-    log: ILog;
-    token: string;
-  }): IEntry {
-    const ok = this.persist(entry);
-    const key: string = entry.log.next.key;
+  // public commit(entry: {
+  //   log: ILog;
+  //   token: string;
+  // }): IEntry {
+  //   const ok = this.persist(entry);
+  //   const key: string = entry.log.next.key;
 
-    if (ok) {
-      this._wal.push(entry);
-      entry.log.commited = true;
-      this._store[key] = entry.log.next;
-      delete this._votes[key];
-      if (Object.keys(this.watchers).includes(entry.log.next.key)) {
-        for (const watcher of this.watchers[entry.log.next.key]) {
-          this.send(EMType.ClientNotification, {
-            type: EOpType.KVWatch,
-            payload: entry.log,
-          }, watcher);
-        }
-      }
-      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
-    } else {
-      this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
-    }
+  //   if (ok) {
+  //     this._wal.push(entry);
+  //     entry.log.commited = true;
+  //     this._store[key] = entry.log.next;
+  //     delete this._votes[key];
+  //     if (Object.keys(this.watchers).includes(entry.log.next.key)) {
+  //       for (const watcher of this.watchers[entry.log.next.key]) {
+  //         this.send(EMType.ClientNotification, {
+  //           type: EOpType.KVWatch,
+  //           payload: entry.log,
+  //         }, watcher);
+  //       }
+  //     }
+  //     this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Monitor);
+  //   } else {
+  //     this.send(EMType.StoreLogCommitFail, entry, EComponent.Monitor);
+  //   }
 
-    return entry;
-  }
+  //   return entry;
+  // }
 
   public empty() {
     this._store = {};
@@ -143,23 +141,23 @@ export default class Store extends Messenger {
    * @param wal the incoming wal from which to sync the current node's wall
    * @returns true if all logs have been commited, false otherwise
    */
-  public sync(wal: TWal): boolean {
+  // public sync(wal: TWal): boolean {
 
-    const str = wal.map((log) => JSON.stringify(log))
-      .join("\n");
+  //   const str = wal.map((log) => JSON.stringify(log))
+  //     .join("\n");
 
-    const bytes = this._encoder.encode(str);
-    const written = this._fwal.writeSync(bytes)
-    Deno.fsyncSync(this._fwal.rid);
+  //   const bytes = this._encoder.encode(str);
+  //   const written = this._fwal.writeSync(bytes)
+  //   Deno.fsyncSync(this._fwal.rid);
 
-    this._wal = wal;
+  //   this._wal = wal;
 
-    this.send(EMType.LogMessage, {
-      message: `Synchronized ${wal.length} logs & ${written} bytes`
-    }, EComponent.Logger);
+  //   this.send(EMType.LogMessage, {
+  //     message: `Synchronized ${wal.length} logs & ${written} bytes`
+  //   }, EComponent.Logger);
 
-    return written === bytes.length;
-  }
+  //   return written === bytes.length;
+  // }
 
   /**
    * Set creates the log associated with the definition of a value for a given key
@@ -254,4 +252,21 @@ export default class Store extends Messenger {
       this.watchers[key] = [watcher];
     }
   };
+
+  [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = message => {
+    const key = message.payload.log.next.key;
+    const entry = message.payload;
+    this._wal.push(entry);
+    this._store[key] = entry.log.next;
+    delete this._votes[key];
+    if (Object.keys(this.watchers).includes(entry.log.next.key)) {
+      for (const watcher of this.watchers[entry.log.next.key]) {
+        this.send(EMType.ClientNotification, {
+          type: EOpType.KVWatch,
+          payload: entry.log,
+        }, watcher);
+      }
+    }
+    this.send(message.type, message.payload, EComponent.Node);
+  }
 }
