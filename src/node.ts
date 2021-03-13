@@ -59,7 +59,7 @@ export default class Node extends Messenger {
     clearInterval(this.heartBeatIntervalId);
     clearInterval(this.discoveryBeaconIntervalId);
 
-    this.store.reset();
+    this.send(EMType.StoreVotesReset, null, EComponent.Store);
 
     switch (to) {
       case ENodeState.Starting:
@@ -142,16 +142,17 @@ export default class Node extends Messenger {
   [EMType.AppendEntry]: H<EMType.AppendEntry> = (message) => {
     this.transitionFunction(ENodeState.Follower);
     if (message.payload.log.commited) {
-      this.send(EMType.StoreLogCommitRequest, message.payload, EComponent.StoreWorker);
-      // this.store.commit(message.payload);
-    } else {
+      this.send(EMType.StoreLogCommitRequest, message.payload, EComponent.Store);
+    } else { // TODO else if log term is current term
       this.send(EMType.KVOpAccepted, message.payload, message.source);
     }
   };
 
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
     const log: ILog = message.payload.log;
-    const votes: number = this.store.voteFor(log.next.key);
+
+    // Votes for
+    this.send(message.type, message.payload, EComponent.Store);
 
     // [TODO] Find a cleaner logic
     if (message.source === EComponent.Store) {
@@ -163,26 +164,17 @@ export default class Node extends Messenger {
       }
     }
 
-    if (votes === -1) { // Key is not currently under vote
+    if (this.store.votes[log.next.key] === -1) { // Key is not currently under vote
       this.send(
         EMType.KVOpAcceptedReceivedButCommited,
         message.payload,
         EComponent.Logger,
       );
-    } else if (votes >= this.net.quorum) {
-      // Measured this.store.commit() @1-3ms
+    } else if (this.store.votes[log.next.key] >= this.net.quorum) {
       this.send(EMType.StoreLogCommitRequest, {
         log: log,
         token: message.payload.token,
-      }, EComponent.StoreWorker);
-      // const entry = this.store.commit({
-      //   log: log,
-      //   token: message.payload.token,
-      // });
-      // for (const peer of Object.keys(this.net.peers)) {
-      //   this.send(EMType.AppendEntry, entry, peer);
-      // }
-      // this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
+      }, EComponent.Store);
     }
   };
 
@@ -262,7 +254,7 @@ export default class Node extends Messenger {
   ) => {
     this.term = message.payload.term;
 
-    // this.store.sync(message.payload.wal);
+    this.send(EMType.StoreSyncRequest, message.payload.wal, EComponent.Store);
 
     this.send(EMType.PeerConnectionComplete, {
       peerIp: message.source,

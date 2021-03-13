@@ -164,6 +164,8 @@ export interface IMPayload {
     term: number;
   };
 
+  [EMType.StoreVotesReset]: null,
+
   [EMType.StoreLogCommitFail]: IEntry;
   [EMType.StoreLogCommitRequest]: IEntry;
   [EMType.StoreLogCommitSuccess]: IEntry;
@@ -193,6 +195,8 @@ export interface IMPayload {
       timestamp: number;
     };
   };
+
+  [EMType.StoreSyncRequest]: TWal;
 
   [EMType.StoreSyncComplete]: {
     report: {

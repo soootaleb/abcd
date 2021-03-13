@@ -11,7 +11,6 @@ export enum EComponent {
   Discovery = "Discovery",
   Net = "Net",
   Monitor = "Monitor",
-  StoreWorker = "StoreWorker",
   NetWorker = "NetWorker",
   DiscoveryWorker = "DiscoveryWorker",
   Logger = "Logger",
@@ -53,10 +52,12 @@ export enum EMType {
   // Store
 
   StoreInit = "StoreInit",
+  StoreVotesReset = "StoreVotesReset",
+  StoreSyncRequest = "StoreSyncRequest",
+  StoreSyncComplete = "StoreSyncComplete",
   StoreLogCommitFail = "StoreLogCommitFail",
   StoreLogCommitRequest = "StoreLogCommitRequest",
   StoreLogCommitSuccess = "StoreLogCommitSuccess",
-  StoreSyncComplete = "StoreSyncComplete",
 
   // UI
 
