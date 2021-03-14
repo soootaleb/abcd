@@ -1,4 +1,8 @@
-import { serve, Server, ServerRequest } from "https://deno.land/std/http/server.ts";
+import {
+  serve,
+  Server,
+  ServerRequest,
+} from "https://deno.land/std/http/server.ts";
 import {
   acceptWebSocket,
   WebSocket as DenoWS,
@@ -36,7 +40,11 @@ export default class NetWorker {
 
     self.onmessage = this.onmessage;
 
-    this.send(EMType.PeerServerStarted, this.server.listener.addr, EComponent.Net);
+    this.send(
+      EMType.PeerServerStarted,
+      this.server.listener.addr,
+      EComponent.Net,
+    );
   }
 
   private send<T extends EMType>(
@@ -47,7 +55,8 @@ export default class NetWorker {
     this.postMessage({
       type: type,
       source: this.constructor.name,
-      destination: destination.toUpperCase().substring(0, 1) + destination.substring(1),
+      destination: destination.toUpperCase().substring(0, 1) +
+        destination.substring(1),
       payload: payload,
     });
   }
@@ -144,6 +153,10 @@ export default class NetWorker {
             peerIp: hostname,
           }, EComponent.Net);
         }
+      }).catch((error) => {
+        this.send(EMType.LogMessage, {
+          message: `Received invalid request on ${request.url}`,
+        }, EComponent.Logger);
       });
     }
   }
@@ -155,13 +168,13 @@ export default class NetWorker {
 
     // If it's a peer, send it to peer
     if (Object.keys(this.peers).includes(destination)) {
-      this.peers[destination].send(JSON.stringify(message))
+      this.peers[destination].send(JSON.stringify(message));
 
       // If it's a client, send it to client
     } else if (Object.keys(this.clients).includes(destination)) {
       this.clients[destination].send(JSON.stringify(message)).catch((error) => {
         this.send(EMType.LogMessage, {
-          message: `Failed to send message to ${destination}`
+          message: `Failed to send message to ${destination}`,
         }, EComponent.Logger);
         delete this.clients[destination];
       });
@@ -255,4 +268,3 @@ const worker = new NetWorker();
 for await (const request of worker.server) {
   worker.request(request);
 }
-
