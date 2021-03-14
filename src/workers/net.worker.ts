@@ -79,7 +79,7 @@ export default class NetWorker {
       }).then(async (sock: DenoWS) => {
         const remoteAddr: Deno.NetAddr = request.conn
           .remoteAddr as Deno.NetAddr;
-        const hostname: string = remoteAddr.hostname;
+        const hostname: string = remoteAddr.hostname + "-" + request.conn.rid;
 
         if (request.url === "/client") {
           this.clients[hostname] = sock;
