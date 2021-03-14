@@ -108,3 +108,5 @@ dist
 
 # ABCD Specific
 data/
+abcd.wal
+store.json
