@@ -5,7 +5,7 @@ import Messenger from "./messenger.ts";
 import { H, TWal } from "./type.ts";
 
 export default class Store extends Messenger {
-  public static readonly DEFAULT_DATA_DIR = "/home/ubuntu";
+  public static readonly DEFAULT_DATA_DIR = ".";
   private static readonly WAL_WRITE_INTERVAL = 30;
   private static readonly STORE_WRITE_INTERVAL = 1000;
 
