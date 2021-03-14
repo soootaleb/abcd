@@ -56,7 +56,7 @@ export default class NetWorker {
     const { conn, r: bufReader, w: bufWriter, headers } = request;
 
     if (request.url === "/discovery") {
-      worker.send(
+      this.send(
         EMType.DiscoveryEndpointCalled,
         request.conn.remoteAddr,
         EComponent.Logger,
@@ -67,8 +67,8 @@ export default class NetWorker {
       });
     } else if (request.url === "/ready") {
       request.respond({
-        status: worker.ready ? 200 : 500,
-        body: worker.ready ? "OK" : "KO",
+        status: this.ready ? 200 : 500,
+        body: this.ready ? "OK" : "KO",
       });
     } else {
       acceptWebSocket({
