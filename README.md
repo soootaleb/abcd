@@ -106,8 +106,23 @@ This list is a chronological feature implementation. Changes are not reflected b
 - WAL file written & fsync() synchronously
 - Store file written every 1000ms asynchronously
 
+> Node bottleneck is reached around 20-30 requests / sec
+
+- WAL file written & fsync() in batch
+- Node waits for all peers to be connected before going to Follower
+- Node waits for 3x HeartBeatInterval before considering UDP discovery achieved
+- WAL Sync is performed in batch
+- Candidates do not grant votes
+- Node grants votes once per term
+
+> Node bottleneck is reached around 100-200 requests / sec & leader election is more stable
+
 # Version
 
+- v8.0:
+    - WAL sync batching
+    - Multiple connections from one clientIp
+    - Removed StoreWorker
 - v7.0:
     - Upgraded leader election
         - electionTimeout for candidates
@@ -138,18 +153,14 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 ## Architecture
 
-- Update Kubernetes ready signal (wait for store to sync)
 - KVOpRequests tracing (mon, responses, ...)
 - Add file logging
 - More coherent message naming
-- Client API
 - More coherent monitoring approach (e.g logs in store)
 
 ## Features
 
 - Applied logs in store should be remove from WAL (need to match logApplied with correct log)
-- Candidate timeout for new callForVote
-- Candidate becoming follower on callForVoteRequest (reduces multi candidate problem)
 - Upgrade voting strategy (known issue #2)
 - Send latest commited log along with uncommited WAL entries
 - Network partitions
