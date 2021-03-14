@@ -155,11 +155,16 @@ export default class NetWorker {
 
     // If it's a peer, send it to peer
     if (Object.keys(this.peers).includes(destination)) {
-      this.peers[destination].send(JSON.stringify(message));
+      this.peers[destination].send(JSON.stringify(message))
 
       // If it's a client, send it to client
     } else if (Object.keys(this.clients).includes(destination)) {
-      this.clients[destination].send(JSON.stringify(message));
+      this.clients[destination].send(JSON.stringify(message)).catch((error) => {
+        this.send(EMType.LogMessage, {
+          message: `Failed to send message to ${destination}`
+        }, EComponent.Logger);
+        delete this.clients[destination];
+      });
 
       // If it's "worker", handle message here
     } else if (destination == EComponent.NetWorker) {
