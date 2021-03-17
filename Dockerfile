@@ -13,8 +13,6 @@ COPY . /app
 
 RUN deno cache --reload --unstable main.ts
 
-RUN export ABCD_NODE_IP=$(hostname -i)
-
 EXPOSE 8080 8888
 
 ENTRYPOINT ["deno", "run", "--unstable", "--allow-all"]
