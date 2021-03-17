@@ -66,10 +66,10 @@ export default class Logger extends Messenger {
       let icon = "🔄".padEnd(1);
       let source = message.source.padEnd(20);
       let destination = message.destination.padEnd(20);
-      if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}-[0-9]+$/.test(message.destination)) {
+      if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(-[0-9]+)?$/.test(message.destination)) {
         icon = "🟢";
         destination = c.green(destination);
-      } else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}-[0-9]+$/.test(message.source)) {
+      } else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}(-[0-9]+)?$/.test(message.source)) {
         icon = "🔵";
         source = c.blue(source);
       }
