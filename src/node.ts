@@ -5,11 +5,8 @@ import { H } from "./type.ts";
 
 export default class Node extends Messenger {
 
-  /**
-   * I prefer to keep this in method (private) to ensure only node can call it
-   * @param to state to transition to
-   */
-  private transitionFunction(to: ENodeState) {
+  [EMType.NewState]: H<EMType.NewState> = message => {
+    const to = message.payload.to;
     this.send(EMType.NewState, {
       from: this.state.role,
       to: to,
@@ -26,7 +23,11 @@ export default class Node extends Messenger {
         break;
       case ENodeState.Follower:
         this.state.electionTimeoutId = setTimeout(() => {
-          this.transitionFunction(ENodeState.Candidate);
+          this.send(EMType.NewState, {
+            from: this.state.role,
+            to: ENodeState.Candidate,
+            reason: `electionTimeout completed (${this.state.electionTimeout}ms)`
+          }, EComponent.Node)
         }, this.state.electionTimeout);
 
         this.state.role = ENodeState.Follower;
@@ -58,7 +59,11 @@ export default class Node extends Messenger {
         this.state.votesCounter = 1;
 
         if (Object.keys(this.state.net.peers).length == 0) {
-          this.transitionFunction(ENodeState.Leader);
+          this.send(EMType.NewState, {
+            from: this.state.role,
+            to: ENodeState.Leader,
+            reason: "Became candidate with no peers"
+          }, EComponent.Node)
         } else {
           for (const peerIp of Object.keys(this.state.net.peers)) {
             this.send(EMType.CallForVoteRequest, {
@@ -67,7 +72,11 @@ export default class Node extends Messenger {
             }, peerIp);
           }
           this.state.electionTimeoutId = setTimeout(() => {
-            this.transitionFunction(ENodeState.Candidate);
+            this.send(EMType.NewState, {
+              from: this.state.role,
+              to: ENodeState.Candidate,
+              reason: "Restart electionTimeout as Candidate"
+            }, EComponent.Node)
           }, this.state.electionTimeout);
         }
 
@@ -87,7 +96,11 @@ export default class Node extends Messenger {
       this.state.role === ENodeState.Follower
     ) {
       this.state.leader = message.source;
-      this.transitionFunction(ENodeState.Follower);
+      this.send(EMType.NewState, {
+        from: this.state.role,
+        to: ENodeState.Follower,
+        reason: `Received HeartBeat from ${message.source}`
+      }, EComponent.Node)
       return;
     }
   };
@@ -100,7 +113,11 @@ export default class Node extends Messenger {
    * @param message 
    */
   [EMType.AppendEntry]: H<EMType.AppendEntry> = (message) => {
-    this.transitionFunction(ENodeState.Follower);
+    this.send(EMType.NewState, {
+      from: this.state.role,
+      to: ENodeState.Follower,
+      reason: `Received AppendEntry from ${message.source}`
+    }, EComponent.Node)
     if (message.payload.log.commited) {
       this.send(EMType.StoreLogCommitRequest, message.payload, EComponent.Store);
     } else { // TODO else if log term is current term
@@ -170,8 +187,11 @@ export default class Node extends Messenger {
       }, EComponent.Logger);
 
       // TODO Implement WAL sync here
-
-      this.transitionFunction(ENodeState.Follower);
+      this.send(EMType.NewState, {
+        from: this.state.role,
+        to: ENodeState.Follower,
+        reason: `Received NewTerm from ${message.source}`
+      }, EComponent.Node)
     } else {
       this.send(EMType.NewTermRejected, {
         term: this.state.term,
@@ -191,7 +211,11 @@ export default class Node extends Messenger {
       }, message.source);
 
       this.state.voteGrantedDuringTerm = true;
-      this.transitionFunction(ENodeState.Follower);
+      this.send(EMType.NewState, {
+        from: this.state.role,
+        to: ENodeState.Follower,
+        reason: `Received CallForVoteRequest from ${message.source}`
+      }, EComponent.Node)
     }
   };
 
@@ -205,7 +229,11 @@ export default class Node extends Messenger {
 
       if (this.state.votesCounter >= quorum) {
         this.state.votesCounter = 0;
-        this.transitionFunction(ENodeState.Leader);
+        this.send(EMType.NewState, {
+          from: this.state.role,
+          to: ENodeState.Leader,
+          reason: `Received CallForVoteResponse from ${message.source}`
+        }, EComponent.Node)
       }
     } else {
       this.send(EMType.VoteReceivedButNotCandidate, {
@@ -241,7 +269,11 @@ export default class Node extends Messenger {
         ready: true,
       }, EComponent.NetWorker);
 
-      this.transitionFunction(ENodeState.Follower);
+      this.send(EMType.NewState, {
+        from: this.state.role,
+        to: ENodeState.Follower,
+        reason: `Connected to all peers`
+      }, EComponent.Node)
     }
   };
 
@@ -299,7 +331,12 @@ export default class Node extends Messenger {
           ready: true,
         }, EComponent.NetWorker);
 
-        this.transitionFunction(ENodeState.Follower);
+        this.send(EMType.NewState, {
+          from: this.state.role,
+          to: ENodeState.Follower,
+          reason: `Got DiscoveryResult`
+        }, EComponent.Node);
+        
       }, this.state.heartBeatInterval * 3); // Wait for a potential discoveryBeacon
     }
   };

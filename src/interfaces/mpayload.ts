@@ -149,6 +149,7 @@ export interface IMPayload {
   [EMType.NewState]: {
     from: ENodeState;
     to: ENodeState;
+    reason: string
   };
 
   [EMType.NewTerm]: {
