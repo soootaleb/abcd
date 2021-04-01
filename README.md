@@ -160,6 +160,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 ## Features
 
+- Get state values
 - Applied logs in store should be remove from WAL (need to match logApplied with correct log)
 - Upgrade voting strategy (known issue #2)
 - Send latest commited log along with uncommited WAL entries
