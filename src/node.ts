@@ -6,8 +6,6 @@ import { H } from "./type.ts";
 export default class Node extends Messenger {
 
   [EMType.NewState]: H<EMType.NewState> = message => {
-    const to = message.payload.to;
-    this.send(message.type, message.payload, EComponent.Logger);
 
     clearTimeout(this.state.electionTimeoutId);
     clearInterval(this.state.heartBeatIntervalId);
@@ -15,7 +13,7 @@ export default class Node extends Messenger {
 
     this.send(EMType.StoreVotesReset, null, EComponent.Store);
 
-    switch (to) {
+    switch (message.payload.to) {
       case ENodeState.Starting:
         break;
       case ENodeState.Follower:
@@ -81,7 +79,7 @@ export default class Node extends Messenger {
       default:
         this.send(EMType.InvalidTransitionToState, {
           currentState: this.state.role,
-          transitionTo: to,
+          transitionTo: message.payload.to,
         }, EComponent.Logger);
     }
   }
