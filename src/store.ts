@@ -1,7 +1,7 @@
 import type { IKeyValue, ILog, IState } from "./interfaces/interface.ts";
 import { EComponent, EKVOpType, EMType, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
-import { H, TWal } from "./type.ts";
+import { H } from "./type.ts";
 
 export default class Store extends Messenger {
   public static readonly DEFAULT_DATA_DIR = ".";

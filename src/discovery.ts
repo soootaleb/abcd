@@ -1,4 +1,4 @@
-import type { IMessage, IState } from "./interfaces/interface.ts";
+import type { IState } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
