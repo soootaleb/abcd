@@ -176,9 +176,10 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Known issues
 
-1. WAL sync is totally broken...
+1. WAL sync on startup is totally broken...
 2. Upgrade the voting strategy:
  - grant vote only if latest log is before latest log from candidate calling for vote (https://youtu.be/RHDP_KCrjUc?t=1063)
 3. Upgrade log commitment safety (https://youtu.be/RHDP_KCrjUc?t=1157)
  - Accept a log only if it's from the current term ?
  - Commit a log only if it's from the current term
+4. Peers & Clients suffix (for multi conns from same IP) seems to create problems
