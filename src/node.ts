@@ -1,48 +1,19 @@
-import type { ILog } from "./interfaces/interface.ts";
+import type { ILog, IState } from "./interfaces/interface.ts";
 import Net from "./net.ts";
 import Store from "./store.ts";
 import Discovery from "./discovery.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
-import Monitor from "./monitor.ts";
-import Api from "./api.ts";
 
 export default class Node extends Messenger {
-  private leader = "";
-  private requests: { [key: string]: string } = {};
 
-  private net: Net;
-  private store: Store;
-  private state: ENodeState = ENodeState.Starting;
-  private discovery: Discovery;
-
-  private term = 0;
-  private voteGrantedDuringTerm = false;
-  private votesCounter = 0;
-  private heartBeatInterval: number = this.args["hbi"] ? this.args["hbi"] : 50;
-  private heartBeatIntervalId: number | undefined;
-  private electionTimeout: number = this.args["etimeout"]
-    ? this.args["etimeout"] + Math.random() * 1000
-    : (Math.random() + 0.300) * 1000;
-  private electionTimeoutId: number | undefined;
-
-  private discoveryBeaconTimeoutId: number | undefined;
-  private discoveryBeaconIntervalId: number | undefined;
-
-  constructor() {
+  constructor(private state: IState) {
     super();
 
     this.send(EMType.LogMessage, {
-      message: this.electionTimeout.toString(),
+      message: this.state.electionTimeout.toString(),
     }, EComponent.Logger);
-
-    this.net = new Net();
-    this.store = new Store();
-    this.discovery = new Discovery();
-
-    new Api();
-    new Monitor();
   }
 
   /**
@@ -51,13 +22,13 @@ export default class Node extends Messenger {
    */
   private transitionFunction(to: ENodeState) {
     this.send(EMType.NewState, {
-      from: this.state,
+      from: this.state.role,
       to: to,
     }, EComponent.Logger);
 
-    clearTimeout(this.electionTimeoutId);
-    clearInterval(this.heartBeatIntervalId);
-    clearInterval(this.discoveryBeaconIntervalId);
+    clearTimeout(this.state.electionTimeoutId);
+    clearInterval(this.state.heartBeatIntervalId);
+    clearInterval(this.state.discoveryBeaconIntervalId);
 
     this.send(EMType.StoreVotesReset, null, EComponent.Store);
 
@@ -65,56 +36,56 @@ export default class Node extends Messenger {
       case ENodeState.Starting:
         break;
       case ENodeState.Follower:
-        this.electionTimeoutId = setTimeout(() => {
+        this.state.electionTimeoutId = setTimeout(() => {
           this.transitionFunction(ENodeState.Candidate);
-        }, this.electionTimeout);
+        }, this.state.electionTimeout);
 
-        this.state = ENodeState.Follower;
+        this.state.role = ENodeState.Follower;
         break;
       case ENodeState.Leader:
-        this.heartBeatIntervalId = setInterval(() => {
-          for (const peerIp of Object.keys(this.net.peers)) {
+        this.state.heartBeatIntervalId = setInterval(() => {
+          for (const peerIp of Object.keys(this.state.net.peers)) {
             this.send(EMType.HeartBeat, null, peerIp);
           }
-        }, this.heartBeatInterval);
+        }, this.state.heartBeatInterval);
 
-        this.discoveryBeaconIntervalId = setInterval(() => {
+        this.state.discoveryBeaconIntervalId = setInterval(() => {
           this.send(EMType.DiscoveryBeaconSend, null, EComponent.Discovery);
-        }, this.heartBeatInterval);
+        }, this.state.heartBeatInterval);
 
-        this.term += 1;
+        this.state.term += 1;
 
-        this.state = ENodeState.Leader;
+        this.state.role = ENodeState.Leader;
 
-        for (const peerIp of Object.keys(this.net.peers)) {
+        for (const peerIp of Object.keys(this.state.net.peers)) {
           this.send(EMType.NewTerm, {
-            term: this.term,
+            term: this.state.term,
           }, peerIp);
         }
 
         break;
       case ENodeState.Candidate:
-        this.state = ENodeState.Candidate;
-        this.votesCounter = 1;
+        this.state.role = ENodeState.Candidate;
+        this.state.votesCounter = 1;
 
-        if (Object.keys(this.net.peers).length == 0) {
+        if (Object.keys(this.state.net.peers).length == 0) {
           this.transitionFunction(ENodeState.Leader);
         } else {
-          for (const peerIp of Object.keys(this.net.peers)) {
+          for (const peerIp of Object.keys(this.state.net.peers)) {
             this.send(EMType.CallForVoteRequest, {
-              term: this.term,
+              term: this.state.term,
               peerIp: peerIp,
             }, peerIp);
           }
-          this.electionTimeoutId = setTimeout(() => {
+          this.state.electionTimeoutId = setTimeout(() => {
             this.transitionFunction(ENodeState.Candidate);
-          }, this.electionTimeout);
+          }, this.state.electionTimeout);
         }
 
         break;
       default:
         this.send(EMType.InvalidTransitionToState, {
-          currentState: this.state,
+          currentState: this.state.role,
           transitionTo: to,
         }, EComponent.Logger);
     }
@@ -122,11 +93,11 @@ export default class Node extends Messenger {
 
   [EMType.HeartBeat]: H<EMType.HeartBeat> = (message) => {
     if (
-      this.state === ENodeState.Candidate ||
-      this.state === ENodeState.Starting ||
-      this.state === ENodeState.Follower
+      this.state.role === ENodeState.Candidate ||
+      this.state.role === ENodeState.Starting ||
+      this.state.role === ENodeState.Follower
     ) {
-      this.leader = message.source;
+      this.state.leader = message.source;
       this.transitionFunction(ENodeState.Follower);
       return;
     }
@@ -156,7 +127,7 @@ export default class Node extends Messenger {
 
     // [TODO] Find a cleaner logic
     if (message.source === EComponent.Store) {
-      for (const peer of Object.keys(this.net.peers)) {
+      for (const peer of Object.keys(this.state.net.peers)) {
         this.send(EMType.AppendEntry, {
           log: log,
           token: message.payload.token,
@@ -164,13 +135,15 @@ export default class Node extends Messenger {
       }
     }
 
-    if (this.store.votes[log.next.key] === -1) { // Key is not currently under vote
+    const quorum = Math.floor((Object.keys(this.state.net.peers).length + 1) / 2) + 1
+
+    if (this.state.store.votes[log.next.key] === -1) { // Key is not currently under vote
       this.send(
         EMType.KVOpAcceptedReceivedButCommited,
         message.payload,
         EComponent.Logger,
       );
-    } else if (this.store.votes[log.next.key] >= this.net.quorum) {
+    } else if (this.state.store.votes[log.next.key] >= quorum) {
       this.send(EMType.StoreLogCommitRequest, {
         log: log,
         token: message.payload.token,
@@ -179,7 +152,7 @@ export default class Node extends Messenger {
   };
 
   [EMType.KVOpRequestComplete]: H<EMType.KVOpRequestComplete> = (message) => {
-    if (Object.keys(this.requests).includes(message.payload.token)) {
+    if (Object.keys(this.state.requests).includes(message.payload.token)) {
       this.send(EMType.ClientResponse, {
         token: message.payload.token,
         type: EOpType.KVOp,
@@ -188,23 +161,23 @@ export default class Node extends Messenger {
           op: message.payload.log.op,
         },
         timestamp: new Date().getTime(),
-      }, this.requests[message.payload.token]);
+      }, this.state.requests[message.payload.token]);
   
-      delete this.requests[message.payload.token];
+      delete this.state.requests[message.payload.token];
     }
   };
 
   [EMType.NewTerm]: H<EMType.NewTerm> = (message) => {
     if (
-      message.payload.term > this.term &&
-      (this.state === ENodeState.Follower || this.state === ENodeState.Starting)
+      message.payload.term > this.state.term &&
+      (this.state.role === ENodeState.Follower || this.state.role === ENodeState.Starting)
     ) {
-      this.term = message.payload.term;
-      this.voteGrantedDuringTerm = false;
+      this.state.term = message.payload.term;
+      this.state.voteGrantedDuringTerm = false;
 
       this.send(EMType.NewTermAccepted, {
-        term: this.term,
-        leader: this.net.peers[message.source],
+        term: this.state.term,
+        leader: this.state.net.peers[message.source],
       }, EComponent.Logger);
 
       // TODO Implement WAL sync here
@@ -212,41 +185,43 @@ export default class Node extends Messenger {
       this.transitionFunction(ENodeState.Follower);
     } else {
       this.send(EMType.NewTermRejected, {
-        term: this.term,
+        term: this.state.term,
       }, message.source);
     }
   };
 
   [EMType.CallForVoteRequest]: H<EMType.CallForVoteRequest> = (message) => {
-    if (this.state === ENodeState.Leader) {
+    if (this.state.role === ENodeState.Leader) {
       this.send(EMType.CallForVoteResponse, {
         voteGranted: false,
       }, message.source);
     } else {
       this.send(EMType.CallForVoteResponse, {
-        voteGranted: message.payload.term >= this.term &&
-          !this.voteGrantedDuringTerm,
+        voteGranted: message.payload.term >= this.state.term &&
+          !this.state.voteGrantedDuringTerm,
       }, message.source);
 
-      this.voteGrantedDuringTerm = true;
+      this.state.voteGrantedDuringTerm = true;
       this.transitionFunction(ENodeState.Follower);
     }
   };
 
   [EMType.CallForVoteResponse]: H<EMType.CallForVoteResponse> = (message) => {
-    if (this.state == ENodeState.Candidate) {
+    if (this.state.role == ENodeState.Candidate) {
       if (message.payload.voteGranted) {
-        this.votesCounter += 1;
+        this.state.votesCounter += 1;
       }
 
-      if (this.votesCounter >= this.net.quorum) {
-        this.votesCounter = 0;
+      const quorum = Math.floor((Object.keys(this.state.net.peers).length + 1) / 2) + 1
+
+      if (this.state.votesCounter >= quorum) {
+        this.state.votesCounter = 0;
         this.transitionFunction(ENodeState.Leader);
       }
     } else {
       this.send(EMType.VoteReceivedButNotCandidate, {
         callForVoteReply: message,
-        currentState: this.state,
+        currentState: this.state.role,
       }, EComponent.Logger);
     }
   };
@@ -254,7 +229,7 @@ export default class Node extends Messenger {
   [EMType.PeerConnectionAccepted]: H<EMType.PeerConnectionAccepted> = (
     message,
   ) => {
-    this.term = message.payload.term;
+    this.state.term = message.payload.term;
 
     this.send(EMType.StoreSyncRequest, message.payload.wal, EComponent.Store);
 
@@ -263,7 +238,7 @@ export default class Node extends Messenger {
     }, EComponent.Net);
 
     const unknownPeers = Object.keys(message.payload.knownPeers)
-      .filter((peer) => !Object.keys(this.net.peers).includes(peer));
+      .filter((peer) => !Object.keys(this.state.net.peers).includes(peer));
 
     // If some peers are uknown and left to be connected to, do it
     if (unknownPeers.length) {
@@ -283,7 +258,7 @@ export default class Node extends Messenger {
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     // Duplicate known peers before adding the new one (it already knows itself...)
-    const knownPeers = { ...this.net.peers };
+    const knownPeers = { ...this.state.net.peers };
 
     // newPeer can be received twice from same peer
     // That's because knownPeers are added in parallel
@@ -294,35 +269,35 @@ export default class Node extends Messenger {
     delete knownPeers[message.payload.peerIp];
 
     this.send(EMType.PeerConnectionAccepted, {
-      term: this.term,
+      term: this.state.term,
       knownPeers: knownPeers,
-      wal: this.state === ENodeState.Leader ? this.store.wal : [],
+      wal: this.state.role === ENodeState.Leader ? this.state.store.wal : [],
     }, message.payload.peerIp);
   };
 
   [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {
-    if (this.net.ready && this.discovery.ready) {
-      this.discovery.discover();
+    if (this.state.net.ready && this.state.discovery.ready) {
+      this.send(EMType.DiscoveryStart, null, EComponent.Discovery);
     }
   };
-
+  
   [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (
     message,
-  ) => {
-    if (this.net.ready && this.discovery.ready) {
-      this.discovery.discover();
+    ) => {
+      if (this.state.net.ready && this.state.discovery.ready) {
+      this.send(EMType.DiscoveryStart, null, EComponent.Discovery);
     }
   };
 
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
-    clearTimeout(this.discoveryBeaconTimeoutId);
+    clearTimeout(this.state.discoveryBeaconTimeoutId);
 
     // If node is leader or knows a leader, break
-    if (this.state === ENodeState.Leader || this.leader.length) {
-      this.send(EMType.DiscoveredResultIgnored, {
+    if (this.state.role === ENodeState.Leader || this.state.leader.length) {
+      this.send(EMType.DiscoveryResultIgnored, {
         result: message.payload,
-        state: this.state,
-        leader: this.leader,
+        state: this.state.role,
+        leader: this.state.leader,
       }, EComponent.Logger);
       return;
     } else if (message.payload.success) {
@@ -330,13 +305,13 @@ export default class Node extends Messenger {
         peerIp: message.payload.result,
       }, EComponent.Net);
     } else {
-      this.discoveryBeaconTimeoutId = setTimeout(() => {
+      this.state.discoveryBeaconTimeoutId = setTimeout(() => {
         this.send(EMType.NodeReady, {
           ready: true,
         }, EComponent.NetWorker);
 
         this.transitionFunction(ENodeState.Follower);
-      }, this.heartBeatInterval * 3); // Wait for a potential discoveryBeacon
+      }, this.state.heartBeatInterval * 3); // Wait for a potential discoveryBeacon
     }
   };
 
@@ -346,17 +321,17 @@ export default class Node extends Messenger {
       type: EOpType.KVOp,
       payload: message.payload.request.payload,
       timestamp: new Date().getTime(),
-    }, this.requests[message.payload.request.token]);
-    delete this.requests[message.payload.request.token];
+    }, this.state.requests[message.payload.request.token]);
+    delete this.state.requests[message.payload.request.token];
   };
 
   [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
-    if (this.state == ENodeState.Leader) {
-      this.requests[message.payload.token] = message.source;
+    if (this.state.role == ENodeState.Leader) {
+      this.state.requests[message.payload.token] = message.source;
       this.send(message.type, message.payload, EComponent.Store);
     } else {
-      this.requests[message.payload.token] = message.source;
-      this.send(message.type, message.payload, this.leader);
+      this.state.requests[message.payload.token] = message.source;
+      this.send(message.type, message.payload, this.state.leader);
       this.send(EMType.ClientRequestForward, {
         message: message,
       }, EComponent.Logger);
@@ -373,16 +348,16 @@ export default class Node extends Messenger {
     this.send(
       message.type,
       message.payload,
-      this.requests[message.payload.token],
+      this.state.requests[message.payload.token],
     );
-    delete this.requests[message.payload.token];
+    delete this.state.requests[message.payload.token];
   };
 
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = message => {
     const entry = message.payload;
     this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
-    if (this.state === ENodeState.Leader) {
-      for (const peer of Object.keys(this.net.peers)) {
+    if (this.state.role === ENodeState.Leader) {
+      for (const peer of Object.keys(this.state.net.peers)) {
         this.send(EMType.AppendEntry, entry, peer);
       }
     }

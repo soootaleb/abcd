@@ -1,5 +1,4 @@
-import type { IKeyValue, ILog } from "./interfaces/interface.ts";
-import { IEntry, IKVOp } from "./interfaces/interface.ts";
+import type { IKeyValue, ILog, IState } from "./interfaces/interface.ts";
 import { EComponent, EKVOpType, EMType, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H, TWal } from "./type.ts";
@@ -9,37 +8,12 @@ export default class Store extends Messenger {
   private static readonly WAL_WRITE_INTERVAL = 30;
   private static readonly STORE_WRITE_INTERVAL = 1000;
 
-  private _data_dir = Store.DEFAULT_DATA_DIR;
-
-  private _wal: TWal = [];
-
-  private _votes: { [key: string]: number } = {};
-  private _store: { [key: string]: IKeyValue } = {};
-
-  private _fwal: Deno.File;
-  private encoder: TextEncoder = new TextEncoder();
-
-  private watchers: {
-    [key: string]: string[];
-  } = {};
-
-  private _bwal: IEntry[] = [];
-
-  constructor() {
+  constructor(private state: IState) {
     super();
-
-    this._data_dir = typeof this.args["data-dir"] === "string"
-      ? this.args["data-dir"]
-      : Store.DEFAULT_DATA_DIR;
-
-    this._fwal = Deno.openSync(
-      this._data_dir + "/abcd.wal",
-      { append: true, create: true },
-    );
 
     // To create file if not existing
     Deno.openSync(
-      this._data_dir + "/store.json",
+      this.state.store.dataDir + "/store.json",
       { append: true, create: true },
     );
 
@@ -53,12 +27,10 @@ export default class Store extends Messenger {
   }
 
   private writeStore() {
-    Deno.readTextFile(this._data_dir + "/store.json")
+    Deno.readTextFile(this.state.store.dataDir + "/store.json")
       .then((content) => {
-        const store: { [key: string]: IKeyValue } = JSON.parse(
-          content || "{}",
-        );
-        for (const entry of this._bwal) {
+        const store: { [key: string]: IKeyValue } = JSON.parse(content || "{}");
+        for (const entry of this.state.store.bwal) {
           const log = entry.log;
           if (log.op === EKVOpType.Put) {
             store[log.next.key] = {
@@ -73,42 +45,34 @@ export default class Store extends Messenger {
         }
         return store;
       }).then((store) => {
-        const txt = this.encoder.encode(JSON.stringify(store));
-        Deno.writeFile(this._data_dir + "/store.json", txt);
+        const txt = this.state.store.encoder.encode(JSON.stringify(store));
+        Deno.writeFile(this.state.store.dataDir + "/store.json", txt);
       });
   }
 
   private writeWal() {
-    const entries = this._bwal.map((entry) => {
+    const entries = this.state.store.bwal.map((entry) => {
       return {
         token: entry.token,
         log: {
           ...entry.log,
-          commited: true
+          commited: true,
         },
       };
     });
 
     const str = entries.map((entry) => JSON.stringify(entry)).join("\n");
-    const bytes = this.encoder.encode(str);
-    this._fwal.writeSync(bytes);
-    Deno.fsyncSync(this._fwal.rid);
+    const bytes = this.state.store.encoder.encode(str);
+    this.state.store.fwal.writeSync(bytes);
+    Deno.fsyncSync(this.state.store.fwal.rid);
     for (const entry of entries) {
       this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Store);
     }
-    this._bwal = [];
-  }
-
-  public get wal(): TWal {
-    return this._wal;
-  }
-
-  public get votes() {
-    return this._votes;
+    this.state.store.bwal = [];
   }
 
   private get(key: string): IKeyValue {
-    return this._store[key];
+    return this.state.store.store[key];
   }
 
   /**
@@ -120,7 +84,7 @@ export default class Store extends Messenger {
    * @param val 
    */
   private put(key: string, val: string | number): ILog {
-    this._votes[key] = 0;
+    this.state.store.votes[key] = 0;
 
     const log: ILog = {
       op: EKVOpType.Put,
@@ -143,7 +107,7 @@ export default class Store extends Messenger {
    * @returns true if all logs have been commited, false otherwise
    */
   [EMType.StoreSyncRequest]: H<EMType.StoreSyncRequest> = (message) => {
-    this._bwal = message.payload;
+    this.state.store.bwal = message.payload;
 
     this.send(EMType.LogMessage, {
       message: `Synchronized ${message.payload.length} logs`,
@@ -151,7 +115,7 @@ export default class Store extends Messenger {
   };
 
   [EMType.StoreInit]: H<EMType.StoreInit> = (message) => {
-    this._store = message.payload;
+    this.state.store.store = message.payload;
   };
 
   [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
@@ -186,7 +150,9 @@ export default class Store extends Messenger {
       }
 
       case EKVOpType.Get: {
-        if (Object.keys(this._store).includes(request.payload.kv.key)) {
+        if (
+          Object.keys(this.state.store.store).includes(request.payload.kv.key)
+        ) {
           this.send(EMType.KVOpRequestComplete, {
             log: {
               commited: true,
@@ -215,10 +181,10 @@ export default class Store extends Messenger {
   [EMType.KVWatchRequest]: H<EMType.KVWatchRequest> = (message) => {
     const key = message.payload.payload.key;
     const watcher = message.source;
-    if (Object.keys(this.watchers).includes(key)) {
-      this.watchers[key].push(watcher);
+    if (Object.keys(this.state.store.watchers).includes(key)) {
+      this.state.store.watchers[key].push(watcher);
     } else {
-      this.watchers[key] = [watcher];
+      this.state.store.watchers[key] = [watcher];
     }
   };
 
@@ -227,11 +193,11 @@ export default class Store extends Messenger {
   ) => {
     const key = message.payload.log.next.key;
     const entry = message.payload;
-    this._wal.push(entry);
-    this._store[key] = entry.log.next;
-    delete this._votes[key];
-    if (Object.keys(this.watchers).includes(entry.log.next.key)) {
-      for (const watcher of this.watchers[entry.log.next.key]) {
+    this.state.store.wal.push(entry);
+    this.state.store.store[key] = entry.log.next;
+    delete this.state.store.votes[key];
+    if (Object.keys(this.state.store.watchers).includes(entry.log.next.key)) {
+      for (const watcher of this.state.store.watchers[entry.log.next.key]) {
         this.send(EMType.ClientNotification, {
           type: EOpType.KVWatch,
           payload: entry.log,
@@ -244,14 +210,14 @@ export default class Store extends Messenger {
   [EMType.StoreLogCommitRequest]: H<EMType.StoreLogCommitRequest> = (
     message,
   ) => {
-    this._bwal.push(message.payload);
+    this.state.store.bwal.push(message.payload);
   };
 
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
-    this._votes[message.payload.log.next.key] += 1;
+    this.state.store.votes[message.payload.log.next.key] += 1;
   };
 
   [EMType.StoreVotesReset]: H<EMType.StoreVotesReset> = (message) => {
-    this._votes = {};
+    this.state.store.votes = {};
   };
 }

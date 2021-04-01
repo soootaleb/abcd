@@ -9,13 +9,15 @@ export interface IMPayload {
 
   [EMType.InitialMessage]: null; // OK
 
+  [EMType.DiscoveryStart]: null;
+
   [EMType.DiscoveryResult]: {
     success: boolean;
     result: string;
     source: string;
   };
 
-  [EMType.DiscoveredResultIgnored]: {
+  [EMType.DiscoveryResultIgnored]: {
     result: IMPayload[EMType.DiscoveryResult];
     state: ENodeState;
     leader: string;

@@ -1,4 +1,5 @@
-import { EComponent, EKVOpType, EMonOpType, EMType, EOpType } from "../enumeration.ts";
+import { EComponent, EKVOpType, EMonOpType, EMType, ENodeState, EOpType } from "../enumeration.ts";
+import { TWal } from "../type.ts";
 import { IMPayload } from "./mpayload.ts";
 
 export interface IMessage<T extends EMType> {
@@ -6,6 +7,50 @@ export interface IMessage<T extends EMType> {
   source: string,
   destination: EComponent | string,
   payload: IMPayload[T]
+}
+
+export interface IState {
+  leader: string
+  requests: { [key: string]: string }
+  role: ENodeState
+  term: number
+  voteGrantedDuringTerm: boolean
+  votesCounter: number,
+  heartBeatInterval: number,
+  heartBeatIntervalId: number | undefined
+  electionTimeout: number
+  electionTimeoutId: number | undefined
+  discoveryBeaconTimeoutId: number | undefined
+  discoveryBeaconIntervalId: number | undefined
+  
+  net: {
+    ready: boolean,
+    peers: { [key: string]: { peerIp: string } },
+    clients: {
+      [key: string]: {
+        clientIp: string,
+        remoteAddr: Deno.NetAddr,
+        clientId: number
+      }
+    }
+  }
+
+  store: {
+    dataDir: string;
+    wal: TWal;
+    votes: { [key: string]: number };
+    store: { [key: string]: IKeyValue };
+    fwal: Deno.File;
+    encoder: TextEncoder;
+    watchers: { [key: string]: string[] }
+    bwal: IEntry[];
+  }
+
+  discovery: {
+    ready: boolean;
+    protocol: string
+  }
+
 }
 
 export interface IKeyValue<T = string | number> {

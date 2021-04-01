@@ -39,9 +39,9 @@ export enum EMType {
   InitialMessage = "InitialMessage",
 
   // DISCOVERY
-
+  DiscoveryStart = "DiscoveryStart",
   DiscoveryResult = "DiscoveryResult",
-  DiscoveredResultIgnored = "DiscoveredResultIgnored",
+  DiscoveryResultIgnored = "DiscoveryResultIgnored",
   DiscoveryServerStarted = "DiscoveryServerStarted",
   DiscoveryProtocolSet = "DiscoveryProtocolSet",
   DiscoveryEndpointCalled = "DiscoveryEndpointCalled",
