@@ -7,10 +7,7 @@ export default class Node extends Messenger {
 
   [EMType.NewState]: H<EMType.NewState> = message => {
     const to = message.payload.to;
-    this.send(EMType.NewState, {
-      from: this.state.role,
-      to: to,
-    }, EComponent.Logger);
+    this.send(message.type, message.payload, EComponent.Logger);
 
     clearTimeout(this.state.electionTimeoutId);
     clearInterval(this.state.heartBeatIntervalId);
