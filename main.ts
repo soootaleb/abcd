@@ -1,6 +1,6 @@
 import Logger from "./src/logger.ts";
 import Node from "./src/node.ts";
-import { ENodeState } from "./src/enumeration.ts"
+import { ENodeState, EMType } from "./src/enumeration.ts"
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { IState } from "./src/interfaces/interface.ts";
 import Discovery from "./src/discovery.ts";
@@ -58,6 +58,15 @@ const state: IState = {
     protocol: typeof ARGS["discovery"] === "string"
       ? ARGS["discovery"]
       : "udp"
+  },
+
+  log: {
+    console: Boolean(ARGS["console-messages"]) || Boolean(ARGS["debug"]),
+    exclude: [
+      EMType.HeartBeat,
+      EMType.StoreVotesReset,
+      EMType.DiscoveryBeaconSend
+    ]
   }
 }
 

@@ -7,22 +7,12 @@ import { IMPayload } from "./interfaces/mpayload.ts";
 
 export default class Logger extends Messenger {
 
-  private console = false;
-
-  private exclude: EMType[] = [
-    EMType.HeartBeat,
-    EMType.StoreVotesReset,
-    EMType.DiscoveryBeaconSend
-  ]
-
-  private role = ENodeState.Starting;
-
   /**
    * Messages will print only if every filter is passed (returns True)
    */
   private filters: ((message: IMessage<EMType>) => boolean)[] = [
-    (message: IMessage<EMType>) => this.console,
-    (message: IMessage<EMType>) => !this.exclude.includes(message.type),
+    (message: IMessage<EMType>) => this.state.log.console,
+    (message: IMessage<EMType>) => !this.state.log.exclude.includes(message.type),
     (message: IMessage<EMType>) => {
       if (message.type === EMType.NewState) {
         const payload: IMPayload[EMType.NewState] = message.payload as IMPayload[EMType.NewState];
@@ -35,9 +25,6 @@ export default class Logger extends Messenger {
 
   constructor(protected state: IState) {
     super(state);
-
-    this.console = Boolean(this.args["console-messages"]) ||
-      Boolean(this.args["debug"]);
 
     // [TODO] Add IP destinations on connection open (peer, clients, UI, ...)
     for (const component of Object.keys(EComponent)) {
@@ -73,8 +60,8 @@ export default class Logger extends Messenger {
         source = c.blue(source);
       }
 
-      let role = this.role.toString();
-      switch (this.role) {
+      let role = this.state.role.toString();
+      switch (this.state.role) {
         case ENodeState.Starting:
           role = "🟡";
           break;
@@ -89,7 +76,7 @@ export default class Logger extends Messenger {
           break;
 
         default:
-          role = this.role;
+          role = this.state.role;
           break;
       }
 
@@ -125,10 +112,6 @@ export default class Logger extends Messenger {
   }
 
   [EMType.LogMessage]: H<EMType.LogMessage> = this.log;
-
-  [EMType.NewState]: H<EMType.NewState> = (message) => {
-    this.role = message.payload.to;
-  };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = message => {
     addEventListener(message.payload.clientIp, this.formatAndLog);

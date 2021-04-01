@@ -51,6 +51,11 @@ export interface IState {
     protocol: string
   }
 
+  log: {
+    console: boolean,
+    exclude: EMType[]
+  }
+
 }
 
 export interface IKeyValue<T = string | number> {
