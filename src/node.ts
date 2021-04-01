@@ -1,17 +1,9 @@
-import type { ILog, IState } from "./interfaces/interface.ts";
+import type { ILog } from "./interfaces/interface.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
 export default class Node extends Messenger {
-
-  constructor(private state: IState) {
-    super();
-
-    this.send(EMType.LogMessage, {
-      message: this.state.electionTimeout.toString(),
-    }, EComponent.Logger);
-  }
 
   /**
    * I prefer to keep this in method (private) to ensure only node can call it

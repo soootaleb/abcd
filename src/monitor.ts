@@ -1,5 +1,5 @@
 import Messenger from "./messenger.ts";
-import { IMessage, IMonOp, IMonWatch } from "./interfaces/interface.ts";
+import { IMessage, IMonOp, IMonWatch, IState } from "./interfaces/interface.ts";
 import { EComponent, EMonOpType, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
@@ -23,8 +23,8 @@ export default class Monitor extends Messenger {
 
   private _watch_interval = 1000;
 
-  constructor() {
-    super();
+  constructor(protected state: IState) {
+    super(state);
 
     for (const component of Object.keys(EComponent)) {
       addEventListener(component, (ev: Event) => {

@@ -4,6 +4,7 @@ import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
 export default class Api extends Messenger {
+  
   [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
     switch (message.payload.type) {
       case EOpType.KVOp: {

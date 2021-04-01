@@ -8,8 +8,8 @@ export default class Store extends Messenger {
   private static readonly WAL_WRITE_INTERVAL = 30;
   private static readonly STORE_WRITE_INTERVAL = 1000;
 
-  constructor(private state: IState) {
-    super();
+  constructor(protected state: IState) {
+    super(state);
 
     // To create file if not existing
     Deno.openSync(

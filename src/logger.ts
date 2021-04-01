@@ -1,5 +1,5 @@
 import * as c from "https://deno.land/std/fmt/colors.ts";
-import type { IMessage } from "./interfaces/interface.ts";
+import type { IMessage, IState } from "./interfaces/interface.ts";
 import { EComponent, EMType, ENodeState } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
@@ -8,7 +8,6 @@ import { IMPayload } from "./interfaces/mpayload.ts";
 export default class Logger extends Messenger {
 
   private console = false;
-  private payloads = false;
 
   private exclude: EMType[] = [
     EMType.HeartBeat,
@@ -34,8 +33,8 @@ export default class Logger extends Messenger {
     },
   ];
 
-  constructor() {
-    super();
+  constructor(protected state: IState) {
+    super(state);
 
     this.console = Boolean(this.args["console-messages"]) ||
       Boolean(this.args["debug"]);

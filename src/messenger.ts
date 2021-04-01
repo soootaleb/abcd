@@ -1,4 +1,4 @@
-import { IMessage } from "./interfaces/interface.ts";
+import { IMessage, IState } from "./interfaces/interface.ts";
 import { Args, parse } from "https://deno.land/std/flags/mod.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { IMPayload } from "./interfaces/mpayload.ts";
@@ -7,7 +7,7 @@ export default class Messenger extends Object {
   protected args: Args = parse(Deno.args);
   protected worker: Worker | undefined;
 
-  constructor() {
+  constructor(protected state: IState) {
     super();
 
     addEventListener(this.constructor.name, (ev: Event) => {

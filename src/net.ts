@@ -1,13 +1,8 @@
-import type { IState } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Net extends Messenger {
-
-  constructor(private state: IState) {
-    super();
-  }
 
   private workerForward = (ev: Event) => {
     const event: CustomEvent = ev as CustomEvent;

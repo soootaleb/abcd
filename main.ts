@@ -57,14 +57,14 @@ const state: IState = {
     ready: false,
     protocol: typeof ARGS["discovery"] === "string"
       ? ARGS["discovery"]
-      : Discovery.DEFAULT_PROTOCOL
+      : "udp"
   }
 }
 
 // Register Logger first so eventListener will print message before executing anything else
-new Logger();
-new Api();
-new Monitor();
+new Logger(state);
+new Api(state);
+new Monitor(state);
 new Net(state);
 new Store(state);
 new Discovery(state);

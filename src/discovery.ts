@@ -1,29 +1,15 @@
-import type { IState } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Discovery extends Messenger {
-  public static PROTOCOLS = ["udp", "http"];
-  public static DEFAULT_PROTOCOL = "udp";
 
-  constructor(private state: IState) {
-    super();
-  }
-
-  private set protocol(mode: string) {
-    if (Discovery.PROTOCOLS.includes(mode)) {
-      this.protocol = mode;
-      this.send(EMType.DiscoveryProtocolSet, {
-        protocol: this.state.discovery.protocol,
-      }, EComponent.Logger);
-    } else {
-      this.send(EMType.InvalidDiscoveryProtocol, {
-        invalid: mode,
-        default: Discovery.DEFAULT_PROTOCOL,
-        available: Discovery.PROTOCOLS,
-      }, EComponent.Logger);
-    }
+  private result(success: boolean, result: string, source: string) {
+    this.send(EMType.DiscoveryResult, {
+      success: success,
+      result: result,
+      source: source,
+    }, EComponent.Node);
   }
 
   [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
@@ -69,13 +55,5 @@ export default class Discovery extends Messenger {
         "passive_discovery",
       );
     }
-  }
-
-  private result(success: boolean, result: string, source: string) {
-    this.send(EMType.DiscoveryResult, {
-      success: success,
-      result: result,
-      source: source,
-    }, EComponent.Node);
   }
 }
