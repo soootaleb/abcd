@@ -56,6 +56,12 @@ export interface IState {
     exclude: EMType[]
   }
 
+  mon: {
+    requests: string[],
+    stats: { [key: string]: number },
+    watchers: { [key: string]: number },
+    loggers: string[]
+  }
 }
 
 export interface IKeyValue<T = string | number> {

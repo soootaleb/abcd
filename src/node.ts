@@ -5,6 +5,10 @@ import { H } from "./type.ts";
 
 export default class Node extends Messenger {
 
+  constructor(protected state: IState) {
+    super(state);
+  }
+
   [EMType.NewState]: H<EMType.NewState> = message => {
 
     clearTimeout(this.state.electionTimeoutId);

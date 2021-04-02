@@ -67,6 +67,13 @@ const state: IState = {
       EMType.StoreVotesReset,
       EMType.DiscoveryBeaconSend
     ]
+  },
+
+  mon: {
+    requests: [],
+    stats: {},
+    watchers: {},
+    loggers: [],
   }
 }
 

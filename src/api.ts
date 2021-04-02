@@ -1,9 +1,13 @@
 import { EComponent, EMonOpType, EMType, EOpType } from "./enumeration.ts";
-import { IKVOp, IKVWatch, IMonOp, IMonWatch } from "./interfaces/interface.ts";
+import { IKVOp, IKVWatch, IMonOp, IMonWatch, IState } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
 export default class Api extends Messenger {
+
+  constructor(protected state: IState) {
+    super(state);
+  }
   
   [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
     switch (message.payload.type) {

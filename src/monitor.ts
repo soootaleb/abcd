@@ -4,24 +4,8 @@ import { EComponent, EMonOpType, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Monitor extends Messenger {
-  private requests: string[] = [];
-  private _mon: {
-    [key: string]: number;
-  } = {
-    answered: 0,
-    commited: 0,
-    accepted: 0,
-    rejected: 0,
-    debugger: 0,
-  };
 
-  private watchers: {
-    [key: string]: number;
-  } = {};
-
-  private loggers: string[] = [];
-
-  private _watch_interval = 1000;
+  private static readonly MON_WATCH_INTERVAL = 1000;
 
   constructor(protected state: IState) {
     super(state);
@@ -33,10 +17,10 @@ export default class Monitor extends Messenger {
         // deno-lint-ignore no-explicit-any
         const o: any = message;
         if (message.type === EMType.ClientRequest) {
-          this.requests.push(o.payload.token);
+          this.state.mon.requests.push(o.payload.token);
         } else if (message.type === EMType.ClientResponse) {
-          if (this.requests.includes(o.payload.token)) {
-            this._mon.answered++;
+          if (this.state.mon.requests.includes(o.payload.token)) {
+            this.state.mon.stats.answered++;
           }
         }
 
@@ -45,7 +29,7 @@ export default class Monitor extends Messenger {
           message.type != EMType.HeartBeat &&
           message.type != EMType.DiscoveryBeaconSend
         ) {
-          for (const logger of this.loggers) {
+          for (const logger of this.state.mon.loggers) {
             this.send(EMType.ClientNotification, {
               type: EOpType.MonWatch,
               payload: {
@@ -60,8 +44,8 @@ export default class Monitor extends Messenger {
   }
 
   private get(key: string) {
-    if (Object.keys(this._mon).includes(key)) {
-      return this._mon[key];
+    if (Object.keys(this.state.mon.stats).includes(key)) {
+      return this.state.mon.stats[key];
     } else if (key.startsWith("/deno/")) {
       const [_, deno, metric] = key.split("/");
       return metric
@@ -79,28 +63,28 @@ export default class Monitor extends Messenger {
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
     message,
   ) => {
-    this.loggers = this.loggers.filter((logger) =>
+    this.state.mon.loggers = this.state.mon.loggers.filter((logger) =>
       logger != message.payload.clientIp
     );
-    clearInterval(this.watchers[message.payload.clientIp]);
+    clearInterval(this.state.mon.watchers[message.payload.clientIp]);
   };
 
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
-    this._mon.accepted++;
+    this.state.mon.stats.accepted++;
   };
 
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = (
     message,
   ) => {
-    this._mon.commited++;
+    this.state.mon.stats.commited++;
   };
 
   [EMType.StoreLogCommitFail]: H<EMType.StoreLogCommitFail> = (message) => {
-    this._mon.rejected++;
+    this.state.mon.stats.rejected++;
   };
 
   [EMType.LogMessage]: H<EMType.LogMessage> = (message) => {
-    this._mon.debugger++;
+    this.state.mon.stats.debugger++;
   };
 
   [EMType.MonOpRequest]: H<EMType.MonOpRequest> = message => {
@@ -124,9 +108,9 @@ export default class Monitor extends Messenger {
     const key = payload.key;
     const watcher = message.source;
     if (key.startsWith("/abcd/logs")) {
-      this.loggers.push(watcher);
+      this.state.mon.loggers.push(watcher);
     } else {
-      this.watchers[watcher] = setInterval(() => {
+      this.state.mon.watchers[watcher] = setInterval(() => {
         this.send(EMType.ClientNotification, {
           type: EOpType.MonWatch,
           payload: {
@@ -134,7 +118,7 @@ export default class Monitor extends Messenger {
             value: this.get(key),
           },
         }, watcher);
-      }, this._watch_interval);
+      }, Monitor.MON_WATCH_INTERVAL);
     }
   }
 }
