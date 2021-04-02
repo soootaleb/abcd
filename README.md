@@ -119,6 +119,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v9.0: Central state for all components
 - v8.0:
     - WAL sync batching
     - Multiple connections from one clientIp
