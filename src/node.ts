@@ -1,4 +1,4 @@
-import type { ILog } from "./interfaces/interface.ts";
+import type { ILog, IState } from "./interfaces/interface.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
