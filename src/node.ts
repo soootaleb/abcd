@@ -253,8 +253,12 @@ export default class Node extends Messenger {
       peerIp: message.source,
     }, EComponent.Net);
 
-    const unknownPeers = Object.keys(message.payload.knownPeers)
-      .filter((peer) => !Object.keys(this.state.net.peers).includes(peer));
+    const unknownPeers = message.payload.knownPeers
+      .filter((peer) => {
+        return !Object.keys(this.state.net.peers)
+          .map((peer) => peer.split('-')[0])
+          .includes(peer)
+      });
 
     // If some peers are uknown and left to be connected to, do it
     if (unknownPeers.length) {
@@ -278,15 +282,9 @@ export default class Node extends Messenger {
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     // Duplicate known peers before adding the new one (it already knows itself...)
-    const knownPeers = { ...this.state.net.peers };
-
-    // newPeer can be received twice from same peer
-    // That's because knownPeers are added in parallel
-    // Hence, a peer can connect a second time because its first co didn't make it before
-    // another peer replies with the same knownPeer.
-    // Duplicate conn are not a problem but duplicate newPeers will
-    // send the peer to itself, thus making it create a self-loop
-    delete knownPeers[message.payload.peerIp];
+    const knownPeers = Object.keys(this.state.net.peers)
+      .map(peer => peer.split('-')[0]) // return only IP & not conn identifier
+      .filter(peer => peer != message.payload.peerIp.split('-')[0]) // because peer connections are in parallel
 
     this.send(EMType.PeerConnectionAccepted, {
       term: this.state.term,

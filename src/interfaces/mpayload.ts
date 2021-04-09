@@ -128,11 +128,7 @@ export interface IMPayload {
 
   [EMType.PeerConnectionAccepted]: {
     term: number;
-    knownPeers: {
-      [key: string]: {
-        peerIp: string
-      }
-    },
+    knownPeers: string[],
     wal: TWal
   }
 
