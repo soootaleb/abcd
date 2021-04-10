@@ -1,39 +1,9 @@
-
-import { assertEquals, assertObjectMatch } from "https://deno.land/std@0.92.0/testing/asserts.ts";
-import { delay } from "https://deno.land/std@0.92.0/async/delay.ts";
 import { state } from "../src/state.ts";
 import Api from "../src/api.ts";
-import Messenger from "../src/messenger.ts";
 import { EComponent, EKVOpType, EMonOpType, EMType, EOpType } from "../src/enumeration.ts";
-import { IMessage, IMonOp } from "../src/interfaces/interface.ts";
-import { IMPayload } from "../src/interfaces/mpayload.ts";
+import { expect } from "./helpers.ts";
 
 new Api({...state})
-
-function expect(expected: {
-  type: EMType, destination: EComponent, payload: IMPayload[EMType]
-}, after: {
-  type: EMType, destination: EComponent, payload: IMPayload[EMType]
-}) {
-
-  let received = false;
-  const messages = new Messenger({...state});
-
-  const test = (ev: Event) => {
-    const event: CustomEvent = ev as CustomEvent;
-    const message: IMessage<EMType> = event.detail;
-
-    received = true;
-
-    assertObjectMatch({...expected.payload}, {...message.payload});
-    assertEquals(expected.type, message.type);
-  }
-
-  addEventListener(expected.destination, test)
-  messages.send(after.type, after.payload, after.destination);
-  assertEquals(true, received, 'Message not received');
-  removeEventListener(expected.destination, test)
-}
 
 Deno.test("Api::ClientRequest::KVOp", () => {
 
