@@ -354,10 +354,10 @@ export default class Node extends Messenger {
       this.send(message.type, message.payload, EComponent.Store);
     } else {
       this.state.requests[message.payload.token] = message.source;
-      this.send(message.type, message.payload, this.state.leader);
       this.send(EMType.ClientRequestForward, {
         message: message,
       }, EComponent.Logger);
+      this.send(message.type, message.payload, this.state.leader);
     }
   };
 
