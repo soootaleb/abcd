@@ -120,6 +120,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 # Version
 
 - v9.0: Central state for all components
+    - v9.1: (fix) knownPeers without -rid that caused a partial split brain
 - v8.0:
     - WAL sync batching
     - Multiple connections from one clientIp
@@ -131,22 +132,22 @@ This list is a chronological feature implementation. Changes are not reflected b
     - Sync WAL in RAM
     - End discovery once all peers are connected
     - NodeReady once all peers are connected
-- v6.4: Adds new Api component to handle client requests
-- v6.3: Wal sync in bulk
-- v6.2: fixed etimeout random calculation
-- v6.1: etimeout stays random even when specified as argument
 - v6.0:
-    - Use Deno v1.8.1
-    - Handle KVOpRejected (answer client)
-    - NewTermRejected if node is candidate
+    - (deps) Use Deno v1.8.1
+    - (fix) Handle KVOpRejected (answer client)
+    - (feature) NewTermRejected if node is candidate
+    - v6.1: (fix) etimeout stays random even when specified as argument
+    - v6.2: (fix) fixed etimeout random calculation
+    - v6.3: (feature) Wal sync in bulk
+    - v6.4: (feature) Adds new Api component to handle client requests
 - v5.0: Use Deno native events with addEventListener & dispatch
 - v4.0: Synchronous replication & writes
-- v3.6: MonOp / MonWatch (/deno/*, /abcd/logs] implementation
-- v3.5: KVWatch operations on followers
-- v3.4:
-    - KVWatch operations
-    - New message of type ClientNotification
 - v3.0: Persistance layer
+    - v3.4:
+        - (feature) KVWatch operations
+        - (feature) New message of type ClientNotification
+    - v3.5: (feature) KVWatch operations on followers
+    - v3.6: (feature) MonOp / MonWatch (/deno/*, /abcd/logs] implementation
 - v2.0: Consensus layer
 - v1.0: Network layer
 
@@ -178,7 +179,6 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Known issues
 
-1. WAL sync on startup is buggy (when bursting requests while leader election happens)
 2. Upgrade the voting strategy:
  - grant vote only if latest log is before latest log from candidate calling for vote (https://youtu.be/RHDP_KCrjUc?t=1063)
 3. Upgrade log commitment safety (https://youtu.be/RHDP_KCrjUc?t=1157)
