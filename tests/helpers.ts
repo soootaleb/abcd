@@ -1,20 +1,10 @@
-import { EComponent } from "../src/enumeration.ts";
 import { EMType } from "../src/enumeration.ts";
-import { IMPayload } from "../src/interfaces/mpayload.ts";
 import Messenger from "../src/messenger.ts";
 import { assertEquals, assertObjectMatch } from "https://deno.land/std/testing/asserts.ts";
 import { state } from "../src/state.ts";
 import { IMessage } from "../src/interfaces/interface.ts";
 
-export function expect(expected: {
-  type: EMType;
-  destination: EComponent;
-  payload: IMPayload[EMType];
-}, after: {
-  type: EMType;
-  destination: EComponent;
-  payload: IMPayload[EMType];
-}) {
+export function expect(expected: IMessage<EMType>, after: IMessage<EMType>) {
   let received = false;
   const messages = new Messenger({ ...state });
 

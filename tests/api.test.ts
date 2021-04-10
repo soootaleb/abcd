@@ -21,7 +21,8 @@ Deno.test("Api::ClientRequest::KVOp", () => {
           value: 'value'
         }
       }
-    }
+    },
+    source: "Source"
   }, {
     type: EMType.ClientRequest,
     destination: EComponent.Api,
@@ -36,7 +37,8 @@ Deno.test("Api::ClientRequest::KVOp", () => {
           value: 'value'
         }
       }
-    }
+    },
+    source: "Source"
   })
 });
 
@@ -53,7 +55,8 @@ Deno.test("Api::ClientRequest::KVWatch", () => {
         expire: 1,
         key: 'key'
       }
-    }
+    },
+    source: "Source"
   }, {
     type: EMType.ClientRequest,
     destination: EComponent.Api,
@@ -65,7 +68,8 @@ Deno.test("Api::ClientRequest::KVWatch", () => {
         expire: 1,
         key: 'key'
       }
-    }
+    },
+    source: "Source"
   })
 });
 
@@ -82,7 +86,8 @@ Deno.test("Api::ClientRequest::MonOp", () => {
         op: EMonOpType.Get,
         metric: { key: 'metric' }
       }
-    }
+    },
+    source: "Source"
   }, {
     type: EMType.ClientRequest,
     destination: EComponent.Api,
@@ -94,7 +99,8 @@ Deno.test("Api::ClientRequest::MonOp", () => {
         op: EMonOpType.Get,
         metric: { key: 'metric' }
       }
-    }
+    },
+    source: "Source"
   })
 });
 
@@ -110,7 +116,8 @@ Deno.test("Api::ClientRequest::MonOp", () => {
         key: 'key',
         expire: 1
       }
-    }
+    },
+    source: "Source"
   }, {
     type: EMType.ClientRequest,
     destination: EComponent.Api,
@@ -122,6 +129,7 @@ Deno.test("Api::ClientRequest::MonOp", () => {
         key: 'key',
         expire: 1
       }
-    }
+    },
+    source: "Source"
   })
 });
