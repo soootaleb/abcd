@@ -50,7 +50,7 @@ new Client(addr, port).co.then((operations) => {
     }
   } else if (mon) {
     operations.monop(EMonOpType.Get, mon).then((response) => {
-      console.log(response);
+      console.dir(response, { depth: 10 });
       Deno.exit();
     });
   } else {
