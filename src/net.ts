@@ -17,17 +17,16 @@ export default class Net extends Messenger {
     this.send(message.type, message.payload, EComponent.Node);
   };
 
-  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
-    removeEventListener(message.payload.peerIp, this.workerForward);
-  };
-
   [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
+    removeEventListener(message.payload.peerIp, this.workerForward);
     delete this.state.net.peers[message.payload.peerIp];
     this.send(EMType.PeerConnectionClose, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
+    removeEventListener(message.payload.peerIp, this.workerForward);
     delete this.state.net.peers[message.payload.peerIp];
+    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Node);
   };
 
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
