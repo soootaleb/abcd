@@ -65,9 +65,7 @@ export default class Store extends Messenger {
     const bytes = this.state.store.encoder.encode(str);
     this.state.store.fwal.writeSync(bytes);
     Deno.fsyncSync(this.state.store.fwal.rid);
-    for (const entry of entries) {
-      this.send(EMType.StoreLogCommitSuccess, entry, EComponent.Store);
-    }
+    this.send(EMType.StoreLogCommitSuccess, entries, EComponent.Store);
     this.state.store.bwal = [];
   }
 
@@ -191,17 +189,18 @@ export default class Store extends Messenger {
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = (
     message,
   ) => {
-    const key = message.payload.log.next.key;
-    const entry = message.payload;
-    this.state.store.wal.push(entry);
-    this.state.store.store[key] = entry.log.next;
-    delete this.state.store.votes[key];
-    if (Object.keys(this.state.store.watchers).includes(entry.log.next.key)) {
-      for (const watcher of this.state.store.watchers[entry.log.next.key]) {
-        this.send(EMType.ClientNotification, {
-          type: EOpType.KVWatch,
-          payload: entry.log,
-        }, watcher);
+    for (const entry of message.payload) {      
+      const key = entry.log.next.key;
+      this.state.store.wal.push(entry);
+      this.state.store.store[key] = entry.log.next;
+      delete this.state.store.votes[key];
+      if (Object.keys(this.state.store.watchers).includes(entry.log.next.key)) {
+        for (const watcher of this.state.store.watchers[entry.log.next.key]) {
+          this.send(EMType.ClientNotification, {
+            type: EOpType.KVWatch,
+            payload: entry.log,
+          }, watcher);
+        }
       }
     }
     this.send(message.type, message.payload, EComponent.Node);

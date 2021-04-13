@@ -167,7 +167,7 @@ export interface IMPayload {
 
   [EMType.StoreLogCommitFail]: IEntry;
   [EMType.StoreLogCommitRequest]: IEntry;
-  [EMType.StoreLogCommitSuccess]: IEntry;
+  [EMType.StoreLogCommitSuccess]: IEntry[];
 
   [EMType.CallForVoteRequest]: {
     term: number;

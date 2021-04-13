@@ -76,7 +76,7 @@ export default class Monitor extends Messenger {
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = (
     message,
   ) => {
-    this.state.mon.stats.commited++;
+    this.state.mon.stats.commited += message.payload.length;
   };
 
   [EMType.StoreLogCommitFail]: H<EMType.StoreLogCommitFail> = (message) => {

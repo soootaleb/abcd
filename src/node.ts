@@ -377,11 +377,12 @@ export default class Node extends Messenger {
   };
 
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = message => {
-    const entry = message.payload;
-    this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
-    if (this.state.role === ENodeState.Leader) {
-      for (const peer of Object.keys(this.state.net.peers)) {
-        this.send(EMType.AppendEntry, entry, peer);
+    for (const entry of message.payload) {
+      this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
+      if (this.state.role === ENodeState.Leader) {
+        for (const peer of Object.keys(this.state.net.peers)) {
+          this.send(EMType.AppendEntry, entry, peer);
+        }
       }
     }
   }
