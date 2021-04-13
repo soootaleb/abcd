@@ -173,10 +173,7 @@ export default class Node extends Messenger {
   };
 
   [EMType.NewTerm]: H<EMType.NewTerm> = (message) => {
-    if (
-      message.payload.term > this.state.term &&
-      (this.state.role === ENodeState.Follower || this.state.role === ENodeState.Starting)
-    ) {
+    if (message.payload.term > this.state.term) {
       this.state.term = message.payload.term;
       this.state.voteGrantedDuringTerm = false;
 
