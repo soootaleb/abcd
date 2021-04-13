@@ -90,7 +90,7 @@ export default class Logger extends Messenger {
           payload = "";
           break;
         case "partial":
-          payload = payload.substr(0, 50);
+          payload = payload.substr(0, 100);
           break;
         default:
           break;
