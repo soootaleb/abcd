@@ -55,6 +55,8 @@ export default class Monitor extends Messenger {
           hostname: Deno.hostname(),
         }[metric]
         : Deno.metrics();
+    } else if (key === "/abcd/node/state") {
+      return this.state;
     } else {
       return "undefined";
     }
@@ -89,18 +91,50 @@ export default class Monitor extends Messenger {
 
   [EMType.MonOpRequest]: H<EMType.MonOpRequest> = message => {
     const payload = message.payload.payload as IMonOp;
-    this.send(EMType.ClientResponse, {
-      token: message.payload.token,
-      payload: {
-        op: EMonOpType.Get,
-        metric: {
-          key: payload.metric.key,
-          value: this.get(payload.metric.key),
+    if (/^\/abcd\/node\/(?:[0-9]{1,3}\.){3}[0-9]{1,3}(-[0-9]+)?\/state/.test(payload.metric.key)) {
+      const [_, abcd, node, ip, state] = payload.metric.key.split('/')
+      const peer = Object.keys(this.state.net.peers)
+        .find((peer) => peer === ip || peer.startsWith(ip + '-'))
+      if (peer) {
+        this.state.requests[message.payload.token] = message.source;
+        this.send(message.type, {
+          ...message.payload,
+          payload: {
+            ...message.payload.payload,
+            metric: {
+              ...message.payload.payload.metric,
+              key: '/abcd/node/state'
+            }
+          }
+        }, peer);
+      } else {
+        this.send(EMType.ClientResponse, {
+          token: message.payload.token,
+          payload: {
+            op: EMonOpType.Get,
+            metric: {
+              key: payload.metric.key,
+              value: "NoSuchPeer::" + ip,
+            },
+          },
+          type: message.payload.type,
+          timestamp: message.payload.timestamp,
+        }, message.source);
+      }
+    } else {
+      this.send(EMType.ClientResponse, {
+        token: message.payload.token,
+        payload: {
+          op: EMonOpType.Get,
+          metric: {
+            key: payload.metric.key,
+            value: this.get(payload.metric.key),
+          },
         },
-      },
-      type: message.payload.type,
-      timestamp: message.payload.timestamp,
-    }, message.source);
+        type: message.payload.type,
+        timestamp: message.payload.timestamp,
+      }, message.source);
+    }
   }
 
   [EMType.MonWatchRequest]: H<EMType.MonWatchRequest> = message => {

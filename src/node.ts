@@ -366,6 +366,10 @@ export default class Node extends Messenger {
     }
   };
 
+  [EMType.MonOpRequest]: H<EMType.MonOpRequest> = (message) => {
+    this.send(message.type, message.payload, EComponent.Monitor, message.source);
+  };
+
   /**
    * Even though a node won't self send a ClientResponse,
    * It can receive it from another node in case of ClientRequestForward
