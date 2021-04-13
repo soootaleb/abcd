@@ -65,7 +65,7 @@ export default class Store extends Messenger {
     const bytes = this.state.store.encoder.encode(str);
     this.state.store.fwal.writeSync(bytes);
     Deno.fsyncSync(this.state.store.fwal.rid);
-    this.send(EMType.StoreLogCommitSuccess, entries, EComponent.Store);
+    if(entries.length) this.send(EMType.StoreLogCommitSuccess, entries, EComponent.Store);
     this.state.store.bwal = [];
   }
 
