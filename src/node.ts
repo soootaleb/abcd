@@ -198,6 +198,14 @@ export default class Node extends Messenger {
     }
   };
 
+  [EMType.NewTermRejected]: H<EMType.NewTermRejected> = message => {
+    this.send(EMType.NewState, {
+      from: this.state.role,
+      to: ENodeState.Follower,
+      reason: `NewTermRejected from ${message.source}`
+    }, EComponent.Node)
+  }
+
   [EMType.CallForVoteRequest]: H<EMType.CallForVoteRequest> = (message) => {
     if (this.state.role === ENodeState.Leader) {
       this.send(EMType.CallForVoteResponse, {
