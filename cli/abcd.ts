@@ -99,8 +99,6 @@ new Client(addr, port).co.then((operations) => {
         sent: mon.requests.sent,
         received: mon.requests.received,
         pending_count: mon.requests.sent - mon.requests.received,
-        pending_prop: (mon.requests.sent - mon.requests.received) /
-          mon.requests.sent,
         latency: Math.round(latency * 100) / 100,
       });
 
@@ -184,8 +182,6 @@ new Client(addr, port).co.then((operations) => {
                 sent: mon.requests.sent,
                 received: mon.requests.received,
                 pending_count: mon.requests.sent - mon.requests.received,
-                pending_prop: (mon.requests.sent - mon.requests.received) /
-                  mon.requests.sent,
                 latency: Math.round(latency * 100) / 100,
               });
               Deno.exit();
