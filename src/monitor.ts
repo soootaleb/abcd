@@ -57,6 +57,8 @@ export default class Monitor extends Messenger {
         : Deno.metrics();
     } else if (key === "/abcd/node/state") {
       return this.state;
+    } else if (key === "/abcd/node/state/store/wal/length") {
+      return this.state.store.wal.length;
     } else {
       return "undefined";
     }
