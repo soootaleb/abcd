@@ -157,7 +157,7 @@ export default class Node extends Messenger {
   };
 
   [EMType.KVOpRequestComplete]: H<EMType.KVOpRequestComplete> = (message) => {
-    if (this.state.role === ENodeState.Leader && Object.keys(this.state.requests).includes(message.payload.token)) {
+    if (this.state.role === ENodeState.Leader) {
       this.send(EMType.ClientResponse, {
         token: message.payload.token,
         type: EOpType.KVOp,
@@ -166,9 +166,7 @@ export default class Node extends Messenger {
           op: message.payload.log.op,
         },
         timestamp: new Date().getTime(),
-      }, this.state.requests[message.payload.token]);
-  
-      delete this.state.requests[message.payload.token];
+      }, EComponent.Node);
     }
   };
 
@@ -347,13 +345,14 @@ export default class Node extends Messenger {
   };
 
   [EMType.KVOpRejected]: H<EMType.KVOpRejected> = (message) => {
-    this.send(EMType.ClientResponse, {
-      token: message.payload.request.token,
-      type: EOpType.KVOp,
-      payload: message.payload.request.payload,
-      timestamp: new Date().getTime(),
-    }, this.state.requests[message.payload.request.token]);
-    delete this.state.requests[message.payload.request.token];
+    if(this.state.role === ENodeState.Leader) {
+      this.send(EMType.ClientResponse, {
+        token: message.payload.request.token,
+        type: EOpType.KVOp,
+        payload: message.payload.request.payload,
+        timestamp: new Date().getTime(),
+      }, EComponent.Node);
+    }
   };
 
   [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
@@ -374,18 +373,20 @@ export default class Node extends Messenger {
   };
 
   /**
-   * Even though a node won't self send a ClientResponse,
-   * It can receive it from another node in case of ClientRequestForward
+   * Node self sends ClientResponse &&
+   * Can receive it from another node in case of ClientRequestForward
    * TODO: Implement a ClientResponseForward
    * @param message 
    */
   [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
-    this.send(
-      message.type,
-      message.payload,
-      this.state.requests[message.payload.token],
-    );
-    delete this.state.requests[message.payload.token];
+    if(Object.keys(this.state.requests).includes(message.payload.token)) {
+      this.send(
+        message.type,
+        message.payload,
+        this.state.requests[message.payload.token],
+      );
+      delete this.state.requests[message.payload.token];
+    }
   };
 
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = message => {
