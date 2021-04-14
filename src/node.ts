@@ -128,7 +128,7 @@ export default class Node extends Messenger {
     const log: ILog = message.payload.log;
 
     // Votes for
-    this.send(message.type, message.payload, EComponent.Store);
+    this.state.store.votes[message.payload.log.next.key] += 1;
 
     // [TODO] Find a cleaner logic
     if (message.source === EComponent.Store) {
@@ -157,7 +157,7 @@ export default class Node extends Messenger {
   };
 
   [EMType.KVOpRequestComplete]: H<EMType.KVOpRequestComplete> = (message) => {
-    if (Object.keys(this.state.requests).includes(message.payload.token)) {
+    if (this.state.role === ENodeState.Leader && Object.keys(this.state.requests).includes(message.payload.token)) {
       this.send(EMType.ClientResponse, {
         token: message.payload.token,
         type: EOpType.KVOp,

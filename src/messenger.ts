@@ -82,18 +82,20 @@ export default class Messenger extends Object {
     destination: EComponent | string, // string is used for peers & clients (IPs)
     source?: string, // to forward messages transparently like the API
   ) {
-    dispatchEvent(
-      new CustomEvent(destination, {
-        detail: {
-          type: type,
-          source: source // By default the source is the class name
-            ? source.toUpperCase().substring(0, 1) + source.substring(1)
-            : this.constructor.name,
-          destination: destination.toUpperCase().substring(0, 1) +
-            destination.substring(1),
-          payload: payload,
-        },
-      }),
-    );
+    setTimeout(() => {      
+      dispatchEvent(
+        new CustomEvent(destination, {
+          detail: {
+            type: type,
+            source: source // By default the source is the class name
+              ? source.toUpperCase().substring(0, 1) + source.substring(1)
+              : this.constructor.name,
+            destination: destination.toUpperCase().substring(0, 1) +
+              destination.substring(1),
+            payload: payload,
+          },
+        }),
+      );
+    }, 0);
   }
 }
