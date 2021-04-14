@@ -215,11 +215,14 @@ export default class Node extends Messenger {
       }, message.source);
 
       this.state.voteGrantedDuringTerm = true;
-      this.send(EMType.NewState, {
-        from: this.state.role,
-        to: ENodeState.Follower,
-        reason: `Received CallForVoteRequest from ${message.source}`
-      }, EComponent.Node)
+
+      if (this.state.role != ENodeState.Starting) {
+        this.send(EMType.NewState, {
+          from: this.state.role,
+          to: ENodeState.Follower,
+          reason: `Received CallForVoteRequest from ${message.source}`
+        }, EComponent.Node)
+      }
     }
   };
 
