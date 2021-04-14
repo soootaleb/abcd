@@ -119,6 +119,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v10.0: Async messages
 - v9.0: Central state for all components
     - v9.1: (fix) knownPeers without -rid that caused a partial split brain
 - v8.0:
