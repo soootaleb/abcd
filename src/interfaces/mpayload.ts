@@ -7,6 +7,8 @@ export interface IMPayload {
     message: string;
   };
 
+  [EMType.WorkerShutDown]: null;
+
   [EMType.InitialMessage]: null; // OK
 
   [EMType.DiscoveryStart]: null;

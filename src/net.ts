@@ -10,6 +10,10 @@ export default class Net extends Messenger {
     worker.postMessage(event.detail);
   }
 
+  public shutdown() {
+    this.send(EMType.WorkerShutDown, null, EComponent.NetWorker);
+  }
+
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.state.net.peers[message.payload.peerIp] = message.payload;
     addEventListener(message.payload.peerIp, this.workerForward);

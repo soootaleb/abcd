@@ -261,6 +261,10 @@ export default class NetWorker {
       }, EComponent.Logger);
     }
   };
+
+  [EMType.WorkerShutDown]: H<EMType.WorkerShutDown> = message => {
+    self.terminate();
+  }
 }
 
 const worker = new NetWorker();

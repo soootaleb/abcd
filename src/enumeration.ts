@@ -36,6 +36,7 @@ export enum EOpType {
 
 export enum EMType {
   LogMessage = "LogMessage",
+  WorkerShutDown = "WorkerShutDown",
   InitialMessage = "InitialMessage",
 
   // DISCOVERY
