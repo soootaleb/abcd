@@ -193,7 +193,6 @@ export default class Store extends Messenger {
       const key = entry.log.next.key;
       this.state.store.wal.push(entry);
       this.state.store.store[key] = entry.log.next;
-      delete this.state.store.votes[key];
       if (Object.keys(this.state.store.watchers).includes(entry.log.next.key)) {
         for (const watcher of this.state.store.watchers[entry.log.next.key]) {
           this.send(EMType.ClientNotification, {

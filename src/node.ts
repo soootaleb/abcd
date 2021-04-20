@@ -142,17 +142,18 @@ export default class Node extends Messenger {
 
     const quorum = Math.floor((Object.keys(this.state.net.peers).length + 1) / 2) + 1
 
-    if (this.state.store.votes[log.next.key] === -1) { // Key is not currently under vote
+    if (Object.keys(this.state.store.votes).includes(log.next.key)) { // Key is not currently under vote
+      delete this.state.store.votes[log.next.key];
+      this.send(EMType.StoreLogCommitRequest, {
+        log: log,
+        token: message.payload.token,
+      }, EComponent.Store);
+    } else if (this.state.store.votes[log.next.key] >= quorum) {
       this.send(
         EMType.KVOpAcceptedReceivedButCommited,
         message.payload,
         EComponent.Logger,
       );
-    } else if (this.state.store.votes[log.next.key] >= quorum) {
-      this.send(EMType.StoreLogCommitRequest, {
-        log: log,
-        token: message.payload.token,
-      }, EComponent.Store);
     }
   };
 
