@@ -44,9 +44,7 @@ export default class Monitor extends Messenger {
   }
 
   private get(key: string) {
-    if (Object.keys(this.state.mon.stats).includes(key)) {
-      return this.state.mon.stats[key];
-    } else if (key.startsWith("/deno/")) {
+    if (key.startsWith("/deno/")) {
       const [_, deno, metric] = key.split("/");
       return metric
         ? {
@@ -55,12 +53,21 @@ export default class Monitor extends Messenger {
           hostname: Deno.hostname(),
         }[metric]
         : Deno.metrics();
-    } else if (key === "/abcd/node/state") {
-      return this.state;
-    } else if (key === "/abcd/node/state/store/wal/length") {
-      return this.state.store.wal.length;
+    } else if (key.startsWith("/abcd/node/state/")) {
+      const path = key.substring("/abcd/node/state/".length)
+      const keys = path.split('/');
+      // deno-lint-ignore no-explicit-any
+      let payload: any = this.state;
+      for (const key of keys) {
+        if(Object.keys(payload).includes(key)) {
+          payload = payload[key];
+        } else {
+          return "NoSuchKey::" + key;
+        }
+      }
+      return payload;
     } else {
-      return "undefined";
+      return "NoSuchKey::" + key;
     }
   }
 
@@ -93,7 +100,7 @@ export default class Monitor extends Messenger {
 
   [EMType.MonOpRequest]: H<EMType.MonOpRequest> = message => {
     const payload = message.payload.payload as IMonOp;
-    if (/^\/abcd\/node\/(?:[0-9]{1,3}\.){3}[0-9]{1,3}(-[0-9]+)?\/state/.test(payload.metric.key)) {
+    if (/^\/abcd\/node\/(?:[0-9]{1,3}\.){3}[0-9]{1,3}(-[0-9]+)?\//.test(payload.metric.key)) {
       const [_, abcd, node, ip, state] = payload.metric.key.split('/')
       const peer = Object.keys(this.state.net.peers)
         .find((peer) => peer === ip || peer.startsWith(ip + '-'))
@@ -105,10 +112,21 @@ export default class Monitor extends Messenger {
             ...message.payload.payload,
             metric: {
               ...message.payload.payload.metric,
-              key: '/abcd/node/state'
+              key: payload.metric.key.replace('/' + ip, '')
             }
           }
         }, peer);
+      } else if (ip === Deno.env.get("ABCD_NODE_IP")) {
+        this.send(message.type, {
+          ...message.payload,
+          payload: {
+            ...message.payload.payload,
+            metric: {
+              ...message.payload.payload.metric,
+              key: payload.metric.key.replace('/' + ip, '')
+            }
+          }
+        }, EComponent.Monitor);
       } else {
         this.send(EMType.ClientResponse, {
           token: message.payload.token,
