@@ -60,13 +60,13 @@ export default class Store extends Messenger {
         },
       };
     });
+    this.state.store.bwal = [];
 
     const str = entries.map((entry) => JSON.stringify(entry)).join("\n");
     const bytes = this.state.store.encoder.encode(str);
     this.state.store.fwal.writeSync(bytes);
     Deno.fsyncSync(this.state.store.fwal.rid);
     if(entries.length) this.send(EMType.StoreLogCommitSuccess, entries, EComponent.Store);
-    this.state.store.bwal = [];
   }
 
   private get(key: string): IKeyValue {

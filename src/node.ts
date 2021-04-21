@@ -127,9 +127,6 @@ export default class Node extends Messenger {
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
     const log: ILog = message.payload.log;
 
-    // Votes for
-    this.state.store.votes[message.payload.log.next.key] += 1;
-
     // [TODO] Find a cleaner logic
     if (message.source === EComponent.Store) {
       for (const peer of Object.keys(this.state.net.peers)) {
@@ -142,13 +139,19 @@ export default class Node extends Messenger {
 
     const quorum = Math.floor((Object.keys(this.state.net.peers).length + 1) / 2) + 1
 
-    if (Object.keys(this.state.store.votes).includes(log.next.key)) { // Key is not currently under vote
-      delete this.state.store.votes[log.next.key];
-      this.send(EMType.StoreLogCommitRequest, {
-        log: log,
-        token: message.payload.token,
-      }, EComponent.Store);
-    } else if (this.state.store.votes[log.next.key] >= quorum) {
+    if (Object.keys(this.state.store.votes).includes(log.next.key)) {
+  
+      // Votes for
+      this.state.store.votes[log.next.key] += 1;
+
+      if (this.state.store.votes[log.next.key] >= quorum) {
+        delete this.state.store.votes[log.next.key];
+        this.send(EMType.StoreLogCommitRequest, {
+          log: log,
+          token: message.payload.token,
+        }, EComponent.Store);
+      }
+    } else {
       this.send(
         EMType.KVOpAcceptedReceivedButCommited,
         message.payload,
