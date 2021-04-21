@@ -11,7 +11,7 @@ export default class Logger extends Messenger {
    * Messages will print only if every filter is passed (returns True)
    */
   private filters: ((message: IMessage<EMType>) => boolean)[] = [
-    (message: IMessage<EMType>) => this.state.log.console,
+    (_) => this.state.log.console,
     (message: IMessage<EMType>) => !this.state.log.exclude.includes(message.type),
     (message: IMessage<EMType>) => {
       if (message.type === EMType.NewState) {
