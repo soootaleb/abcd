@@ -96,12 +96,15 @@ export default class Logger extends Messenger {
           break;
       }
 
-      const log = `${icon.padEnd(3)}${role.padEnd(3)}${source}${destination}${
+      const now = new Date().getTime();
+      const time = now - this.state.log.last
+      this.state.log.last = now;
+
+      const log = `${icon.padEnd(3)}${role.padEnd(3)}${time.toString().padEnd(5)}${source}${destination}${
         message.type.padEnd(25)
       }${payload}`;
-      message.source === EComponent.Node
-        ? console.log(c.bold(log))
-        : console.log(log);
+      
+      console.log(log);
     }
   };
 

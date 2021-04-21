@@ -62,6 +62,7 @@ const state: IState = {
 
   log: {
     console: Boolean(ARGS["console-messages"]) || Boolean(ARGS["debug"]),
+    last: new Date().getTime(),
     exclude: [
       EMType.HeartBeat,
       EMType.StoreVotesReset,
@@ -73,8 +74,7 @@ const state: IState = {
     requests: [],
     stats: {},
     watchers: {},
-    loggers: [],
-    lastMessage: new Date().getTime()
+    loggers: []
   }
 }
 

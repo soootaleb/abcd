@@ -53,15 +53,15 @@ export interface IState {
 
   log: {
     console: boolean,
-    exclude: EMType[]
+    exclude: EMType[],
+    last: number
   }
 
   mon: {
     requests: string[],
     stats: { [key: string]: number },
     watchers: { [key: string]: number },
-    loggers: string[],
-    lastMessage: number
+    loggers: string[]
   }
 }
 
