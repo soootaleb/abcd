@@ -60,7 +60,8 @@ export interface IState {
     requests: string[],
     stats: { [key: string]: number },
     watchers: { [key: string]: number },
-    loggers: string[]
+    loggers: string[],
+    lastMessage: number
   }
 }
 

@@ -23,7 +23,7 @@ export default class Messenger extends Object {
       const message: IMessage<EMType> = event.detail;
       // Yes, a bit ugly but...
       // Added deno lint ignore...
-      // deno-lint-ignore no-explicit-any
+      // deno-lint-ignore no-explicit-any no-this-alias
       const self: any = this;
       if (this.hasOwnProperty(message.type)) {
         self[message.type](message);

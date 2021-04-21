@@ -74,6 +74,7 @@ const state: IState = {
     stats: {},
     watchers: {},
     loggers: [],
+    lastMessage: new Date().getTime()
   }
 }
 

@@ -8,7 +8,7 @@ import {
   WebSocket as DenoWS,
 } from "https://deno.land/std/ws/mod.ts";
 import type { IMessage } from "../interfaces/interface.ts";
-import { EComponent, EMType, EOpType } from "../enumeration.ts";
+import { EComponent, EMType } from "../enumeration.ts";
 import { H } from "../type.ts";
 import { IMPayload } from "../interfaces/mpayload.ts";
 
@@ -153,7 +153,7 @@ export default class NetWorker {
             peerIp: hostname,
           }, EComponent.Net);
         }
-      }).catch((error) => {
+      }).catch((_) => {
         this.send(EMType.LogMessage, {
           message: `Received invalid request on ${request.url}`,
         }, EComponent.Logger);
@@ -172,7 +172,7 @@ export default class NetWorker {
 
       // If it's a client, send it to client
     } else if (Object.keys(this.clients).includes(destination)) {
-      this.clients[destination].send(JSON.stringify(message)).catch((error) => {
+      this.clients[destination].send(JSON.stringify(message)).catch((_) => {
         this.send(EMType.LogMessage, {
           message: `Failed to send message to ${destination}`,
         }, EComponent.Logger);
@@ -243,7 +243,7 @@ export default class NetWorker {
         });
       };
 
-      sock.onclose = (ev: CloseEvent) => {
+      sock.onclose = (_: CloseEvent) => {
         if (this.peers[message.payload.peerIp]) {
           delete this.peers[message.payload.peerIp];
           this.send(EMType.PeerConnectionClose, {

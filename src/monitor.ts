@@ -45,7 +45,7 @@ export default class Monitor extends Messenger {
 
   private get(key: string) {
     if (key.startsWith("/deno/")) {
-      const [_, deno, metric] = key.split("/");
+      const [_, __, metric] = key.split("/");
       return metric
         ? {
           ...JSON.parse(JSON.stringify(Deno.metrics())),
@@ -80,7 +80,7 @@ export default class Monitor extends Messenger {
     clearInterval(this.state.mon.watchers[message.payload.clientIp]);
   };
 
-  [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
+  [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (_) => {
     this.state.mon.stats.accepted++;
   };
 
@@ -90,18 +90,18 @@ export default class Monitor extends Messenger {
     this.state.mon.stats.commited += message.payload.length;
   };
 
-  [EMType.StoreLogCommitFail]: H<EMType.StoreLogCommitFail> = (message) => {
+  [EMType.StoreLogCommitFail]: H<EMType.StoreLogCommitFail> = (_) => {
     this.state.mon.stats.rejected++;
   };
 
-  [EMType.LogMessage]: H<EMType.LogMessage> = (message) => {
+  [EMType.LogMessage]: H<EMType.LogMessage> = (_) => {
     this.state.mon.stats.debugger++;
   };
 
   [EMType.MonOpRequest]: H<EMType.MonOpRequest> = message => {
     const payload = message.payload.payload as IMonOp;
     if (/^\/abcd\/node\/(?:[0-9]{1,3}\.){3}[0-9]{1,3}(-[0-9]+)?\//.test(payload.metric.key)) {
-      const [_, abcd, node, ip, state] = payload.metric.key.split('/')
+      const [_, __, ___, ip, ____] = payload.metric.key.split('/')
       const peer = Object.keys(this.state.net.peers)
         .find((peer) => peer === ip || peer.startsWith(ip + '-'))
       if (peer) {

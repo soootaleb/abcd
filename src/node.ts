@@ -303,15 +303,13 @@ export default class Node extends Messenger {
     }, message.payload.peerIp);
   };
 
-  [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (message) => {
+  [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (_) => {
     if (this.state.net.ready && this.state.discovery.ready) {
       this.send(EMType.DiscoveryStart, null, EComponent.Discovery);
     }
   };
   
-  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (
-    message,
-    ) => {
+  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (_) => {
       if (this.state.net.ready && this.state.discovery.ready) {
       this.send(EMType.DiscoveryStart, null, EComponent.Discovery);
     }

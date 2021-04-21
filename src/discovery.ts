@@ -12,7 +12,7 @@ export default class Discovery extends Messenger {
     }, EComponent.Node);
   }
 
-  [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
+  [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (_) => {
     if (this.state.discovery.ready) {
       this.send(EMType.DiscoveryBeaconSend, null, EComponent.DiscoveryWorker);
     } else {
@@ -38,7 +38,7 @@ export default class Discovery extends Messenger {
     }
   };
 
-  [EMType.DiscoveryStart]: H<EMType.DiscoveryStart> = message => {
+  [EMType.DiscoveryStart]: H<EMType.DiscoveryStart> = (_) => {
     if (this.state.discovery.protocol === "http") {
       const url = "http://" + Deno.env.get("ABCD_CLUSTER_HOSTNAME") +
         ":8080/discovery";
