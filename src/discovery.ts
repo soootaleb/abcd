@@ -14,7 +14,7 @@ export default class Discovery extends Messenger {
 
   [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (message) => {
     if (this.state.discovery.ready) {
-      this.send(message.type, null, EComponent.DiscoveryWorker);
+      this.send(EMType.DiscoveryBeaconSend, null, EComponent.DiscoveryWorker);
     } else {
       this.send(EMType.DiscoveryBeaconSendFail, {
         reason: "discoveryServiceNotReady",

@@ -214,7 +214,7 @@ export default class NetWorker {
 
   [EMType.NodeReady]: H<EMType.NodeReady> = (message) => {
     this._ready = message.payload.ready;
-    this.send(message.type, message.payload, EComponent.Logger);
+    this.send(EMType.NodeReady, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (

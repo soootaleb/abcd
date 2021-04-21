@@ -106,7 +106,7 @@ export default class Monitor extends Messenger {
         .find((peer) => peer === ip || peer.startsWith(ip + '-'))
       if (peer) {
         this.state.requests[message.payload.token] = message.source;
-        this.send(message.type, {
+        this.send(EMType.MonOpRequest, {
           ...message.payload,
           payload: {
             ...message.payload.payload,
@@ -117,7 +117,7 @@ export default class Monitor extends Messenger {
           }
         }, peer);
       } else if (ip === Deno.env.get("ABCD_NODE_IP")) {
-        this.send(message.type, {
+        this.send(EMType.MonOpRequest, {
           ...message.payload,
           payload: {
             ...message.payload.payload,

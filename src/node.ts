@@ -360,20 +360,12 @@ export default class Node extends Messenger {
   };
 
   [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
-    if (this.state.role == ENodeState.Leader) {
-      this.state.requests[message.payload.token] = message.source;
-      this.send(message.type, message.payload, EComponent.Store);
-    } else {
-      this.state.requests[message.payload.token] = message.source;
-      this.send(EMType.ClientRequestForward, {
-        message: message,
-      }, EComponent.Logger);
-      this.send(message.type, message.payload, this.state.leader);
-    }
+    this.state.requests[message.payload.token] = message.source;
+    this.send(EMType.KVOpRequest, message.payload, this.state.role == ENodeState.Leader ? EComponent.Store : this.state.leader);
   };
 
   [EMType.MonOpRequest]: H<EMType.MonOpRequest> = (message) => {
-    this.send(message.type, message.payload, EComponent.Monitor, message.source);
+    this.send(EMType.MonOpRequest, message.payload, EComponent.Monitor, message.source);
   };
 
   /**

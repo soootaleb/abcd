@@ -202,7 +202,7 @@ export default class Store extends Messenger {
         }
       }
     }
-    this.send(message.type, message.payload, EComponent.Node);
+    this.send(EMType.StoreLogCommitSuccess, message.payload, EComponent.Node);
   };
 
   [EMType.StoreLogCommitRequest]: H<EMType.StoreLogCommitRequest> = (
