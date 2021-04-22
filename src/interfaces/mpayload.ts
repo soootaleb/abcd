@@ -134,10 +134,6 @@ export interface IMPayload {
 
   [EMType.PeerServerStarted]: Deno.Addr;
 
-  [EMType.NodeReady]: {
-    ready: true;
-  };
-
   [EMType.HeartBeat]: null;
 
   [EMType.AppendEntry]: IEntry;

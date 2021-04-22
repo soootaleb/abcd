@@ -22,6 +22,7 @@ const state: IState = {
   requests: {},
   role: ENodeState.Starting,
   term: 0,
+  ready: false,
   voteGrantedDuringTerm: false,
   votesCounter: 0,
   heartBeatInterval: ARGS["hbi"] ? ARGS["hbi"] : 50,

@@ -14,6 +14,7 @@ export interface IState {
   requests: { [key: string]: string }
   role: ENodeState
   term: number
+  ready: boolean,
   voteGrantedDuringTerm: boolean
   votesCounter: number,
   heartBeatInterval: number,

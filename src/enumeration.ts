@@ -87,7 +87,6 @@ export enum EMType {
 
   // NODE RAFT
 
-  NodeReady = "NodeReady",
   HeartBeat = "HeartBeat",
   AppendEntry = "AppendEntry",
 

@@ -269,9 +269,12 @@ export default class Peer extends Messenger {
         }, EComponent.Net);
       }
     } else { // If all peers are known (all are connected), then go follower
+
+      this.state.ready = true;
+
       this.send(EMType.NodeReady, {
         ready: true,
-      }, EComponent.Net);
+      }, EComponent.Logger);
 
       this.send(EMType.NewState, {
         from: this.state.role,
@@ -317,9 +320,12 @@ export default class Peer extends Messenger {
       }, EComponent.Net);
     } else {
       this.state.discoveryBeaconTimeoutId = setTimeout(() => {
+
+        this.state.ready = true;
+        
         this.send(EMType.NodeReady, {
           ready: true,
-        }, EComponent.Net);
+        }, EComponent.Logger);
 
         this.send(EMType.NewState, {
           from: this.state.role,

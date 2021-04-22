@@ -14,7 +14,6 @@ import {
 
 export default class Net extends Messenger {
   private _server: Server;
-  private _ready = false;
   private uis: DenoWS[] = [];
   private peers: { [key: string]: DenoWS | WebSocket } = {};
   private clients: { [key: string]: DenoWS } = {};
@@ -34,10 +33,6 @@ export default class Net extends Messenger {
   public get server(): Server {
     return this._server;
   }
-
-  [EMType.NodeReady]: H<EMType.NodeReady> = (message) => {
-    this._ready = message.payload.ready;
-  };
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.state.net.peers[message.payload.peerIp] = message.payload;
@@ -125,8 +120,8 @@ export default class Net extends Messenger {
       });
     } else if (request.url === "/ready") {
       request.respond({
-        status: this.state.net.ready ? 200 : 500,
-        body: this.state.net.ready ? "OK" : "KO",
+        status: this.state.ready ? 200 : 500,
+        body: this.state.ready ? "OK" : "KO",
       });
     } else {
       acceptWebSocket({
@@ -211,7 +206,6 @@ export default class Net extends Messenger {
       });
     }
   }
-
 
   private onmessage = (ev: Event) => {
     const event: CustomEvent = ev as CustomEvent;
