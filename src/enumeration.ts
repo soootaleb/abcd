@@ -6,7 +6,7 @@ export enum ENodeState {
 }
 
 export enum EComponent {
-  Node = "Node",
+  Node = "Peer",
   Store = "Store",
   Discovery = "Discovery",
   Net = "Net",

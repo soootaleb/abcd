@@ -47,13 +47,13 @@ export default class Client {
 
         this._connection.promise = new Promise(resolve => this._connection.resolve = resolve);
         
-        this.ws.onopen = ((ev: Event) => {
+        this.ws.onopen = ((_) => {
             this._connection.resolve(this);
         })
 
         this.ws.onmessage = (ev: MessageEvent) => {
             const message = JSON.parse(ev.data);
-            // deno-lint-ignore no-explicit-any
+            // deno-lint-ignore no-explicit-any no-this-alias
             const self: any = this;
             if (Object.keys(this).includes(message.type)) {
                 self[message.type]({

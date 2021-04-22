@@ -1,5 +1,5 @@
 import Logger from "./src/logger.ts";
-import Node from "./src/node.ts";
+import Peer from "./src/node.ts";
 import { ENodeState, EMType } from "./src/enumeration.ts"
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { IState } from "./src/interfaces/interface.ts";
@@ -54,10 +54,10 @@ const state: IState = {
   },
 
   discovery: {
-    ready: false,
+    ready: true,
     protocol: typeof ARGS["discovery"] === "string"
       ? ARGS["discovery"]
-      : "udp"
+      : "http"
   },
 
   log: {
@@ -82,11 +82,12 @@ const state: IState = {
 new Logger(state);
 new Api(state);
 new Monitor(state);
-new Net(state);
 new Store(state);
 new Discovery(state);
-new Node(state);
+new Peer(state);
 
-for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {
-  Deno.exit();
+const net = new Net(state);
+
+for await (const request of net.server) {
+  net.request(request);
 }

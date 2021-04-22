@@ -12,32 +12,6 @@ export default class Discovery extends Messenger {
     }, EComponent.Node);
   }
 
-  [EMType.DiscoveryBeaconSend]: H<EMType.DiscoveryBeaconSend> = (_) => {
-    if (this.state.discovery.ready) {
-      this.send(EMType.DiscoveryBeaconSend, null, EComponent.DiscoveryWorker);
-    } else {
-      this.send(EMType.DiscoveryBeaconSendFail, {
-        reason: "discoveryServiceNotReady",
-        ready: this.state.discovery.ready,
-      }, EComponent.Logger);
-    }
-  };
-
-  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (
-    message,
-  ) => {
-    this.state.discovery.ready = true;
-    this.send(EMType.DiscoveryServerStarted, message.payload, EComponent.Node);
-  };
-
-  [EMType.DiscoveryBeaconReceived]: H<EMType.DiscoveryBeaconReceived> = (
-    message,
-  ) => {
-    if (this.state.discovery.protocol === "udp") {
-      this.result(true, message.payload.addr.hostname, "beacon_received");
-    }
-  };
-
   [EMType.DiscoveryStart]: H<EMType.DiscoveryStart> = (_) => {
     if (this.state.discovery.protocol === "http") {
       const url = "http://" + Deno.env.get("ABCD_CLUSTER_HOSTNAME") +

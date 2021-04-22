@@ -20,7 +20,7 @@ export default class Logger extends Messenger {
       } else {
         return true
       }
-    },
+    }
   ];
 
   constructor(protected state: IState) {
@@ -97,7 +97,7 @@ export default class Logger extends Messenger {
       }
 
       const now = new Date().getTime();
-      const time = now - this.state.log.last
+      const time = Math.min(now - this.state.log.last, 9999)
       this.state.log.last = now;
 
       const log = `${icon.padEnd(3)}${role.padEnd(3)}${time.toString().padEnd(5)}${source}${destination}${

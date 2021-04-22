@@ -5,7 +5,7 @@ import type {
   IMessage,
 } from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
-import { EKVOpType, EMonOpType, EMType, EOpType } from "../src/enumeration.ts";
+import { EKVOpType, EMonOpType, EMType } from "../src/enumeration.ts";
 
 const ARGS = parse(Deno.args);
 
@@ -119,7 +119,7 @@ new Client(addr, port).co.then((operations) => {
     }, 200);
 
     // Loop every interval
-    const proc = setInterval(() => {
+    setInterval(() => {
       // If duration passed or counter reached objective, stop
       if (
         (duration && new Date().getTime() < start + duration * 1000) ||

@@ -1,13 +1,9 @@
-import type { ILog, IState } from "./interfaces/interface.ts";
+import type { ILog } from "./interfaces/interface.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
-export default class Node extends Messenger {
-
-  constructor(protected state: IState) {
-    super(state);
-  }
+export default class Peer extends Messenger {
 
   [EMType.NewState]: H<EMType.NewState> = message => {
 
@@ -38,12 +34,7 @@ export default class Node extends Messenger {
           }
         }, this.state.heartBeatInterval);
 
-        this.state.discoveryBeaconIntervalId = setInterval(() => {
-          this.send(EMType.DiscoveryBeaconSend, null, EComponent.Discovery);
-        }, this.state.heartBeatInterval);
-
         this.state.term += 1;
-
         this.state.role = ENodeState.Leader;
 
         for (const peerIp of Object.keys(this.state.net.peers)) {
@@ -280,7 +271,7 @@ export default class Node extends Messenger {
     } else { // If all peers are known (all are connected), then go follower
       this.send(EMType.NodeReady, {
         ready: true,
-      }, EComponent.NetWorker);
+      }, EComponent.Net);
 
       this.send(EMType.NewState, {
         from: this.state.role,
@@ -308,12 +299,6 @@ export default class Node extends Messenger {
       this.send(EMType.DiscoveryStart, null, EComponent.Discovery);
     }
   };
-  
-  [EMType.DiscoveryServerStarted]: H<EMType.DiscoveryServerStarted> = (_) => {
-      if (this.state.net.ready && this.state.discovery.ready) {
-      this.send(EMType.DiscoveryStart, null, EComponent.Discovery);
-    }
-  };
 
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
     clearTimeout(this.state.discoveryBeaconTimeoutId);
@@ -334,7 +319,7 @@ export default class Node extends Messenger {
       this.state.discoveryBeaconTimeoutId = setTimeout(() => {
         this.send(EMType.NodeReady, {
           ready: true,
-        }, EComponent.NetWorker);
+        }, EComponent.Net);
 
         this.send(EMType.NewState, {
           from: this.state.role,
