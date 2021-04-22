@@ -272,8 +272,8 @@ export default class Peer extends Messenger {
 
       this.state.ready = true;
 
-      this.send(EMType.NodeReady, {
-        ready: true,
+      this.send(EMType.LogMessage, {
+        message: "Node is ready",
       }, EComponent.Logger);
 
       this.send(EMType.NewState, {
@@ -322,9 +322,9 @@ export default class Peer extends Messenger {
       this.state.discoveryBeaconTimeoutId = setTimeout(() => {
 
         this.state.ready = true;
-        
-        this.send(EMType.NodeReady, {
-          ready: true,
+
+        this.send(EMType.LogMessage, {
+          message: "Node is ready",
         }, EComponent.Logger);
 
         this.send(EMType.NewState, {
