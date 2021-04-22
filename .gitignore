@@ -110,3 +110,5 @@ dist
 data/
 abcd.wal
 store.json
+abcd
+abcdctl
