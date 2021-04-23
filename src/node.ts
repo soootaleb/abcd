@@ -310,7 +310,7 @@ export default class Peer extends Messenger {
         }, EComponent.Node);
       }).catch((error) => {
         this.send(EMType.DiscoveryResult, {
-          success: true,
+          success: false,
           result: error.message,
           source: "http_fail",
         }, EComponent.Node);
