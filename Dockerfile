@@ -1,20 +1,20 @@
-FROM ubuntu:latest
+FROM ubuntu as builder
 
-RUN apt update
-RUN apt install -y unzip curl
-RUN curl -fsSL https://deno.land/x/install/install.sh | sh
+FROM scratch
 
-ENV PATH="/root/.deno/bin:${PATH}"
+COPY --from=builder /lib/x86_64-linux-gnu/libdl.so.2 /lib/
+COPY --from=builder /lib/x86_64-linux-gnu/libstdc++.so.6 /lib/
+COPY --from=builder /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/
+COPY --from=builder /lib/x86_64-linux-gnu/librt.so.1 /lib/
+COPY --from=builder /lib/x86_64-linux-gnu/libpthread.so.0 /lib/
+COPY --from=builder /lib/x86_64-linux-gnu/libm.so.6 /lib/
+COPY --from=builder /lib/x86_64-linux-gnu/libc.so.6 /lib/
+COPY --from=builder /lib64/ld-linux-x86-64.so.2 /lib64/    
 
-EXPOSE 8080 8888
+EXPOSE 8080
 
-WORKDIR /app
-COPY . /app
+ADD abcd /
 
-RUN deno cache --reload --unstable main.ts
+ENTRYPOINT ["/abcd"]
 
-EXPOSE 8080 8888
-
-ENTRYPOINT ["deno", "run", "--unstable", "--allow-all"]
-
-CMD ["main.ts", "--console-messages", "--data-dir", "/root"]
+CMD ["--console-messages", "--data-dir", "/"]
