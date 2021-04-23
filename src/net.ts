@@ -87,7 +87,7 @@ export default class Net extends Messenger {
       };
 
       sock.onopen = () => {
-        addEventListener(message.payload.peerIp, this.onmessage);
+        addEventListener(message.payload.peerIp, this.sendOnNetwork);
         this.send(EMType.PeerConnectionSuccess, {
           peerIp: message.payload.peerIp,
         }, EComponent.Logger);
