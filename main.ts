@@ -89,6 +89,8 @@ new Peer(state);
 
 const net = new Net(state);
 
+Deno.signal(Deno.Signal.SIGINT).then(() => Deno.exit())
+
 for await (const request of net.server) {
   net.request(request);
 }
