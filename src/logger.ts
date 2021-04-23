@@ -27,7 +27,7 @@ export default class Logger extends Messenger {
     super(state);
 
     // [TODO] Add IP destinations on connection open (peer, clients, UI, ...)
-    for (const component of Object.keys(EComponent)) {
+    for (const component of Object.values(EComponent)) {
       addEventListener(component, (ev: Event) => {
         const event: CustomEvent = ev as CustomEvent;
         const message: IMessage<EMType> = event.detail;
