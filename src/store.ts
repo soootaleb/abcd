@@ -214,8 +214,4 @@ export default class Store extends Messenger {
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (message) => {
     this.state.store.votes[message.payload.log.next.key] += 1;
   };
-
-  [EMType.StoreVotesReset]: H<EMType.StoreVotesReset> = (_) => {
-    this.state.store.votes = {};
-  };
 }

@@ -8,7 +8,7 @@ export default class Peer extends Messenger {
     clearTimeout(this.state.electionTimeoutId);
     clearInterval(this.state.heartBeatIntervalId);
 
-    this.send(EMType.StoreVotesReset, null, EComponent.Store);
+    this.state.store.votes = {};
 
     switch (message.payload.to) {
       case ENodeState.Starting:

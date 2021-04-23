@@ -45,7 +45,6 @@ export enum EMType {
   // Store
 
   StoreInit = "StoreInit",
-  StoreVotesReset = "StoreVotesReset",
   StoreSyncRequest = "StoreSyncRequest",
   StoreSyncComplete = "StoreSyncComplete",
   StoreLogCommitFail = "StoreLogCommitFail",
