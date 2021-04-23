@@ -26,7 +26,8 @@ export default class Monitor extends Messenger {
 
         if (
           message.type != EMType.ClientNotification &&
-          message.type != EMType.HeartBeat
+          message.type != EMType.HeartBeat &&
+          message.type != EMType.NewState
         ) {
           for (const logger of this.state.mon.loggers) {
             this.send(EMType.ClientNotification, {
