@@ -178,7 +178,7 @@ export default class Store extends Messenger {
 
   [EMType.KVWatchRequest]: H<EMType.KVWatchRequest> = (message) => {
     const key = message.payload.payload.key;
-    const watcher = message.source;
+    const watcher = message.payload.token;
     if (Object.keys(this.state.store.watchers).includes(key)) {
       this.state.store.watchers[key].push(watcher);
     } else {
@@ -196,9 +196,10 @@ export default class Store extends Messenger {
       if (Object.keys(this.state.store.watchers).includes(entry.log.next.key)) {
         for (const watcher of this.state.store.watchers[entry.log.next.key]) {
           this.send(EMType.ClientNotification, {
+            token: watcher,
             type: EOpType.KVWatch,
             payload: entry.log,
-          }, watcher);
+          }, EComponent.Api);
         }
       }
     }

@@ -29,6 +29,7 @@ export interface IMPayload {
   };
 
   [EMType.ClientNotification]: {
+    token: string;
     type: EOpType.KVWatch | EOpType.MonWatch;
     payload: ILog | IKeyValue | IKeyValue<IMessage<EMType>>;
   };
@@ -40,15 +41,12 @@ export interface IMPayload {
     timestamp: number;
   };
 
-  [EMType.ClientRequestForward]: {
-    message: IMessage<EMType>;
-  };
+  [EMType.ClientRequestForward]: IMPayload[EMType.ClientRequest];
 
   [EMType.ClientConnectionOpen]: {
     clientIp: string;
     remoteAddr: Deno.NetAddr;
-    clientId: number;
-    ws: WebSocket | DenoWS
+    clientId: number
   };
 
   [EMType.ClientConnectionClose]: {
@@ -60,8 +58,7 @@ export interface IMPayload {
   };
 
   [EMType.PeerConnectionOpen]: {
-    peerIp: string;
-    ws: DenoWS
+    peerIp: string
   };
 
   [EMType.PeerConnectionPending]: {

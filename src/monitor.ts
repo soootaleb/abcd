@@ -10,7 +10,7 @@ export default class Monitor extends Messenger {
   constructor(protected state: IState) {
     super(state);
 
-    for (const component of Object.keys(EComponent)) {
+    for (const component of Object.values(EComponent)) {
       addEventListener(component, (ev: Event) => {
         const event: CustomEvent = ev as CustomEvent;
         const message: IMessage<EMType> = event.detail;
@@ -30,12 +30,13 @@ export default class Monitor extends Messenger {
         ) {
           for (const logger of this.state.mon.loggers) {
             this.send(EMType.ClientNotification, {
+              token: logger,
               type: EOpType.MonWatch,
               payload: {
                 key: "/abcd/logs",
                 value: message,
               },
-            }, logger);
+            }, EComponent.Api);
           }
         }
       });
@@ -70,15 +71,6 @@ export default class Monitor extends Messenger {
     }
   }
 
-  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
-    message,
-  ) => {
-    this.state.mon.loggers = this.state.mon.loggers.filter((logger) =>
-      logger != message.payload.clientIp
-    );
-    clearInterval(this.state.mon.watchers[message.payload.clientIp]);
-  };
-
   [EMType.KVOpAccepted]: H<EMType.KVOpAccepted> = (_) => {
     this.state.mon.stats.accepted++;
   };
@@ -104,8 +96,7 @@ export default class Monitor extends Messenger {
       const peer = Object.keys(this.state.net.peers)
         .find((peer) => peer === ip || peer.startsWith(ip + '-'))
       if (peer) {
-        this.state.requests[message.payload.token] = message.source;
-        this.send(EMType.MonOpRequest, {
+        this.send(EMType.ClientRequestForward, {
           ...message.payload,
           payload: {
             ...message.payload.payload,
@@ -114,7 +105,7 @@ export default class Monitor extends Messenger {
               key: payload.metric.key.replace('/' + ip, '')
             }
           }
-        }, peer);
+        }, peer)
       } else if (ip === Deno.env.get("ABCD_NODE_IP")) {
         this.send(EMType.MonOpRequest, {
           ...message.payload,
@@ -138,7 +129,7 @@ export default class Monitor extends Messenger {
           },
           type: message.payload.type,
           timestamp: message.payload.timestamp,
-        }, message.source);
+        }, EComponent.Api);
       }
     } else {
       this.send(EMType.ClientResponse, {
@@ -152,25 +143,26 @@ export default class Monitor extends Messenger {
         },
         type: message.payload.type,
         timestamp: message.payload.timestamp,
-      }, message.source);
+      }, EComponent.Api);
     }
   }
 
   [EMType.MonWatchRequest]: H<EMType.MonWatchRequest> = message => {
     const payload = message.payload.payload as IMonWatch;
     const key = payload.key;
-    const watcher = message.source;
+    const watcher = message.payload.token;
     if (key.startsWith("/abcd/logs")) {
       this.state.mon.loggers.push(watcher);
     } else {
       this.state.mon.watchers[watcher] = setInterval(() => {
         this.send(EMType.ClientNotification, {
+          token: watcher,
           type: EOpType.MonWatch,
           payload: {
             key: key,
             value: this.get(key),
           },
-        }, watcher);
+        }, EComponent.Api);
       }, Monitor.MON_WATCH_INTERVAL);
     }
   }

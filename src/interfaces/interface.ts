@@ -12,7 +12,6 @@ export interface IMessage<T extends EMType> {
 
 export interface IState {
   leader: string
-  requests: { [key: string]: string }
   role: ENodeState
   term: number
   ready: boolean,
@@ -24,19 +23,18 @@ export interface IState {
   electionTimeoutId: number | undefined
   
   net: {
+    requests: { [key: string]: string }
     ready: boolean,
     peers: {
       [key: string]: {
-        peerIp: string,
-        ws: DenoWS | WebSocket
+        peerIp: string
       }
     },
     clients: {
       [key: string]: {
         clientIp: string,
         remoteAddr: Deno.NetAddr,
-        clientId: number,
-        ws: DenoWS
+        clientId: number
       }
     }
   }

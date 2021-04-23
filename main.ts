@@ -18,7 +18,6 @@ const dataDir = typeof ARGS["data-dir"] === "string"
 
 const state: IState = {
   leader: "",
-  requests: {},
   role: ENodeState.Starting,
   term: 0,
   ready: false,
@@ -32,6 +31,7 @@ const state: IState = {
   electionTimeoutId: undefined,
 
   net: {
+    requests: {},
     ready: false,
     peers: {},
     clients: {}

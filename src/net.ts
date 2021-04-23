@@ -14,6 +14,12 @@ import {
 
 export default class Net extends Messenger {
   private _server: Server;
+  private _psockets: {
+    [key: string]: DenoWS | WebSocket
+  } = {};
+  private _csockets: {
+    [key: string]: DenoWS
+  } = {};
 
   constructor(protected state: IState) {
     super(state);
@@ -60,8 +66,7 @@ export default class Net extends Messenger {
     } else {
       const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`);
       this.state.net.peers[message.payload.peerIp] = {
-        peerIp: message.payload.peerIp,
-        ws: sock
+        peerIp: message.payload.peerIp
       };
 
       sock.onopen = () => {
@@ -129,17 +134,17 @@ export default class Net extends Messenger {
           this.state.net.clients[hostname] = {
             clientIp: hostname,
             remoteAddr: remoteAddr,
-            clientId: request.conn.rid,
-            ws: sock
+            clientId: request.conn.rid
           };
 
           addEventListener(hostname, this.onmessage);
 
+          this._csockets[hostname] = sock;
+
           this.send(EMType.ClientConnectionOpen, {
             clientIp: hostname,
             remoteAddr: remoteAddr,
-            clientId: request.conn.rid,
-            ws: sock
+            clientId: request.conn.rid
           }, EComponent.Logger);
 
           for await (const ev of sock) {
@@ -149,11 +154,12 @@ export default class Net extends Messenger {
             }
           }
 
+          delete this._csockets[hostname];
           delete this.state.net.clients[hostname];
 
           this.send(EMType.ClientConnectionClose, {
             clientIp: hostname,
-          }, EComponent.Monitor);
+          }, EComponent.Api);
           
           this.send(EMType.ClientConnectionClose, {
             clientIp: hostname,
@@ -163,9 +169,10 @@ export default class Net extends Messenger {
 
         } else if (request.url === "/peer") {
 
+          this._psockets[hostname] = sock;
+
           this.send(EMType.PeerConnectionOpen, {
-            peerIp: hostname,
-            ws: sock
+            peerIp: hostname
           }, EComponent.Net);
 
           for await (const ev of sock) {
@@ -175,6 +182,7 @@ export default class Net extends Messenger {
             }
           }
 
+          delete this._psockets[hostname];
           delete this.state.net.peers[hostname];
 
           this.send(EMType.PeerConnectionClose, {
@@ -196,11 +204,11 @@ export default class Net extends Messenger {
 
     // If it's a peer, send it to peer
     if (Object.keys(this.state.net.peers).includes(destination)) {
-      this.state.net.peers[destination].ws.send(JSON.stringify(message));
+      this._psockets[destination].send(JSON.stringify(message));
 
       // If it's a client, send it to client
     } else if (Object.keys(this.state.net.clients).includes(destination)) {
-      this.state.net.clients[destination].ws.send(JSON.stringify(message)).catch((_) => {
+      this._csockets[destination].send(JSON.stringify(message)).catch((_) => {
         this.send(EMType.LogMessage, {
           message: `Failed to send message to ${destination}`,
         }, EComponent.Logger);

@@ -163,7 +163,7 @@ export default class Peer extends Messenger {
           op: message.payload.log.op,
         },
         timestamp: new Date().getTime(),
-      }, EComponent.Node);
+      }, EComponent.Api);
     }
   };
 
@@ -349,26 +349,6 @@ export default class Peer extends Messenger {
     }
   };
 
-  [EMType.KVOpRequest]: H<EMType.KVOpRequest> = (message) => {
-    this.state.requests[message.payload.token] = message.source;
-    this.send(
-      EMType.KVOpRequest,
-      message.payload,
-      this.state.role == ENodeState.Leader
-        ? EComponent.Store
-        : this.state.leader,
-    );
-  };
-
-  [EMType.MonOpRequest]: H<EMType.MonOpRequest> = (message) => {
-    this.send(
-      EMType.MonOpRequest,
-      message.payload,
-      EComponent.Monitor,
-      message.source,
-    );
-  };
-
   /**
    * Node self sends ClientResponse &&
    * Can receive it from another node in case of ClientRequestForward
@@ -376,17 +356,16 @@ export default class Peer extends Messenger {
    * @param message 
    */
   [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
-    if (Object.keys(this.state.requests).includes(message.payload.token)) {
-      this.send(EMType.ClientResponse, message.payload, this.state.requests[message.payload.token]);
-      delete this.state.requests[message.payload.token];
-    }
+    this.send(EMType.ClientResponse, message.payload, EComponent.Api);
   };
+
+  [EMType.ClientRequestForward]: H<EMType.ClientRequestForward> = message => {
+    this.send(EMType.ClientRequest, message.payload, EComponent.Api, message.source)
+  }
 
   [EMType.StoreLogCommitSuccess]: H<EMType.StoreLogCommitSuccess> = (message) => {
       for (const entry of message.payload) {
-        if (Object.keys(this.state.requests).length) {
-          this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
-        }
+        this.send(EMType.KVOpRequestComplete, entry, EComponent.Node);
         if (this.state.role === ENodeState.Leader) {
           for (const peer of Object.keys(this.state.net.peers)) {
             this.send(EMType.AppendEntry, entry, peer);
