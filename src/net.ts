@@ -39,21 +39,37 @@ export default class Net extends Messenger {
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.state.net.peers[message.payload.peerIp] = message.payload;
-    addEventListener(message.payload.peerIp, this.onmessage);
+    addEventListener(message.payload.peerIp, this.sendOnNetwork);
+    this.send(EMType.PeerConnectionOpen, message.payload, EComponent.Logger);
+    this.send(EMType.PeerConnectionOpen, message.payload, EComponent.Node);
+  };
+
+  [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
+    this.state.net.clients[message.payload.clientIp] = message.payload;
+    addEventListener(message.payload.clientIp, this.sendOnNetwork);
     this.send(EMType.PeerConnectionOpen, message.payload, EComponent.Logger);
     this.send(EMType.PeerConnectionOpen, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
-    removeEventListener(message.payload.peerIp, this.onmessage);
+    removeEventListener(message.payload.peerIp, this.sendOnNetwork);
+    delete this._psockets[message.payload.peerIp];
     delete this.state.net.peers[message.payload.peerIp];
-    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
-    removeEventListener(message.payload.peerIp, this.onmessage);
+    removeEventListener(message.payload.peerIp, this.sendOnNetwork);
+    delete this._psockets[message.payload.peerIp];
     delete this.state.net.peers[message.payload.peerIp];
-    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Node);
+    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Logger);
+  };
+
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (message) => {
+    removeEventListener(message.payload.clientIp, this.sendOnNetwork);
+    delete this._csockets[message.payload.clientIp];
+    delete this.state.net.peers[message.payload.clientIp];
+    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Api);
+    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (
@@ -132,14 +148,6 @@ export default class Net extends Messenger {
 
         if (request.url === "/client") {
 
-          this.state.net.clients[hostname] = {
-            clientIp: hostname,
-            remoteAddr: remoteAddr,
-            clientId: request.conn.rid
-          };
-
-          addEventListener(hostname, this.onmessage);
-
           this._csockets[hostname] = sock;
 
           this.send(EMType.ClientConnectionOpen, {
@@ -154,19 +162,10 @@ export default class Net extends Messenger {
               this.send(msg.type, msg.payload, EComponent.Api, hostname);
             }
           }
-
-          delete this._csockets[hostname];
-          delete this.state.net.clients[hostname];
-
-          this.send(EMType.ClientConnectionClose, {
-            clientIp: hostname,
-          }, EComponent.Api);
           
           this.send(EMType.ClientConnectionClose, {
             clientIp: hostname,
-          }, EComponent.Logger);
-
-          removeEventListener(hostname, this.onmessage);
+          }, EComponent.Net);
 
         } else if (request.url === "/peer") {
 
@@ -183,9 +182,6 @@ export default class Net extends Messenger {
             }
           }
 
-          delete this._psockets[hostname];
-          delete this.state.net.peers[hostname];
-
           this.send(EMType.PeerConnectionClose, {
             peerIp: hostname,
           }, EComponent.Net);
@@ -198,38 +194,15 @@ export default class Net extends Messenger {
     }
   }
 
-  private onmessage = (ev: Event) => {
+  private sendOnNetwork = (ev: Event) => {
     const event: CustomEvent = ev as CustomEvent;
     const message = event.detail;
     const destination = message.destination;
 
-    // If it's a peer, send it to peer
     if (Object.keys(this.state.net.peers).includes(destination)) {
-      console.log(destination)
       this._psockets[destination].send(JSON.stringify(message));
-
-      // If it's a client, send it to client
     } else if (Object.keys(this.state.net.clients).includes(destination)) {
-      this._csockets[destination].send(JSON.stringify(message)).catch((_) => {
-        this.send(EMType.LogMessage, {
-          message: `Failed to send message to ${destination}`,
-        }, EComponent.Logger);
-        delete this.state.net.clients[destination];
-      });
-
-      // If it's "worker", handle message here
-    } else if (destination == EComponent.NetWorker) {
-      // deno-lint-ignore no-this-alias no-explicit-any
-      const self: any = this;
-      if (Object.keys(this).includes(message.type)) {
-        self[message.type](message);
-      } else {
-        this.send(
-          EMType.LogMessage,
-          { message: "Missing handler for " + message.type },
-          EComponent.Logger,
-        );
-      }
+      this._csockets[destination].send(JSON.stringify(message))
     } else {
       this.send(EMType.InvalidMessageDestination, {
         invalidMessageDestination: destination,
