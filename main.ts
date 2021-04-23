@@ -3,7 +3,6 @@ import Peer from "./src/node.ts";
 import { ENodeState, EMType } from "./src/enumeration.ts"
 import { parse } from "https://deno.land/std/flags/mod.ts";
 import { IState } from "./src/interfaces/interface.ts";
-import Discovery from "./src/discovery.ts";
 import Net from "./src/net.ts";
 import Store from "./src/store.ts";
 import Api from "./src/api.ts";
@@ -31,8 +30,6 @@ const state: IState = {
     : (Math.random() + 0.300) * 1000,
   heartBeatIntervalId: undefined,
   electionTimeoutId: undefined,
-  discoveryBeaconTimeoutId: undefined,
-  discoveryBeaconIntervalId: undefined,
 
   net: {
     ready: false,
@@ -54,20 +51,12 @@ const state: IState = {
     bwal: [],
   },
 
-  discovery: {
-    ready: true,
-    protocol: typeof ARGS["discovery"] === "string"
-      ? ARGS["discovery"]
-      : "http"
-  },
-
   log: {
     console: Boolean(ARGS["console-messages"]) || Boolean(ARGS["debug"]),
     last: new Date().getTime(),
     exclude: [
       EMType.HeartBeat,
-      EMType.StoreVotesReset,
-      EMType.DiscoveryBeaconSend
+      EMType.StoreVotesReset
     ]
   },
 
@@ -84,7 +73,6 @@ new Logger(state);
 new Api(state);
 new Monitor(state);
 new Store(state);
-new Discovery(state);
 new Peer(state);
 
 const net = new Net(state);

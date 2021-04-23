@@ -14,8 +14,6 @@ import {
 
 export default class Net extends Messenger {
   private _server: Server;
-  private uis: DenoWS[] = [];
-  private clients: { [key: string]: DenoWS } = {};
 
   constructor(protected state: IState) {
     super(state);
@@ -127,12 +125,12 @@ export default class Net extends Messenger {
         const hostname: string = remoteAddr.hostname + "-" + request.conn.rid;
 
         if (request.url === "/client") {
-          this.clients[hostname] = sock;
 
           this.state.net.clients[hostname] = {
             clientIp: hostname,
             remoteAddr: remoteAddr,
             clientId: request.conn.rid,
+            ws: sock
           };
 
           addEventListener(hostname, this.onmessage);
@@ -141,6 +139,7 @@ export default class Net extends Messenger {
             clientIp: hostname,
             remoteAddr: remoteAddr,
             clientId: request.conn.rid,
+            ws: sock
           }, EComponent.Logger);
 
           for await (const ev of sock) {
@@ -150,27 +149,18 @@ export default class Net extends Messenger {
             }
           }
 
-          delete this.clients[hostname];
           delete this.state.net.clients[hostname];
+
           this.send(EMType.ClientConnectionClose, {
             clientIp: hostname,
           }, EComponent.Monitor);
-          removeEventListener(hostname, this.onmessage);
-
+          
           this.send(EMType.ClientConnectionClose, {
             clientIp: hostname,
           }, EComponent.Logger);
-        } else if (request.url === "/ui") {
-          this.uis.push(sock);
 
-          for await (const ev of sock) {
-            if (typeof ev === "string") {
-              const msg = JSON.parse(ev) as IMessage<EMType>;
-              this.send(msg.type, msg.payload, EComponent.Node, "Ui");
-            }
-          }
+          removeEventListener(hostname, this.onmessage);
 
-          this.uis = this.uis.filter((ui) => ui.conn.rid === sock.conn.rid);
         } else if (request.url === "/peer") {
 
           this.send(EMType.PeerConnectionOpen, {
@@ -209,12 +199,12 @@ export default class Net extends Messenger {
       this.state.net.peers[destination].ws.send(JSON.stringify(message));
 
       // If it's a client, send it to client
-    } else if (Object.keys(this.clients).includes(destination)) {
-      this.clients[destination].send(JSON.stringify(message)).catch((_) => {
+    } else if (Object.keys(this.state.net.clients).includes(destination)) {
+      this.state.net.clients[destination].ws.send(JSON.stringify(message)).catch((_) => {
         this.send(EMType.LogMessage, {
           message: `Failed to send message to ${destination}`,
         }, EComponent.Logger);
-        delete this.clients[destination];
+        delete this.state.net.clients[destination];
       });
 
       // If it's "worker", handle message here
@@ -230,21 +220,11 @@ export default class Net extends Messenger {
           EComponent.Logger,
         );
       }
-
-      // If it's "ui" send it to all UIs connected
-    } else if (destination == "Ui") {
-      if (this.uis.length) {
-        for (const ui of this.uis) {
-          if (!ui.isClosed) {
-            ui.send(JSON.stringify(message));
-          }
-        }
-      }
     } else {
       this.send(EMType.InvalidMessageDestination, {
         invalidMessageDestination: destination,
         availablePeers: Object.keys(this.state.net.peers),
-        availableClients: Object.keys(this.clients),
+        availableClients: Object.keys(this.state.net.clients),
         message: message,
       }, EComponent.Logger);
     }

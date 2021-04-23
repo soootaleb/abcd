@@ -39,15 +39,8 @@ export enum EMType {
   InitialMessage = "InitialMessage",
 
   // DISCOVERY
-  DiscoveryStart = "DiscoveryStart",
   DiscoveryResult = "DiscoveryResult",
-  DiscoveryResultIgnored = "DiscoveryResultIgnored",
-  DiscoveryServerStarted = "DiscoveryServerStarted",
-  DiscoveryProtocolSet = "DiscoveryProtocolSet",
   DiscoveryEndpointCalled = "DiscoveryEndpointCalled",
-  DiscoveryBeaconSend = "DiscoveryBeaconSend",
-  DiscoveryBeaconReceived = "DiscoveryBeaconReceived",
-  DiscoveryBeaconSendFail = "DiscoveryBeaconSendFail",
 
   // Store
 
@@ -58,11 +51,6 @@ export enum EMType {
   StoreLogCommitFail = "StoreLogCommitFail",
   StoreLogCommitRequest = "StoreLogCommitRequest",
   StoreLogCommitSuccess = "StoreLogCommitSuccess",
-
-  // UI
-
-  UILogMessage = "UILogMessage",
-  UIStateUpdate = "UIStateUpdate",
 
   // CLIENT
 
@@ -115,7 +103,6 @@ export enum EMType {
 
   // ERROR MESSAGES
 
-  InvalidDiscoveryProtocol = "InvalidDiscoveryProtocol",
   InvalidMessageType = "InvalidMessageType",
   InvalidMessageDestination = "InvalidMessageDestination",
   InvalidTransitionToState = "InvalidTransitionToState",

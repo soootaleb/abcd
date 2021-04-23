@@ -22,8 +22,6 @@ export interface IState {
   heartBeatIntervalId: number | undefined
   electionTimeout: number
   electionTimeoutId: number | undefined
-  discoveryBeaconTimeoutId: number | undefined
-  discoveryBeaconIntervalId: number | undefined
   
   net: {
     ready: boolean,
@@ -37,7 +35,8 @@ export interface IState {
       [key: string]: {
         clientIp: string,
         remoteAddr: Deno.NetAddr,
-        clientId: number
+        clientId: number,
+        ws: DenoWS
       }
     }
   }
@@ -51,11 +50,6 @@ export interface IState {
     encoder: TextEncoder;
     watchers: { [key: string]: string[] }
     bwal: IEntry[];
-  }
-
-  discovery: {
-    ready: boolean;
-    protocol: string
   }
 
   log: {

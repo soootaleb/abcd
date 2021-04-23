@@ -8,62 +8,17 @@ export interface IMPayload {
     message: string;
   };
 
-  [EMType.InitialMessage]: null; // OK
-
-  [EMType.DiscoveryStart]: null;
-
+  [EMType.InitialMessage]: null;
   [EMType.DiscoveryResult]: {
     success: boolean;
     result: string;
     source: string;
   };
 
-  [EMType.DiscoveryResultIgnored]: {
-    result: IMPayload[EMType.DiscoveryResult];
-    state: ENodeState;
-    leader: string;
-  };
-
-  [EMType.DiscoveryServerStarted]: {
-    token: string;
-  };
-
-  [EMType.DiscoveryProtocolSet]: {
-    protocol: string;
-  };
-
   [EMType.DiscoveryEndpointCalled]: Deno.Addr;
-
-  [EMType.DiscoveryBeaconSend]: null; // OK
-
-  [EMType.DiscoveryBeaconReceived]: {
-    addr: Deno.NetAddr;
-    token: string;
-  };
-
-  [EMType.DiscoveryBeaconSendFail]: {
-    reason: string;
-    ready: boolean;
-  };
 
   [EMType.StoreInit]: {
     [key: string]: IKeyValue;
-  };
-
-  [EMType.UILogMessage]: {
-    message: IMessage<EMType>;
-  };
-
-  [EMType.UIStateUpdate]: {
-    run: boolean;
-    state: ENodeState;
-    peers: string[];
-    electionTimeout: number;
-    term: number;
-    heartBeatCounter: number;
-    store: {
-      store: Record<string, unknown>;
-    };
   };
 
   [EMType.ClientRequest]: {
@@ -93,6 +48,7 @@ export interface IMPayload {
     clientIp: string;
     remoteAddr: Deno.NetAddr;
     clientId: number;
+    ws: WebSocket | DenoWS
   };
 
   [EMType.ClientConnectionClose]: {
@@ -241,12 +197,6 @@ export interface IMPayload {
     type: EOpType.MonWatch,
     payload: IMonWatch,
     timestamp: number
-  };
-
-  [EMType.InvalidDiscoveryProtocol]: {
-    invalid: string;
-    default: string;
-    available: string[];
   };
 
   [EMType.InvalidMessageType]: IMessage<EMType>;
