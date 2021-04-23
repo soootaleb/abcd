@@ -377,11 +377,7 @@ export default class Peer extends Messenger {
    */
   [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
     if (Object.keys(this.state.requests).includes(message.payload.token)) {
-      this.send(
-        message.type,
-        message.payload,
-        this.state.requests[message.payload.token],
-      );
+      this.send(EMType.ClientResponse, message.payload, this.state.requests[message.payload.token]);
       delete this.state.requests[message.payload.token];
     }
   };
