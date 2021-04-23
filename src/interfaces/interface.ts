@@ -1,6 +1,7 @@
 import { EComponent, EKVOpType, EMonOpType, EMType, ENodeState, EOpType } from "../enumeration.ts";
 import { TWal } from "../type.ts";
 import { IMPayload } from "./mpayload.ts";
+import { WebSocket as DenoWS } from "https://deno.land/std/ws/mod.ts";
 
 export interface IMessage<T extends EMType> {
   type: T,
@@ -26,7 +27,12 @@ export interface IState {
   
   net: {
     ready: boolean,
-    peers: { [key: string]: { peerIp: string } },
+    peers: {
+      [key: string]: {
+        peerIp: string,
+        ws: DenoWS | WebSocket
+      }
+    },
     clients: {
       [key: string]: {
         clientIp: string,

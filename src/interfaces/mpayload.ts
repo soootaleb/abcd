@@ -1,6 +1,7 @@
 import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
 import { TWal } from "../type.ts";
 import { IEntry, IKeyValue, ILog, IMessage, IMonOp, IMonWatch, IOPayload } from "./interface.ts";
+import { WebSocket as DenoWS } from "https://deno.land/std/ws/mod.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {
@@ -104,6 +105,7 @@ export interface IMPayload {
 
   [EMType.PeerConnectionOpen]: {
     peerIp: string;
+    ws: DenoWS
   };
 
   [EMType.PeerConnectionPending]: {

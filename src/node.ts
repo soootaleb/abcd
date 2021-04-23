@@ -252,7 +252,7 @@ export default class Peer extends Messenger {
 
     this.send(EMType.PeerConnectionComplete, {
       peerIp: message.source,
-    }, EComponent.Net);
+    }, EComponent.Logger);
 
     const unknownPeers = message.payload.knownPeers
       .filter((peer) => {

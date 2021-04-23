@@ -15,7 +15,6 @@ import {
 export default class Net extends Messenger {
   private _server: Server;
   private uis: DenoWS[] = [];
-  private peers: { [key: string]: DenoWS | WebSocket } = {};
   private clients: { [key: string]: DenoWS } = {};
 
   constructor(protected state: IState) {
@@ -56,15 +55,19 @@ export default class Net extends Messenger {
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (
     message,
   ) => {
-    if (this.peers[message.payload.peerIp]) {
+    if (this.state.net.peers[message.payload.peerIp]) {
       this.send(EMType.PeerConnectionFail, {
         peerIp: message.payload.peerIp,
       }, EComponent.Logger);
     } else {
       const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`);
-      this.peers[message.payload.peerIp] = sock;
+      this.state.net.peers[message.payload.peerIp] = {
+        peerIp: message.payload.peerIp,
+        ws: sock
+      };
 
       sock.onopen = () => {
+        addEventListener(message.payload.peerIp, this.onmessage);
         this.send(EMType.PeerConnectionSuccess, {
           peerIp: message.payload.peerIp,
         }, EComponent.Logger);
@@ -76,8 +79,8 @@ export default class Net extends Messenger {
       };
 
       sock.onclose = (_: CloseEvent) => {
-        if (this.peers[message.payload.peerIp]) {
-          delete this.peers[message.payload.peerIp];
+        if (this.state.net.peers[message.payload.peerIp]) {
+          delete this.state.net.peers[message.payload.peerIp];
           this.send(EMType.PeerConnectionClose, {
             peerIp: message.payload.peerIp,
           }, EComponent.Net);
@@ -93,17 +96,6 @@ export default class Net extends Messenger {
       }, EComponent.Logger);
     }
   };
-
-  [EMType.PeerConnectionComplete]: H<EMType.PeerConnectionComplete> = (
-    message,
-  ) => {
-    this.state.net.peers[message.payload.peerIp] = {
-      peerIp: message.payload.peerIp,
-    };
-    // addEventListener(message.payload.peerIp, this.workerForward);
-    this.send(EMType.PeerConnectionComplete, message.payload, EComponent.Logger);
-  };
-
 
   public request(request: ServerRequest): void {
     const { conn, r: bufReader, w: bufWriter, headers } = request;
@@ -180,10 +172,10 @@ export default class Net extends Messenger {
 
           this.uis = this.uis.filter((ui) => ui.conn.rid === sock.conn.rid);
         } else if (request.url === "/peer") {
-          this.peers[hostname] = sock;
 
           this.send(EMType.PeerConnectionOpen, {
             peerIp: hostname,
+            ws: sock
           }, EComponent.Net);
 
           for await (const ev of sock) {
@@ -193,7 +185,7 @@ export default class Net extends Messenger {
             }
           }
 
-          delete this.peers[hostname];
+          delete this.state.net.peers[hostname];
 
           this.send(EMType.PeerConnectionClose, {
             peerIp: hostname,
@@ -213,8 +205,8 @@ export default class Net extends Messenger {
     const destination = message.destination;
 
     // If it's a peer, send it to peer
-    if (Object.keys(this.peers).includes(destination)) {
-      this.peers[destination].send(JSON.stringify(message));
+    if (Object.keys(this.state.net.peers).includes(destination)) {
+      this.state.net.peers[destination].ws.send(JSON.stringify(message));
 
       // If it's a client, send it to client
     } else if (Object.keys(this.clients).includes(destination)) {
@@ -251,7 +243,7 @@ export default class Net extends Messenger {
     } else {
       this.send(EMType.InvalidMessageDestination, {
         invalidMessageDestination: destination,
-        availablePeers: Object.keys(this.peers),
+        availablePeers: Object.keys(this.state.net.peers),
         availableClients: Object.keys(this.clients),
         message: message,
       }, EComponent.Logger);
