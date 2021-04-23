@@ -65,6 +65,7 @@ export default class Net extends Messenger {
       }, EComponent.Logger);
     } else {
       const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`);
+      this._psockets[message.payload.peerIp] = sock;
       this.state.net.peers[message.payload.peerIp] = {
         peerIp: message.payload.peerIp
       };
@@ -204,6 +205,7 @@ export default class Net extends Messenger {
 
     // If it's a peer, send it to peer
     if (Object.keys(this.state.net.peers).includes(destination)) {
+      console.log(destination)
       this._psockets[destination].send(JSON.stringify(message));
 
       // If it's a client, send it to client
