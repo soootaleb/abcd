@@ -57,11 +57,11 @@ export default class Net extends Messenger {
     delete this.state.net.peers[message.payload.peerIp];
   };
 
-  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
-    removeEventListener(message.payload.peerIp, this.sendOnNetwork);
-    delete this._psockets[message.payload.peerIp];
-    delete this.state.net.peers[message.payload.peerIp];
-    this.send(EMType.PeerConnectionClose, message.payload.peerIp, EComponent.Logger);
+  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = (message) => {
+    removeEventListener(message.payload, this.sendOnNetwork);
+    delete this._psockets[message.payload];
+    delete this.state.net.peers[message.payload];
+    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Logger);
   };
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (message) => {
