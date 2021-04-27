@@ -1,6 +1,6 @@
 import { state } from "../src/state.ts";
 import { EComponent, EMType } from "../src/enumeration.ts";
-import { assertMessages, expect } from "./helpers.ts";
+import { assertMessages } from "./helpers.ts";
 import Net from "../src/net.ts";
 import { IMessage, IState } from "../src/interfaces/interface.ts";
 import {
@@ -23,7 +23,7 @@ Deno.test("Net::PeerConnectionOpen", async () => {
     payload: payload,
   }
 
-  assertEquals(true, await expect([
+  await assertMessages([
     {
     ...message,
     destination: EComponent.Node,
@@ -32,7 +32,7 @@ Deno.test("Net::PeerConnectionOpen", async () => {
       ...message,
       destination: EComponent.Logger,
     }
-  ], message), "Message not received")
+  ], message)
 
   assertObjectMatch(s.net.peers[message.payload.peerIp], payload);
 });
