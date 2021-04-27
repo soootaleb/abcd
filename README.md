@@ -123,6 +123,7 @@ This list is a chronological feature implementation. Changes are not reflected b
     - Allows deno compile
     - Allows docker from scratch
     - Simpler net handling
+    - v11.1: Merged unit tests exploration (WIP)
 - v10.0: Async messages
     - v10.1: (feature) Generic monitoring forward & state keys access
 - v9.0: Central state for all components
