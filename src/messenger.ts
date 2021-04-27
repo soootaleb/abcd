@@ -36,7 +36,9 @@ export default class Messenger extends Object {
 
     // Messenger components subscribe to events of their class name
     // That's why EComponent must have the same names as the messengers
-    addEventListener(this.constructor.name, this.handle);
+    addEventListener(this.constructor.name, this.handle, {
+      passive: true
+    });
   }
 
   /**
