@@ -34,6 +34,7 @@ export default class Peer extends Messenger {
 
         this.state.term += 1;
         this.state.role = ENodeState.Leader;
+        this.state.leader = EComponent.Node;
 
         for (const peerIp of Object.keys(this.state.net.peers)) {
           this.send(EMType.NewTerm, {
