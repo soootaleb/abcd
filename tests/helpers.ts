@@ -21,31 +21,31 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
     promises.push(p);
   
     const timeout = setTimeout(() => {
+      removeEventListener(current.destination, test);
       resolve(false);
-    }, 1000);
-  
+    }, 1000); 
+
     const test = (ev: Event) => {
       clearInterval(timeout);
   
       const event: CustomEvent = ev as CustomEvent;
       const message: IMessage<EMType> = event.detail;
 
-      if (message.type === current.type) {
-        if (typeof current.payload === "object"
-          && current.payload != null
-          && message.payload != null) {
-          assertObjectMatch(current.payload as Record<PropertyKey, unknown>, message.payload as Record<PropertyKey, unknown>);
-        } else {
-          assertEquals(current.payload, message.payload)
-        }
-        resolve(true);
-      }
+      assertObjectMatch({
+        ...current
+      } as Record<PropertyKey, unknown>, {
+        ...message
+      } as Record<PropertyKey, unknown>);
+
+      resolve(true);
     };
   
-    addEventListener(current.destination, test);
+    addEventListener(current.destination, test, {
+      once: true
+    });
   }
 
-  messages.send(after.type, after.payload, after.destination);
+  messages.send(after.type, after.payload, after.destination, after.source);
 
   return Promise.all(promises).then((ok) => {
     for (let index = 0; index < ok.length; index++) {
@@ -58,6 +58,11 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
   })
 }
 
+/**
+ * assert a list of messages are emited after a given message is sent
+ * @param expected - The list of expected messages
+ * @param after - The message sent as a trigger
+ */
 export async function assertMessages(expected: IMessage<EMType>[], after: IMessage<EMType>) {
   assertEquals(true, await expect(expected, after), "Message not received")
 }
