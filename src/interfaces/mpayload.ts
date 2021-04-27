@@ -78,8 +78,6 @@ export interface IMPayload {
     wal: TWal
   }
 
-  [EMType.PeerServerStarted]: Deno.Addr;
-
   [EMType.HeartBeat]: null;
 
   [EMType.AppendEntry]: IEntry;

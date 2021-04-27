@@ -69,7 +69,6 @@ export enum EMType {
   PeerConnectionComplete = "PeerConnectionComplete",
   PeerConnectionSuccess = "PeerConnectionSuccess",
   PeerConnectionClose = "PeerConnectionClose",
-  PeerServerStarted = "PeerServerStarted",
 
   // NODE RAFT
 

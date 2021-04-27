@@ -300,24 +300,6 @@ export default class Peer extends Messenger {
     }, message.payload.peerIp);
   };
 
-  [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (_) => {
-    fetch(`http://${Deno.env.get("ABCD_CLUSTER_HOSTNAME")}:8080/discovery`)
-      .then((response) => response.text())
-      .then((ip) => {
-        this.send(EMType.DiscoveryResult, {
-          success: true,
-          result: ip,
-          source: "http_success",
-        }, EComponent.Node);
-      }).catch((error) => {
-        this.send(EMType.DiscoveryResult, {
-          success: false,
-          result: error.message,
-          source: "http_fail",
-        }, EComponent.Node);
-      });
-  };
-
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
 
     if (message.payload.success) {

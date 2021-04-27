@@ -49,7 +49,7 @@ export default class Messenger extends Object {
     destination: EComponent | string, // string is used for peers & clients (IPs)
     source?: string, // to forward messages transparently like the API
   ) {
-    setTimeout(() => {      
+    setTimeout(() => {
       dispatchEvent(
         new CustomEvent(destination, {
           detail: {

@@ -1,6 +1,6 @@
 import { state } from "../src/state.ts";
 import { EComponent, EMType } from "../src/enumeration.ts";
-import { expect } from "./helpers.ts";
+import { assertMessages, expect } from "./helpers.ts";
 import Net from "../src/net.ts";
 import { IMessage, IState } from "../src/interfaces/interface.ts";
 import {
@@ -8,9 +8,9 @@ import {
   assertObjectMatch,
 } from "https://deno.land/std/testing/asserts.ts";
 
-Deno.test("Net::PeerConnectionOpen", () => {
+Deno.test("Net::PeerConnectionOpen", async () => {
   const s: IState = { ...state };
-  const component = new Net(s);
+  new Net(s, false)
 
   const payload = {
     peerIp: "127.0.0.1",
@@ -21,24 +21,60 @@ Deno.test("Net::PeerConnectionOpen", () => {
     source: "Source",
     destination: EComponent.Net,
     payload: payload,
-  };
+  }
 
-  expect({
+  assertEquals(true, await expect([
+    {
     ...message,
     destination: EComponent.Node,
-  }, message);
-
-  expect({
-    ...message,
-    destination: EComponent.Logger,
-  }, message);
+    },
+    {
+      ...message,
+      destination: EComponent.Logger,
+    }
+  ], message), "Message not received")
 
   assertObjectMatch(s.net.peers[message.payload.peerIp], payload);
 });
 
-Deno.test("Net::ClientConnectionOpen", () => {
+Deno.test("Net::PeerConnectionClose", async () => {
+
+  const payload = "127.0.0.1";
+
+  const s: IState = {
+    ...state,
+    net: {
+      ...state.net,
+      peers: {
+        [payload]: {
+          peerIp: payload
+        }
+      }
+    }
+  };
+
+  new Net(s, false);
+
+  const message: IMessage<EMType.PeerConnectionClose> = {
+    type: EMType.PeerConnectionClose,
+    source: "Source",
+    destination: EComponent.Net,
+    payload: payload,
+  };
+
+  await assertMessages([
+    {
+      ...message,
+      destination: EComponent.Logger,
+    }
+  ], message)
+
+  assertEquals(false, Object.keys(s.net.peers).includes(payload), "Peer still in state")
+});
+
+Deno.test("Net::ClientConnectionOpen", async () => {
   const s: IState = { ...state };
-  const component = new Net(s);
+  new Net(s, false);
 
   const payload = {
     clientIp: "127.0.0.1",
@@ -57,19 +93,42 @@ Deno.test("Net::ClientConnectionOpen", () => {
     payload: payload,
   };
 
-  expect({
-    ...message,
-    destination: EComponent.Logger,
-  }, message);
+  await assertMessages([
+    {
+      ...message,
+      destination: EComponent.Logger,
+    },
+    {
+      ...message,
+      destination: EComponent.Node,
+    }
+  ], message)
 
   assertObjectMatch(s.net.clients[message.payload.clientIp], payload);
 });
 
-Deno.test("Net::ClientConnectionClose", () => {
-  const s: IState = { ...state };
-  const component = new Net(s);
-
+Deno.test("Net::ClientConnectionClose", async () => {
   const payload = "127.0.0.1";
+
+  const s: IState = {
+    ...state,
+    net: {
+      ...state.net,
+      clients: {
+        [payload]: {
+          clientIp: payload,
+          remoteAddr: {
+            transport: "tcp" as ("tcp" | "udp"),
+            hostname: "localhost",
+            port: 8080,
+          },
+          clientId: 1,
+        }
+      }
+    }
+  };
+
+  new Net(s, false);
 
   const message: IMessage<EMType.ClientConnectionClose> = {
     type: EMType.ClientConnectionClose,
@@ -78,77 +137,16 @@ Deno.test("Net::ClientConnectionClose", () => {
     payload: payload,
   };
 
-  expect({
-    ...message,
-    destination: EComponent.Monitor,
-  }, message);
-});
+  await assertMessages([
+    {
+      ...message,
+      destination: EComponent.Api,
+    },
+    {
+      ...message,
+      destination: EComponent.Logger,
+    }
+  ], message)
 
-Deno.test("Net::PeerConnectionRequest", () => {
-  const s: IState = { ...state };
-  const component = new Net(s);
-
-  const payload = {
-    peerIp: "127.0.0.1",
-  };
-
-  const message: IMessage<EMType.PeerConnectionRequest> = {
-    type: EMType.PeerConnectionRequest,
-    source: "Source",
-    destination: EComponent.Net,
-    payload: payload,
-  };
-
-  expect({
-    ...message,
-    destination: EComponent.NetWorker,
-  }, message);
-});
-
-Deno.test("Net::PeerConnectionComplete", () => {
-  const s: IState = { ...state };
-  const component = new Net(s);
-
-  const payload = {
-    peerIp: "127.0.0.1",
-  };
-
-  const message: IMessage<EMType.PeerConnectionComplete> = {
-    type: EMType.PeerConnectionComplete,
-    source: "Source",
-    destination: EComponent.Net,
-    payload: payload,
-  };
-
-  expect({
-    ...message,
-    destination: EComponent.Logger,
-  }, message);
-
-  assertObjectMatch(s.net.peers[message.payload.peerIp], payload);
-});
-
-Deno.test("Net::PeerServerStarted", () => {
-  const s: IState = { ...state };
-  const component = new Net(s);
-
-  const payload = {
-    transport: "tcp" as ("tcp" | "udp"),
-    hostname: "localhost",
-    port: 8080,
-  };
-
-  const message: IMessage<EMType.PeerServerStarted> = {
-    type: EMType.PeerServerStarted,
-    source: "Source",
-    destination: EComponent.Net,
-    payload: payload,
-  };
-
-  expect({
-    ...message,
-    destination: EComponent.Node,
-  }, message);
-
-  assertEquals(s.net.ready, true);
+  assertEquals(false, Object.keys(s.net.clients).includes(payload), "Client still in state")
 });
