@@ -68,7 +68,6 @@ export enum EMType {
   PeerConnectionPending = "PeerConnectionPending",
   PeerConnectionComplete = "PeerConnectionComplete",
   PeerConnectionSuccess = "PeerConnectionSuccess",
-  PeerConnectionFail = "PeerConnectionFail",
   PeerConnectionClose = "PeerConnectionClose",
   PeerServerStarted = "PeerServerStarted",
 

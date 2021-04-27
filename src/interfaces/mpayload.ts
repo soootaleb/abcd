@@ -69,11 +69,7 @@ export interface IMPayload {
   [EMType.PeerConnectionSuccess]: {
     peerIp: string;
   };
-
-  [EMType.PeerConnectionFail]: {
-    peerIp: string;
-  };
-
+  
   [EMType.PeerConnectionClose]: string;
 
   [EMType.PeerConnectionAccepted]: {
