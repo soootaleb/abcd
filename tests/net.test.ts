@@ -10,7 +10,7 @@ import {
 
 Deno.test("Net::PeerConnectionOpen", async () => {
   const s: IState = { ...state };
-  new Net(s, false)
+  const component = new Net(s, false)
 
   const payload = {
     peerIp: "127.0.0.1",
@@ -25,16 +25,20 @@ Deno.test("Net::PeerConnectionOpen", async () => {
 
   await assertMessages([
     {
-    ...message,
-    destination: EComponent.Node,
+      ...message,
+      source: EComponent.Net,
+      destination: EComponent.Node,
     },
     {
       ...message,
+      source: EComponent.Net,
       destination: EComponent.Logger,
     }
   ], message)
 
   assertObjectMatch(s.net.peers[message.payload.peerIp], payload);
+
+  component.shutdown();
 });
 
 Deno.test("Net::PeerConnectionClose", async () => {
@@ -53,7 +57,7 @@ Deno.test("Net::PeerConnectionClose", async () => {
     }
   };
 
-  new Net(s, false);
+  const component = new Net(s, false);
 
   const message: IMessage<EMType.PeerConnectionClose> = {
     type: EMType.PeerConnectionClose,
@@ -65,16 +69,19 @@ Deno.test("Net::PeerConnectionClose", async () => {
   await assertMessages([
     {
       ...message,
+      source: EComponent.Net,
       destination: EComponent.Logger,
     }
   ], message)
 
   assertEquals(false, Object.keys(s.net.peers).includes(payload), "Peer still in state")
+  
+  component.shutdown();
 });
 
 Deno.test("Net::ClientConnectionOpen", async () => {
   const s: IState = { ...state };
-  new Net(s, false);
+  const component = new Net(s, false);
 
   const payload = {
     clientIp: "127.0.0.1",
@@ -96,15 +103,19 @@ Deno.test("Net::ClientConnectionOpen", async () => {
   await assertMessages([
     {
       ...message,
+      source: EComponent.Net,
       destination: EComponent.Logger,
     },
     {
       ...message,
+      source: EComponent.Net,
       destination: EComponent.Node,
     }
   ], message)
 
   assertObjectMatch(s.net.clients[message.payload.clientIp], payload);
+
+  component.shutdown();
 });
 
 Deno.test("Net::ClientConnectionClose", async () => {
@@ -128,7 +139,7 @@ Deno.test("Net::ClientConnectionClose", async () => {
     }
   };
 
-  new Net(s, false);
+  const component = new Net(s, false);
 
   const message: IMessage<EMType.ClientConnectionClose> = {
     type: EMType.ClientConnectionClose,
@@ -140,13 +151,17 @@ Deno.test("Net::ClientConnectionClose", async () => {
   await assertMessages([
     {
       ...message,
+      source: EComponent.Net,
       destination: EComponent.Api,
     },
     {
       ...message,
+      source: EComponent.Net,
       destination: EComponent.Logger,
     }
   ], message)
 
   assertEquals(false, Object.keys(s.net.clients).includes(payload), "Client still in state")
+
+  component.shutdown();
 });
