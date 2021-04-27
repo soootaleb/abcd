@@ -43,7 +43,7 @@ export default class Messenger extends Object {
    * @param destination The component to send the message to
    * @param source if necessary, define the source to override the sender's class name. At your own risk...
    */
-  protected send<T extends EMType>(
+  public send<T extends EMType>(
     type: T,
     payload: IMPayload[T],
     destination: EComponent | string, // string is used for peers & clients (IPs)
