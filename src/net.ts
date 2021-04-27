@@ -42,6 +42,16 @@ export default class Net extends Messenger {
     }
   }
 
+  public shutdown() {
+    super.shutdown();
+    for (const client of Object.keys(this.state.net.clients)) {
+      removeEventListener(client, this.sendOnNetwork)
+    }
+    for (const peer of Object.keys(this.state.net.peers)) {
+      removeEventListener(peer, this.sendOnNetwork)
+    }
+  }
+
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
     this.state.net.peers[message.payload.peerIp] = message.payload;
     addEventListener(message.payload.peerIp, this.sendOnNetwork);

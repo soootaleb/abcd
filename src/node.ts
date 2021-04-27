@@ -6,7 +6,10 @@ import { H } from "./type.ts";
 export default class Peer extends Messenger {
   [EMType.NewState]: H<EMType.NewState> = (message) => {
     clearTimeout(this.state.electionTimeoutId);
+    delete this.state.electionTimeoutId;
+    
     clearInterval(this.state.heartBeatIntervalId);
+    delete this.state.heartBeatIntervalId;
 
     this.state.store.votes = {};
 

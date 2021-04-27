@@ -11,8 +11,6 @@ export enum EComponent {
   Discovery = "Discovery",
   Net = "Net",
   Monitor = "Monitor",
-  NetWorker = "NetWorker",
-  DiscoveryWorker = "DiscoveryWorker",
   Logger = "Logger",
   Api = "Api"
 }

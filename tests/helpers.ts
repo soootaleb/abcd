@@ -26,15 +26,16 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
     }, 100); 
 
     const test = (ev: Event) => {
-      clearInterval(timeout);
-  
+      
       const event: CustomEvent = ev as CustomEvent;
       const message: IMessage<EMType> = event.detail;
+      
+      clearInterval(timeout);
 
       assertObjectMatch({
-        ...current
-      } as Record<PropertyKey, unknown>, {
         ...message
+      } as Record<PropertyKey, unknown>, {
+        ...current
       } as Record<PropertyKey, unknown>);
 
       resolve(true);
@@ -64,5 +65,5 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
  * @param after - The message sent as a trigger
  */
 export async function assertMessages(expected: IMessage<EMType>[], after: IMessage<EMType>) {
-  assertEquals(true, await expect(expected, after), "Message not received")
+  assertEquals(await expect(expected, after), true, "Message not received")
 }
