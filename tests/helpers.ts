@@ -23,7 +23,7 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
     const timeout = setTimeout(() => {
       removeEventListener(current.destination, test);
       resolve(false);
-    }, 1000); 
+    }, 100); 
 
     const test = (ev: Event) => {
       clearInterval(timeout);
