@@ -152,7 +152,7 @@ export default class Net extends Messenger {
             clientIp: hostname,
             remoteAddr: remoteAddr,
             clientId: request.conn.rid
-          }, EComponent.Logger);
+          }, EComponent.Net);
 
           for await (const ev of sock) {
             if (typeof ev === "string") {
