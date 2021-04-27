@@ -275,7 +275,7 @@ export default class Peer extends Messenger {
       this.state.ready = true;
 
       this.send(EMType.LogMessage, {
-        message: "Node is ready",
+        message: "Node is ready after peer connection accepted",
       }, EComponent.Logger);
 
       this.send(EMType.NewState, {
@@ -327,7 +327,7 @@ export default class Peer extends Messenger {
       this.state.ready = true;
 
       this.send(EMType.LogMessage, {
-        message: "Node is ready",
+        message: "Node is ready after discovery result",
       }, EComponent.Logger);
 
       this.send(EMType.NewState, {

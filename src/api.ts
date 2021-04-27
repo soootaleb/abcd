@@ -97,7 +97,7 @@ export default class Api extends Messenger {
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = message => {
     const requests = Object.entries(this.state.net.requests)
-      .filter(o => o[1] === message.payload.clientIp)
+      .filter(o => o[1] === message.payload)
 
     // Requests
     if (requests.length) {
@@ -111,6 +111,6 @@ export default class Api extends Messenger {
       .filter(o => !requests.map(o => o[0]).includes(o));
 
     // MonWatch Interval
-    clearInterval(this.state.mon.watchers[message.payload.clientIp]);
+    clearInterval(this.state.mon.watchers[message.payload]);
   }
 }

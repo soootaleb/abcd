@@ -121,11 +121,11 @@ export default class Logger extends Messenger {
   }
 
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = message => {
-    removeEventListener(message.payload.clientIp, this.formatAndLog)
+    removeEventListener(message.payload, this.formatAndLog)
   }
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = message => {
-    removeEventListener(message.payload.peerIp, this.formatAndLog)
+    removeEventListener(message.payload, this.formatAndLog)
   }
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = message => {
