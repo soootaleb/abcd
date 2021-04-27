@@ -119,6 +119,10 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v11.0: No workers
+    - Allows deno compile
+    - Allows docker from scratch
+    - Simpler net handling
 - v10.0: Async messages
     - v10.1: (feature) Generic monitoring forward & state keys access
 - v9.0: Central state for all components
