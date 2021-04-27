@@ -55,7 +55,8 @@ const state: IState = {
     console: Boolean(ARGS["console-messages"]) || Boolean(ARGS["debug"]),
     last: new Date().getTime(),
     exclude: [
-      EMType.HeartBeat
+      EMType.HeartBeat,
+      EMType.LogMessage // Log messages are sent directly to the logger, this avoids double logging
     ]
   },
 
