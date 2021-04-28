@@ -615,3 +615,91 @@ Deno.test("Node::StoreLogCommitSuccess::Leader", async () => {
 
   component.shutdown();
 });
+
+Deno.test("Node::KVOpRequestComplete::Leader", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Leader,
+  };
+
+  const component = new Node(s);
+
+  const request = {
+    token: "token",
+    log: {
+      op: EKVOpType.Get,
+      timestamp: 1235,
+      commited: true,
+      next: {
+        key: "key"
+      }
+    },
+  };
+
+  const message: IMessage<EMType.KVOpRequestComplete> = {
+    type: EMType.KVOpRequestComplete,
+    destination: EComponent.Node,
+    payload: request,
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.ClientResponse,
+      payload: {
+        token: message.payload.token,
+        type: EOpType.KVOp,
+        payload: {
+          kv: message.payload.log.next,
+          op: message.payload.log.op,
+        },
+        timestamp: message.payload.log.timestamp,
+      },
+      source: EComponent.Node,
+      destination: EComponent.Api,
+    },
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::KVOpRequestComplete::NotLeader", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Candidate,
+  };
+
+  const component = new Node(s);
+
+  const request = {
+    token: "token",
+    log: {
+      op: EKVOpType.Get,
+      timestamp: 1235,
+      commited: true,
+      next: {
+        key: "key"
+      }
+    },
+  };
+
+  const message: IMessage<EMType.KVOpRequestComplete> = {
+    type: EMType.KVOpRequestComplete,
+    destination: EComponent.Node,
+    payload: request,
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.LogMessage,
+      payload: {
+        message: "Unexpected KVOpRequestComplete with role " + s.role
+      },
+      source: EComponent.Node,
+      destination: EComponent.Logger,
+    },
+  ], message);
+
+  component.shutdown();
+});

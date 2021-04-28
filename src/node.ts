@@ -173,8 +173,12 @@ export default class Peer extends Messenger {
           kv: message.payload.log.next,
           op: message.payload.log.op,
         },
-        timestamp: new Date().getTime(),
+        timestamp: message.payload.log.timestamp,
       }, EComponent.Api);
+    } else {
+      this.send(EMType.LogMessage, {
+        message: "Unexpected KVOpRequestComplete with role " + this.state.role
+      }, EComponent.Logger);
     }
   };
 
