@@ -704,6 +704,68 @@ Deno.test("Node::KVOpRequestComplete::NotLeader", async () => {
   component.shutdown();
 });
 
+Deno.test("Node::HeartBeat::Leader", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Leader,
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.HeartBeat> = {
+    type: EMType.HeartBeat,
+    destination: EComponent.Node,
+    payload: null,
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.LogMessage,
+      payload: {
+        message: "Unexpected HeartBeat with role " + s.role
+      },
+      source: EComponent.Node,
+      destination: EComponent.Logger,
+    },
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::HeartBeat::NotLeader", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Candidate,
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.HeartBeat> = {
+    type: EMType.HeartBeat,
+    destination: EComponent.Node,
+    payload: null,
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.NewState,
+      payload: {
+        from: s.role,
+        to: ENodeState.Follower,
+        reason: `Received HeartBeat from ${message.source}`
+      },
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    },
+  ], message);
+
+  assertEquals(s.leader, message.source);
+
+  component.shutdown();
+});
+
 /**
  * MISSING
  * 
@@ -711,7 +773,6 @@ Deno.test("Node::KVOpRequestComplete::NotLeader", async () => {
  * M - PeerConnectionOpen
  * L - PeerConnectionAccepted
  * L - CallForVoteResponse
- * S - HeartBeat
  * M - AppendEntry
  * L - KVOpAccepted
  */

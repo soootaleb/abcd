@@ -101,6 +101,10 @@ export default class Peer extends Messenger {
         reason: `Received HeartBeat from ${message.source}`,
       }, EComponent.Node);
       return;
+    } else {
+      this.send(EMType.LogMessage, {
+        message: "Unexpected HeartBeat with role " + this.state.role
+      }, EComponent.Logger)
     }
   };
 
