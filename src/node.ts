@@ -4,6 +4,13 @@ import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
 export default class Peer extends Messenger {
+
+  public shutdown() {
+    super.shutdown();
+    clearTimeout(this.state.electionTimeoutId);
+    clearInterval(this.state.heartBeatIntervalId);
+  }
+
   [EMType.NewState]: H<EMType.NewState> = (message) => {
     clearTimeout(this.state.electionTimeoutId);
     delete this.state.electionTimeoutId;
@@ -17,6 +24,8 @@ export default class Peer extends Messenger {
       case ENodeState.Starting:
         break;
       case ENodeState.Follower:
+        this.state.role = ENodeState.Follower;
+
         this.state.electionTimeoutId = setTimeout(() => {
           this.send(EMType.NewState, {
             from: this.state.role,
@@ -25,8 +34,6 @@ export default class Peer extends Messenger {
               `electionTimeout completed (${this.state.electionTimeout}ms)`,
           }, EComponent.Node);
         }, this.state.electionTimeout);
-
-        this.state.role = ENodeState.Follower;
         break;
       case ENodeState.Leader:
         this.state.heartBeatIntervalId = setInterval(() => {
@@ -326,12 +333,11 @@ export default class Peer extends Messenger {
 
   [EMType.KVOpRejected]: H<EMType.KVOpRejected> = (message) => {
     if (this.state.role === ENodeState.Leader) {
-      this.send(EMType.ClientResponse, {
-        token: message.payload.request.token,
-        type: EOpType.KVOp,
-        payload: message.payload.request.payload,
-        timestamp: new Date().getTime(),
-      }, EComponent.Node);
+      this.send(EMType.ClientResponse, message.payload.request, EComponent.Node);
+    } else {
+      this.send(EMType.LogMessage, {
+        message: "Unexpected KVOpRejected with role " + this.state.role
+      }, EComponent.Logger);
     }
   };
 
