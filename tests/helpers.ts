@@ -27,14 +27,11 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
       const event: CustomEvent = ev as CustomEvent;
       const message: IMessage<EMType> = event.detail;
 
-      try {
-        assertObjectMatch({
-          ...message
-        } as Record<PropertyKey, unknown>, {
-          ...after
-        } as Record<PropertyKey, unknown>);
-        return;
-      } catch (error) {}
+      if (
+        message.destination === after.destination
+        && message.source === after.source
+        && message.type === after.type
+      ) return;
       
       clearInterval(timeout);
 
