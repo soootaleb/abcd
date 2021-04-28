@@ -110,6 +110,7 @@ Deno.test("Node::NewState::Leader", async () => {
 Deno.test("Node::NewTerm::Accept", async () => {
   const s: IState = {
     ...state,
+    voteGrantedDuringTerm: true,
     heartBeatInterval: 10,
     term: 1,
   };
@@ -136,6 +137,9 @@ Deno.test("Node::NewTerm::Accept", async () => {
     }
   ], message);
 
+  assertEquals(s.term, 2);
+  assertEquals(s.voteGrantedDuringTerm, false);
+
   component.shutdown();
 });
 
@@ -161,12 +165,15 @@ Deno.test("Node::NewTerm::Reject", async () => {
     {
       type: EMType.NewTermRejected,
       payload: {
-        term: 3,
+        term: s.term,
       },
       source: EComponent.Node,
       destination: message.source,
     },
   ], message);
+
+  assertEquals(s.term, 3);
+  assertEquals(s.voteGrantedDuringTerm, false);
 
   component.shutdown();
 });
