@@ -1,6 +1,12 @@
 import { state } from "../src/state.ts";
 import Node from "../src/node.ts";
-import { EComponent, EKVOpType, EMType, ENodeState, EOpType } from "../src/enumeration.ts";
+import {
+  EComponent,
+  EKVOpType,
+  EMType,
+  ENodeState,
+  EOpType,
+} from "../src/enumeration.ts";
 import { assertMessages } from "./helpers.ts";
 import { IMessage, IState } from "../src/interfaces/interface.ts";
 import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
@@ -34,11 +40,11 @@ Deno.test("Node::NewState::Follower", async () => {
       payload: {
         from: ENodeState.Follower,
         to: ENodeState.Candidate,
-        reason: `electionTimeout completed (${s.electionTimeout}ms)`
+        reason: `electionTimeout completed (${s.electionTimeout}ms)`,
       },
       source: EComponent.Node,
       destination: EComponent.Node,
-    }
+    },
   ], message);
 
   component.shutdown();
@@ -118,7 +124,7 @@ Deno.test("Node::NewTerm::Accept", async () => {
       },
       source: EComponent.Node,
       destination: EComponent.Logger,
-    }
+    },
   ], message);
 
   assertEquals(s.term, 2);
@@ -166,7 +172,7 @@ Deno.test("Node::CallForVoteRequest::Granted", async () => {
   const s: IState = {
     ...state,
     voteGrantedDuringTerm: false,
-    role: ENodeState.Follower
+    role: ENodeState.Follower,
   };
 
   const component = new Node(s);
@@ -176,7 +182,7 @@ Deno.test("Node::CallForVoteRequest::Granted", async () => {
     destination: EComponent.Node,
     payload: {
       term: 2,
-      peerIp: "127.0.0.1"
+      peerIp: "127.0.0.1",
     },
     source: "Source",
   };
@@ -191,7 +197,7 @@ Deno.test("Node::CallForVoteRequest::Granted", async () => {
       destination: message.source,
     },
   ], message);
-  
+
   assertEquals(s.voteGrantedDuringTerm, true);
 
   component.shutdown();
@@ -201,7 +207,7 @@ Deno.test("Node::CallForVoteRequest::AlreadyVoted", async () => {
   const s: IState = {
     ...state,
     voteGrantedDuringTerm: true,
-    role: ENodeState.Follower
+    role: ENodeState.Follower,
   };
 
   const component = new Node(s);
@@ -211,7 +217,7 @@ Deno.test("Node::CallForVoteRequest::AlreadyVoted", async () => {
     destination: EComponent.Node,
     payload: {
       term: 2,
-      peerIp: "127.0.0.1"
+      peerIp: "127.0.0.1",
     },
     source: "Source",
   };
@@ -233,7 +239,7 @@ Deno.test("Node::CallForVoteRequest::AlreadyVoted", async () => {
 Deno.test("Node::CallForVoteRequest::Leader", async () => {
   const s: IState = {
     ...state,
-    role: ENodeState.Leader
+    role: ENodeState.Leader,
   };
 
   const component = new Node(s);
@@ -243,7 +249,7 @@ Deno.test("Node::CallForVoteRequest::Leader", async () => {
     destination: EComponent.Node,
     payload: {
       term: 2,
-      peerIp: "127.0.0.1"
+      peerIp: "127.0.0.1",
     },
     source: "Source",
   };
@@ -267,7 +273,7 @@ Deno.test("Node::CallForVoteRequest::OutdatedTerm", async () => {
     ...state,
     term: 3,
     voteGrantedDuringTerm: false,
-    role: ENodeState.Follower
+    role: ENodeState.Follower,
   };
 
   const component = new Node(s);
@@ -277,7 +283,7 @@ Deno.test("Node::CallForVoteRequest::OutdatedTerm", async () => {
     destination: EComponent.Node,
     payload: {
       term: 2,
-      peerIp: "127.0.0.1"
+      peerIp: "127.0.0.1",
     },
     source: "Source",
   };
@@ -299,7 +305,7 @@ Deno.test("Node::CallForVoteRequest::OutdatedTerm", async () => {
 Deno.test("Node::KVOpRejected::Leader", async () => {
   const s: IState = {
     ...state,
-    role: ENodeState.Leader
+    role: ENodeState.Leader,
   };
 
   const component = new Node(s);
@@ -311,17 +317,17 @@ Deno.test("Node::KVOpRejected::Leader", async () => {
     payload: {
       op: EKVOpType.Get,
       kv: {
-        key: "key"
-      }
-    }
-  }
+        key: "key",
+      },
+    },
+  };
 
   const message: IMessage<EMType.KVOpRejected> = {
     type: EMType.KVOpRejected,
     destination: EComponent.Node,
     payload: {
       reason: "Just because",
-      request: request
+      request: request,
     },
     source: "Source",
   };
@@ -341,7 +347,7 @@ Deno.test("Node::KVOpRejected::Leader", async () => {
 Deno.test("Node::KVOpRejected::NotLeader", async () => {
   const s: IState = {
     ...state,
-    role: ENodeState.Candidate
+    role: ENodeState.Candidate,
   };
 
   const component = new Node(s);
@@ -353,17 +359,17 @@ Deno.test("Node::KVOpRejected::NotLeader", async () => {
     payload: {
       op: EKVOpType.Get,
       kv: {
-        key: "key"
-      }
-    }
-  }
+        key: "key",
+      },
+    },
+  };
 
   const message: IMessage<EMType.KVOpRejected> = {
     type: EMType.KVOpRejected,
     destination: EComponent.Node,
     payload: {
       reason: "Just because",
-      request: request
+      request: request,
     },
     source: "Source",
   };
@@ -372,7 +378,7 @@ Deno.test("Node::KVOpRejected::NotLeader", async () => {
     {
       type: EMType.LogMessage,
       payload: {
-        message: "Unexpected KVOpRejected with role " + s.role
+        message: "Unexpected KVOpRejected with role " + s.role,
       },
       source: EComponent.Node,
       destination: EComponent.Logger,
@@ -385,7 +391,7 @@ Deno.test("Node::KVOpRejected::NotLeader", async () => {
 Deno.test("Node::ClientRequestForward", async () => {
   const s: IState = {
     ...state,
-    role: ENodeState.Candidate
+    role: ENodeState.Candidate,
   };
 
   const component = new Node(s);
@@ -397,10 +403,10 @@ Deno.test("Node::ClientRequestForward", async () => {
     payload: {
       op: EKVOpType.Get,
       kv: {
-        key: "key"
-      }
-    }
-  }
+        key: "key",
+      },
+    },
+  };
 
   const message: IMessage<EMType.ClientRequestForward> = {
     type: EMType.ClientRequestForward,
@@ -424,7 +430,7 @@ Deno.test("Node::ClientRequestForward", async () => {
 Deno.test("Node::ClientResponse", async () => {
   const s: IState = {
     ...state,
-    role: ENodeState.Candidate
+    role: ENodeState.Candidate,
   };
 
   const component = new Node(s);
@@ -436,10 +442,10 @@ Deno.test("Node::ClientResponse", async () => {
     payload: {
       op: EKVOpType.Get,
       kv: {
-        key: "key"
-      }
-    }
-  }
+        key: "key",
+      },
+    },
+  };
 
   const message: IMessage<EMType.ClientResponse> = {
     type: EMType.ClientResponse,
@@ -455,6 +461,120 @@ Deno.test("Node::ClientResponse", async () => {
       source: EComponent.Node,
       destination: EComponent.Api,
     },
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::StoreLogCommitSuccess::Follower", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Follower,
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.StoreLogCommitSuccess> = {
+    type: EMType.StoreLogCommitSuccess,
+    destination: EComponent.Node,
+    payload: [
+      {
+        token: "token",
+        log: {
+          op: EKVOpType.Get,
+          timestamp: 1235,
+          commited: true,
+          next: {
+            key: "key"
+          }
+        },
+      }
+    ],
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.KVOpRequestComplete,
+      payload: {
+        token: "token",
+        log: {
+          op: EKVOpType.Get,
+          timestamp: 1235,
+          commited: true,
+          next: {
+            key: "key"
+          }
+        },
+      },
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    }
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::StoreLogCommitSuccess::Leader", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Leader,
+    net: {
+      ...state.net,
+      peers: {
+        "127.0.0.1": {
+          peerIp: "127.0.0.1"
+        }
+      }
+    }
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.StoreLogCommitSuccess> = {
+    type: EMType.StoreLogCommitSuccess,
+    destination: EComponent.Node,
+    payload: [
+      {
+        token: "token",
+        log: {
+          op: EKVOpType.Get,
+          timestamp: 1235,
+          commited: true,
+          next: {
+            key: "key"
+          }
+        },
+      }
+    ],
+    source: "Source",
+  };
+
+  const payload = {
+    token: "token",
+    log: {
+      op: EKVOpType.Get,
+      timestamp: 1235,
+      commited: true,
+      next: {
+        key: "key"
+      }
+    },
+  }
+
+  await assertMessages([
+    {
+      type: EMType.KVOpRequestComplete,
+      payload: payload,
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    },
+    {
+      type: EMType.AppendEntry,
+      payload: payload,
+      source: EComponent.Node,
+      destination: "127.0.0.1",
+    }
   ], message);
 
   component.shutdown();
