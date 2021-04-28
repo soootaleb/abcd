@@ -8,12 +8,9 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
 
   const messages = new Messenger({ ...state });
   const promises = [];
+  const tests: {[key: string]: (ev: Event) => void} = {};
 
   for (const current of expected) {
-    
-    if(current.destination === after.destination) {
-      console.warn("🚨 SELF MESSAGE FOR " + current.destination)
-    }
   
     let resolve: (v: unknown) => void;
     const p = new Promise((r) => resolve = r);
@@ -21,14 +18,23 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
     promises.push(p);
   
     const timeout = setTimeout(() => {
-      removeEventListener(current.destination, test);
+      removeEventListener(current.destination, tests[current.destination+current.type]);
       resolve(false);
-    }, 100); 
+    }, 1000); 
 
-    const test = (ev: Event) => {
+    tests[current.destination+current.type] = (ev: Event) => {
       
       const event: CustomEvent = ev as CustomEvent;
       const message: IMessage<EMType> = event.detail;
+
+      try {
+        assertObjectMatch({
+          ...message
+        } as Record<PropertyKey, unknown>, {
+          ...after
+        } as Record<PropertyKey, unknown>);
+        return;
+      } catch (error) {}
       
       clearInterval(timeout);
 
@@ -41,9 +47,7 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
       resolve(true);
     };
   
-    addEventListener(current.destination, test, {
-      once: true
-    });
+    addEventListener(current.destination, tests[current.destination+current.type]);
   }
 
   messages.send(after.type, after.payload, after.destination, after.source);
@@ -53,6 +57,10 @@ export function expect(expected: IMessage<EMType>[], after: IMessage<EMType>) {
       if(!ok[index]) {
         console.error(`🛑 ${expected[index].destination}::${expected[index].type}`)
       }
+    }
+
+    for (const current of expected) {
+      removeEventListener(current.destination, tests[current.destination+current.type])
     }
 
     return !ok.includes(false);
