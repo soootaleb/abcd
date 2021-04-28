@@ -766,6 +766,92 @@ Deno.test("Node::HeartBeat::NotLeader", async () => {
   component.shutdown();
 });
 
+Deno.test("Node::AppendEntry::Commited", async () => {
+  const s: IState = {
+    ...state
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.AppendEntry> = {
+    type: EMType.AppendEntry,
+    destination: EComponent.Node,
+    payload: {
+      token: "token",
+      log: {
+        op: EKVOpType.Get,
+        timestamp: 1235,
+        commited: true,
+        next: {
+          key: "key"
+        }
+      },
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.NewState,
+      payload: {
+        from: s.role,
+        to: ENodeState.Follower,
+        reason: `Received AppendEntry from ${message.source}`
+      },
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    },
+    {
+      type: EMType.StoreLogCommitRequest,
+      payload: message.payload,
+      source: EComponent.Node,
+      destination: EComponent.Store,
+    }
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::AppendEntry::NotCommited", async () => {
+  const s: IState = {
+    ...state
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.AppendEntry> = {
+    type: EMType.AppendEntry,
+    destination: EComponent.Node,
+    payload: {
+      token: "token",
+      log: {
+        op: EKVOpType.Get,
+        timestamp: 1235,
+        commited: false,
+        next: {
+          key: "key"
+        }
+      },
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.NewState,
+      payload: {
+        from: s.role,
+        to: ENodeState.Follower,
+        reason: `Received AppendEntry from ${message.source}`
+      },
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    }
+  ], message);
+
+  component.shutdown();
+});
+
 /**
  * MISSING
  * 
@@ -773,6 +859,5 @@ Deno.test("Node::HeartBeat::NotLeader", async () => {
  * M - PeerConnectionOpen
  * L - PeerConnectionAccepted
  * L - CallForVoteResponse
- * M - AppendEntry
  * L - KVOpAccepted
  */
