@@ -703,3 +703,15 @@ Deno.test("Node::KVOpRequestComplete::NotLeader", async () => {
 
   component.shutdown();
 });
+
+/**
+ * MISSING
+ * 
+ * M - DiscoveryResult
+ * M - PeerConnectionOpen
+ * L - PeerConnectionAccepted
+ * L - CallForVoteResponse
+ * S - HeartBeat
+ * M - AppendEntry
+ * L - KVOpAccepted
+ */
