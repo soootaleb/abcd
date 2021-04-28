@@ -1,10 +1,6 @@
 import { state } from "../src/state.ts";
 import Node from "../src/node.ts";
-import {
-  EComponent,
-  EMType,
-  ENodeState
-} from "../src/enumeration.ts";
+import { EComponent, EMType, ENodeState } from "../src/enumeration.ts";
 import { assertMessages } from "./helpers.ts";
 import { IMessage, IState } from "../src/interfaces/interface.ts";
 import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
@@ -13,8 +9,8 @@ Deno.test("Node::NewState::Follower", async () => {
   const s: IState = {
     ...state,
     net: {
-        ...state.net,
-        peers: {}
+      ...state.net,
+      peers: {},
     },
     electionTimeout: 50,
   };
@@ -85,15 +81,14 @@ Deno.test("Node::NewState::Leader", async () => {
   };
 
   await assertMessages([
-   
     {
-        type: EMType.NewTerm,
-        payload: {
-          term: 2,
-        },
-        source: EComponent.Node,
-        destination: "127.0.0.1",
+      type: EMType.NewTerm,
+      payload: {
+        term: 2,
       },
+      source: EComponent.Node,
+      destination: "127.0.0.1",
+    },
   ], message);
 
   await new Promise((resolve) => {
@@ -108,6 +103,70 @@ Deno.test("Node::NewState::Leader", async () => {
 
   clearInterval(s.heartBeatIntervalId);
   delete s.heartBeatIntervalId;
+
+  component.shutdown();
+});
+
+Deno.test("Node::NewTerm::Accept", async () => {
+  const s: IState = {
+    ...state,
+    heartBeatInterval: 10,
+    term: 1,
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.NewTerm> = {
+    type: EMType.NewTerm,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.NewTermAccepted,
+      payload: {
+        term: 2,
+      },
+      source: EComponent.Node,
+      destination: EComponent.Logger,
+    }
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::NewTerm::Reject", async () => {
+  const s: IState = {
+    ...state,
+    heartBeatInterval: 10,
+    term: 3,
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.NewTerm> = {
+    type: EMType.NewTerm,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.NewTermRejected,
+      payload: {
+        term: 3,
+      },
+      source: EComponent.Node,
+      destination: message.source,
+    },
+  ], message);
 
   component.shutdown();
 });
