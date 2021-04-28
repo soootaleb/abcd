@@ -44,6 +44,7 @@ export default class Messenger extends Object {
   /**
    * Used to prevent the object from listening events
    * Not part of the software, used for unit tests
+   * Objective is to make sure not async operations are pending after the call
    */
   public shutdown() {
     removeEventListener(this.constructor.name, this.handle)
