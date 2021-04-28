@@ -852,10 +852,85 @@ Deno.test("Node::AppendEntry::NotCommited", async () => {
   component.shutdown();
 });
 
+Deno.test("Node::DiscoveryResult::Success", async () => {
+  const s: IState = {
+    ...state
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.DiscoveryResult> = {
+    type: EMType.DiscoveryResult,
+    destination: EComponent.Node,
+    payload: {
+      success: true,
+      result: "127.0.0.1",
+      source: "http"
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.PeerConnectionRequest,
+      payload: {
+        peerIp: "127.0.0.1"
+      },
+      source: EComponent.Node,
+      destination: EComponent.Net,
+    }
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::DiscoveryResult::NotSuccess", async () => {
+  const s: IState = {
+    ...state
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.DiscoveryResult> = {
+    type: EMType.DiscoveryResult,
+    destination: EComponent.Node,
+    payload: {
+      success: false,
+      result: "127.0.0.1",
+      source: "http"
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.LogMessage,
+      payload: {
+        message: "Node is ready after discovery result"
+      },
+      source: EComponent.Node,
+      destination: EComponent.Logger,
+    },
+    {
+      type: EMType.NewState,
+      payload: {
+        from: s.role,
+        to: ENodeState.Follower,
+        reason: `Got DiscoveryResult`
+      },
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    }
+  ], message);
+
+  assertEquals(s.ready, true);
+
+  component.shutdown();
+});
+
 /**
  * MISSING
  * 
- * M - DiscoveryResult
  * M - PeerConnectionOpen
  * L - PeerConnectionAccepted
  * L - CallForVoteResponse
