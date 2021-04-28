@@ -177,3 +177,137 @@ Deno.test("Node::NewTerm::Reject", async () => {
 
   component.shutdown();
 });
+
+Deno.test("Node::CallForVoteRequest::Granted", async () => {
+  const s: IState = {
+    ...state,
+    voteGrantedDuringTerm: false,
+    role: ENodeState.Follower
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.CallForVoteRequest> = {
+    type: EMType.CallForVoteRequest,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+      peerIp: "127.0.0.1"
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.CallForVoteResponse,
+      payload: {
+        voteGranted: true,
+      },
+      source: EComponent.Node,
+      destination: message.source,
+    },
+  ], message);
+  
+  assertEquals(s.voteGrantedDuringTerm, true);
+
+  component.shutdown();
+});
+
+Deno.test("Node::CallForVoteRequest::NotGranted::AlreadyVoted", async () => {
+  const s: IState = {
+    ...state,
+    voteGrantedDuringTerm: true,
+    role: ENodeState.Follower
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.CallForVoteRequest> = {
+    type: EMType.CallForVoteRequest,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+      peerIp: "127.0.0.1"
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.CallForVoteResponse,
+      payload: {
+        voteGranted: false,
+      },
+      source: EComponent.Node,
+      destination: message.source,
+    },
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::CallForVoteRequest::NotGranted::Leader", async () => {
+  const s: IState = {
+    ...state,
+    role: ENodeState.Leader
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.CallForVoteRequest> = {
+    type: EMType.CallForVoteRequest,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+      peerIp: "127.0.0.1"
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.CallForVoteResponse,
+      payload: {
+        voteGranted: false,
+      },
+      source: EComponent.Node,
+      destination: message.source,
+    },
+  ], message);
+
+  component.shutdown();
+});
+
+Deno.test("Node::CallForVoteRequest::NotGranted::OutdatedTerm", async () => {
+  const s: IState = {
+    ...state,
+    term: 3,
+    voteGrantedDuringTerm: false,
+    role: ENodeState.Follower
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.CallForVoteRequest> = {
+    type: EMType.CallForVoteRequest,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+      peerIp: "127.0.0.1"
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.CallForVoteResponse,
+      payload: {
+        voteGranted: false,
+      },
+      source: EComponent.Node,
+      destination: message.source,
+    },
+  ], message);
+
+  component.shutdown();
+});
