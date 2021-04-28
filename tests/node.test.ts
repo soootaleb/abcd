@@ -168,6 +168,42 @@ Deno.test("Node::NewTerm::Reject", async () => {
   component.shutdown();
 });
 
+Deno.test("Node::NewTermRejected", async () => {
+  const s: IState = {
+    ...state,
+    heartBeatInterval: 10,
+    term: 3,
+  };
+
+  const component = new Node(s);
+
+  const message: IMessage<EMType.NewTermRejected> = {
+    type: EMType.NewTermRejected,
+    destination: EComponent.Node,
+    payload: {
+      term: 2,
+    },
+    source: "Source",
+  };
+
+  await assertMessages([
+    {
+      type: EMType.NewState,
+      payload: {
+        from: s.role,
+        to: ENodeState.Follower,
+        reason: `NewTermRejected from ${message.source}`
+      },
+      source: EComponent.Node,
+      destination: EComponent.Node,
+    },
+  ], message);
+
+  assertEquals(s.term, 3);
+
+  component.shutdown();
+});
+
 Deno.test("Node::CallForVoteRequest::Granted", async () => {
   const s: IState = {
     ...state,
