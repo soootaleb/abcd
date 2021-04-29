@@ -24,13 +24,13 @@ const watch: string = ARGS["watch"];
 new Client(addr, port).co.then((operations) => {
   if (get) {
     operations.kvop(EKVOpType.Get, get).then((response) => {
-      console.log(response);
+      console.log(response.payload);
       Deno.exit();
     });
   } else if (put) {
     const [key, value] = put.split("=");
     operations.kvop(EKVOpType.Put, key, value).then((response) => {
-      console.log(response);
+      console.log(response.payload);
       Deno.exit();
     });
   } else if (watch) {
@@ -50,7 +50,7 @@ new Client(addr, port).co.then((operations) => {
     }
   } else if (mon) {
     operations.monop(EMonOpType.Get, mon).then((response) => {
-      console.dir(response, { depth: 10 });
+      console.dir(response.payload, { depth: 10 });
       Deno.exit();
     });
   } else {
