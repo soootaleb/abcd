@@ -103,14 +103,13 @@ export default class Api extends Messenger {
     if (requests.length) {
       for (const request of requests) {
         delete this.state.net.requests[request[0]];
+        clearInterval(this.state.mon.watchers[request[0]]);
       }
     }
     
     // MonWatch on logs
     this.state.mon.loggers = this.state.mon.loggers
       .filter(o => !requests.map(o => o[0]).includes(o));
-
-    // MonWatch Interval
-    clearInterval(this.state.mon.watchers[message.payload]);
+    
   }
 }
