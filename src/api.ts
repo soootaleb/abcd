@@ -89,13 +89,20 @@ export default class Api extends Messenger {
     }
   }
 
-  // comment
+  /**
+   * Messages sent to clients watching values
+   * @param message watch operation
+   */
   [EMType.ClientNotification]: H<EMType.ClientNotification> = message => {
     if (Object.keys(this.state.net.requests).includes(message.payload.token)) {
       this.send(EMType.ClientNotification, message.payload, this.state.net.requests[message.payload.token]);
     }
   }
 
+  /**
+   * Removes the tokens related to the closed connection
+   * @param message the related peer
+   */
   [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = message => {
     const requests = Object.entries(this.state.net.requests)
       .filter(o => o[1] === message.payload)
