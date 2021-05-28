@@ -2,8 +2,6 @@ import Messenger from "./messenger.ts";
 import { EComponent, EMType } from "./enumeration.ts";
 import { H } from "./type.ts";
 import {
-  serve,
-  Server,
   ServerRequest,
 } from "https://deno.land/std/http/server.ts";
 import { IMessage, IState } from "./interfaces/interface.ts";
@@ -13,28 +11,45 @@ import {
 } from "https://deno.land/std/ws/mod.ts";
 
 export default class Net extends Messenger {
-  private _server: Server;
+  
   private _psockets: {
-    [key: string]: DenoWS | WebSocket
+    [key: string]: DenoWS | WebSocket;
   } = {};
   private _csockets: {
-    [key: string]: DenoWS
+    [key: string]: DenoWS;
   } = {};
 
-  constructor(protected state: IState) {
+  constructor(protected state: IState, discovery = true) {
     super(state);
 
-    this._server = serve({
-      hostname: "0.0.0.0",
-      port: 8080,
-    });
-
-    this.state.net.ready = true;
-    this.send(EMType.PeerServerStarted, this.server.listener.addr, EComponent.Node);
+    // to deactivate for tests
+    if (discovery) {
+      fetch(`http://${Deno.env.get("ABCD_CLUSTER_HOSTNAME")}:8080/discovery`)
+        .then((response) => response.text())
+        .then((ip) => {
+          this.send(EMType.DiscoveryResult, {
+            success: true,
+            result: ip,
+            source: "http_success",
+          }, EComponent.Node);
+        }).catch((error) => {
+          this.send(EMType.DiscoveryResult, {
+            success: false,
+            result: error.message,
+            source: "http_fail",
+          }, EComponent.Node);
+        });
+    }
   }
 
-  public get server(): Server {
-    return this._server;
+  public shutdown() {
+    super.shutdown();
+    for (const client of Object.keys(this.state.net.clients)) {
+      removeEventListener(client, this.sendOnNetwork)
+    }
+    for (const peer of Object.keys(this.state.net.peers)) {
+      removeEventListener(peer, this.sendOnNetwork)
+    }
   }
 
   [EMType.PeerConnectionOpen]: H<EMType.PeerConnectionOpen> = (message) => {
@@ -47,74 +62,55 @@ export default class Net extends Messenger {
   [EMType.ClientConnectionOpen]: H<EMType.ClientConnectionOpen> = (message) => {
     this.state.net.clients[message.payload.clientIp] = message.payload;
     addEventListener(message.payload.clientIp, this.sendOnNetwork);
-    this.send(EMType.PeerConnectionOpen, message.payload, EComponent.Logger);
-    this.send(EMType.PeerConnectionOpen, message.payload, EComponent.Node);
+    this.send(EMType.ClientConnectionOpen, message.payload, EComponent.Logger);
+    this.send(EMType.ClientConnectionOpen, message.payload, EComponent.Node);
   };
 
-  [EMType.PeerConnectionFail]: H<EMType.PeerConnectionFail> = (message) => {
-    removeEventListener(message.payload.peerIp, this.sendOnNetwork);
-    delete this._psockets[message.payload.peerIp];
-    delete this.state.net.peers[message.payload.peerIp];
-  };
-
-  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionFail> = (message) => {
-    removeEventListener(message.payload.peerIp, this.sendOnNetwork);
-    delete this._psockets[message.payload.peerIp];
-    delete this.state.net.peers[message.payload.peerIp];
+  [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = (message) => {
+    removeEventListener(message.payload, this.sendOnNetwork);
+    delete this._psockets[message.payload];
+    delete this.state.net.peers[message.payload];
     this.send(EMType.PeerConnectionClose, message.payload, EComponent.Logger);
   };
 
-  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (message) => {
-    removeEventListener(message.payload.clientIp, this.sendOnNetwork);
-    delete this._csockets[message.payload.clientIp];
-    delete this.state.net.peers[message.payload.clientIp];
-    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Api);
-    this.send(EMType.PeerConnectionClose, message.payload, EComponent.Logger);
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
+    message,
+  ) => {
+    removeEventListener(message.payload, this.sendOnNetwork);
+    delete this._csockets[message.payload];
+    delete this.state.net.clients[message.payload];
+    this.send(EMType.ClientConnectionClose, message.payload, EComponent.Api);
+    this.send(EMType.ClientConnectionClose, message.payload, EComponent.Logger);
   };
 
   [EMType.PeerConnectionRequest]: H<EMType.PeerConnectionRequest> = (
     message,
   ) => {
-    if (this.state.net.peers[message.payload.peerIp]) {
-      this.send(EMType.PeerConnectionFail, {
+    const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`);
+    this._psockets[message.payload.peerIp] = sock;
+    this.state.net.peers[message.payload.peerIp] = {
+      peerIp: message.payload.peerIp,
+    };
+
+    sock.onopen = () => {
+      addEventListener(message.payload.peerIp, this.sendOnNetwork);
+      this.send(EMType.PeerConnectionSuccess, {
         peerIp: message.payload.peerIp,
       }, EComponent.Logger);
-    } else {
-      const sock = new WebSocket(`ws://${message.payload.peerIp}:8080/peer`);
-      this._psockets[message.payload.peerIp] = sock;
-      this.state.net.peers[message.payload.peerIp] = {
-        peerIp: message.payload.peerIp
-      };
+    };
 
-      sock.onopen = () => {
-        addEventListener(message.payload.peerIp, this.sendOnNetwork);
-        this.send(EMType.PeerConnectionSuccess, {
-          peerIp: message.payload.peerIp,
-        }, EComponent.Logger);
-      };
+    sock.onmessage = (ev: MessageEvent<string>) => {
+      const msg = JSON.parse(ev.data) as IMessage<EMType>;
+      this.send(msg.type, msg.payload, EComponent.Node, message.payload.peerIp);
+    };
 
-      sock.onmessage = (ev: MessageEvent<string>) => {
-        const msg = JSON.parse(ev.data) as IMessage<EMType>;
-        this.send(msg.type, msg.payload, EComponent.Node, message.payload.peerIp);
-      };
-
-      sock.onclose = (_: CloseEvent) => {
-        if (this.state.net.peers[message.payload.peerIp]) {
-          delete this.state.net.peers[message.payload.peerIp];
-          this.send(EMType.PeerConnectionClose, {
-            peerIp: message.payload.peerIp,
-          }, EComponent.Net);
-        } else {
-          this.send(EMType.PeerConnectionFail, {
-            peerIp: message.payload.peerIp,
-          }, EComponent.Net);
-        }
-      };
-
-      this.send(EMType.PeerConnectionPending, {
-        peerIp: message.payload.peerIp,
-      }, EComponent.Logger);
-    }
+    sock.onclose = (_: CloseEvent) => {
+      this.send(
+        EMType.PeerConnectionClose,
+        message.payload.peerIp,
+        EComponent.Net,
+      );
+    };
   };
 
   public request(request: ServerRequest): void {
@@ -147,14 +143,13 @@ export default class Net extends Messenger {
         const hostname: string = remoteAddr.hostname + "-" + request.conn.rid;
 
         if (request.url === "/client") {
-
           this._csockets[hostname] = sock;
 
           this.send(EMType.ClientConnectionOpen, {
             clientIp: hostname,
             remoteAddr: remoteAddr,
-            clientId: request.conn.rid
-          }, EComponent.Logger);
+            clientId: request.conn.rid,
+          }, EComponent.Net);
 
           for await (const ev of sock) {
             if (typeof ev === "string") {
@@ -162,17 +157,13 @@ export default class Net extends Messenger {
               this.send(msg.type, msg.payload, EComponent.Api, hostname);
             }
           }
-          
-          this.send(EMType.ClientConnectionClose, {
-            clientIp: hostname,
-          }, EComponent.Net);
 
+          this.send(EMType.ClientConnectionClose, hostname, EComponent.Net);
         } else if (request.url === "/peer") {
-
           this._psockets[hostname] = sock;
 
           this.send(EMType.PeerConnectionOpen, {
-            peerIp: hostname
+            peerIp: hostname,
           }, EComponent.Net);
 
           for await (const ev of sock) {
@@ -182,9 +173,7 @@ export default class Net extends Messenger {
             }
           }
 
-          this.send(EMType.PeerConnectionClose, {
-            peerIp: hostname,
-          }, EComponent.Net);
+          this.send(EMType.PeerConnectionClose, hostname, EComponent.Net);
         }
       }).catch((_) => {
         this.send(EMType.LogMessage, {
@@ -202,7 +191,7 @@ export default class Net extends Messenger {
     if (Object.keys(this.state.net.peers).includes(destination)) {
       this._psockets[destination].send(JSON.stringify(message));
     } else if (Object.keys(this.state.net.clients).includes(destination)) {
-      this._csockets[destination].send(JSON.stringify(message))
+      this._csockets[destination].send(JSON.stringify(message));
     } else {
       this.send(EMType.InvalidMessageDestination, {
         invalidMessageDestination: destination,

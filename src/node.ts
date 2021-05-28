@@ -4,9 +4,19 @@ import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
 
 export default class Peer extends Messenger {
-  [EMType.NewState]: H<EMType.NewState> = (message) => {
+
+  public shutdown() {
+    super.shutdown();
     clearTimeout(this.state.electionTimeoutId);
     clearInterval(this.state.heartBeatIntervalId);
+  }
+
+  [EMType.NewState]: H<EMType.NewState> = (message) => {
+    clearTimeout(this.state.electionTimeoutId);
+    delete this.state.electionTimeoutId;
+    
+    clearInterval(this.state.heartBeatIntervalId);
+    delete this.state.heartBeatIntervalId;
 
     this.state.store.votes = {};
 
@@ -14,6 +24,8 @@ export default class Peer extends Messenger {
       case ENodeState.Starting:
         break;
       case ENodeState.Follower:
+        this.state.role = ENodeState.Follower;
+
         this.state.electionTimeoutId = setTimeout(() => {
           this.send(EMType.NewState, {
             from: this.state.role,
@@ -22,8 +34,6 @@ export default class Peer extends Messenger {
               `electionTimeout completed (${this.state.electionTimeout}ms)`,
           }, EComponent.Node);
         }, this.state.electionTimeout);
-
-        this.state.role = ENodeState.Follower;
         break;
       case ENodeState.Leader:
         this.state.heartBeatIntervalId = setInterval(() => {
@@ -34,6 +44,7 @@ export default class Peer extends Messenger {
 
         this.state.term += 1;
         this.state.role = ENodeState.Leader;
+        this.state.leader = EComponent.Node;
 
         for (const peerIp of Object.keys(this.state.net.peers)) {
           this.send(EMType.NewTerm, {
@@ -90,6 +101,10 @@ export default class Peer extends Messenger {
         reason: `Received HeartBeat from ${message.source}`,
       }, EComponent.Node);
       return;
+    } else {
+      this.send(EMType.LogMessage, {
+        message: "Unexpected HeartBeat with role " + this.state.role
+      }, EComponent.Logger)
     }
   };
 
@@ -162,8 +177,12 @@ export default class Peer extends Messenger {
           kv: message.payload.log.next,
           op: message.payload.log.op,
         },
-        timestamp: new Date().getTime(),
+        timestamp: message.payload.log.timestamp,
       }, EComponent.Api);
+    } else {
+      this.send(EMType.LogMessage, {
+        message: "Unexpected KVOpRequestComplete with role " + this.state.role
+      }, EComponent.Logger);
     }
   };
 
@@ -275,7 +294,7 @@ export default class Peer extends Messenger {
       this.state.ready = true;
 
       this.send(EMType.LogMessage, {
-        message: "Node is ready",
+        message: "Node is ready after peer connection accepted",
       }, EComponent.Logger);
 
       this.send(EMType.NewState, {
@@ -299,24 +318,6 @@ export default class Peer extends Messenger {
     }, message.payload.peerIp);
   };
 
-  [EMType.PeerServerStarted]: H<EMType.PeerServerStarted> = (_) => {
-    fetch(`http://${Deno.env.get("ABCD_CLUSTER_HOSTNAME")}:8080/discovery`)
-      .then((response) => response.text())
-      .then((ip) => {
-        this.send(EMType.DiscoveryResult, {
-          success: true,
-          result: ip,
-          source: "http_success",
-        }, EComponent.Node);
-      }).catch((error) => {
-        this.send(EMType.DiscoveryResult, {
-          success: false,
-          result: error.message,
-          source: "http_fail",
-        }, EComponent.Node);
-      });
-  };
-
   [EMType.DiscoveryResult]: H<EMType.DiscoveryResult> = (message) => {
 
     if (message.payload.success) {
@@ -327,7 +328,7 @@ export default class Peer extends Messenger {
       this.state.ready = true;
 
       this.send(EMType.LogMessage, {
-        message: "Node is ready",
+        message: "Node is ready after discovery result",
       }, EComponent.Logger);
 
       this.send(EMType.NewState, {
@@ -340,12 +341,11 @@ export default class Peer extends Messenger {
 
   [EMType.KVOpRejected]: H<EMType.KVOpRejected> = (message) => {
     if (this.state.role === ENodeState.Leader) {
-      this.send(EMType.ClientResponse, {
-        token: message.payload.request.token,
-        type: EOpType.KVOp,
-        payload: message.payload.request.payload,
-        timestamp: new Date().getTime(),
-      }, EComponent.Node);
+      this.send(EMType.ClientResponse, message.payload.request, EComponent.Node);
+    } else {
+      this.send(EMType.LogMessage, {
+        message: "Unexpected KVOpRejected with role " + this.state.role
+      }, EComponent.Logger);
     }
   };
 

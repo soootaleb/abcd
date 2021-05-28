@@ -12,28 +12,42 @@ import { IMPayload } from "./interfaces/mpayload.ts";
 export default class Messenger extends Object {
   protected args: Args = parse(Deno.args);
 
+  private handle = (ev: Event) => {
+    const event: CustomEvent = ev as CustomEvent;
+    const message: IMessage<EMType> = event.detail;
+    // Yes, a bit ugly but...
+    // Added deno lint ignore...
+    // deno-lint-ignore no-explicit-any no-this-alias
+    const self: any = this;
+    // deno-lint-ignore no-prototype-builtins
+    if (this.hasOwnProperty(message.type)) {
+      self[message.type](message);
+    } else if (this.constructor.name != EComponent.Logger) {
+      this.send(
+        EMType.LogMessage,
+        { message: "Missing handler for " + message.type },
+        EComponent.Logger,
+      );
+    }
+  }
+
   constructor(protected state: IState) {
     super();
 
     // Messenger components subscribe to events of their class name
     // That's why EComponent must have the same names as the messengers
-    addEventListener(this.constructor.name, (ev: Event) => {
-      const event: CustomEvent = ev as CustomEvent;
-      const message: IMessage<EMType> = event.detail;
-      // Yes, a bit ugly but...
-      // Added deno lint ignore...
-      // deno-lint-ignore no-explicit-any no-this-alias
-      const self: any = this;
-      if (this.hasOwnProperty(message.type)) {
-        self[message.type](message);
-      } else if (this.constructor.name != EComponent.Logger) {
-        this.send(
-          EMType.LogMessage,
-          { message: "Missing handler for " + message.type },
-          EComponent.Logger,
-        );
-      }
+    addEventListener(this.constructor.name, this.handle, {
+      passive: true
     });
+  }
+
+  /**
+   * Used to prevent the object from listening events
+   * Not part of the software, used for unit tests
+   * Objective is to make sure not async operations are pending after the call
+   */
+  public shutdown() {
+    removeEventListener(this.constructor.name, this.handle)
   }
 
   /**
@@ -43,13 +57,13 @@ export default class Messenger extends Object {
    * @param destination The component to send the message to
    * @param source if necessary, define the source to override the sender's class name. At your own risk...
    */
-  protected send<T extends EMType>(
+  public send<T extends EMType>(
     type: T,
     payload: IMPayload[T],
     destination: EComponent | string, // string is used for peers & clients (IPs)
     source?: string, // to forward messages transparently like the API
   ) {
-    setTimeout(() => {      
+    setTimeout(() => {
       dispatchEvent(
         new CustomEvent(destination, {
           detail: {

@@ -11,8 +11,6 @@ export enum EComponent {
   Discovery = "Discovery",
   Net = "Net",
   Monitor = "Monitor",
-  NetWorker = "NetWorker",
-  DiscoveryWorker = "DiscoveryWorker",
   Logger = "Logger",
   Api = "Api"
 }
@@ -68,9 +66,7 @@ export enum EMType {
   PeerConnectionPending = "PeerConnectionPending",
   PeerConnectionComplete = "PeerConnectionComplete",
   PeerConnectionSuccess = "PeerConnectionSuccess",
-  PeerConnectionFail = "PeerConnectionFail",
   PeerConnectionClose = "PeerConnectionClose",
-  PeerServerStarted = "PeerServerStarted",
 
   // NODE RAFT
 

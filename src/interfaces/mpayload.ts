@@ -48,9 +48,7 @@ export interface IMPayload {
     clientId: number
   };
 
-  [EMType.ClientConnectionClose]: {
-    clientIp: string;
-  };
+  [EMType.ClientConnectionClose]: string;
 
   [EMType.PeerConnectionRequest]: {
     peerIp: string;
@@ -71,22 +69,14 @@ export interface IMPayload {
   [EMType.PeerConnectionSuccess]: {
     peerIp: string;
   };
-
-  [EMType.PeerConnectionFail]: {
-    peerIp: string;
-  };
-
-  [EMType.PeerConnectionClose]: {
-    peerIp: string;
-  };
+  
+  [EMType.PeerConnectionClose]: string;
 
   [EMType.PeerConnectionAccepted]: {
     term: number;
     knownPeers: string[],
     wal: TWal
   }
-
-  [EMType.PeerServerStarted]: Deno.Addr;
 
   [EMType.HeartBeat]: null;
 
