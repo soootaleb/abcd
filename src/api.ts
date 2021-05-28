@@ -89,6 +89,7 @@ export default class Api extends Messenger {
     }
   }
 
+  // comment
   [EMType.ClientNotification]: H<EMType.ClientNotification> = message => {
     if (Object.keys(this.state.net.requests).includes(message.payload.token)) {
       this.send(EMType.ClientNotification, message.payload, this.state.net.requests[message.payload.token]);
