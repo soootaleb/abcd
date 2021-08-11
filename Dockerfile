@@ -14,7 +14,6 @@ RUN deno compile \
     --allow-all \
     --target x86_64-unknown-linux-gnu \
     --output abcd \
-    --lite \
     main.ts
 
 FROM scratch
