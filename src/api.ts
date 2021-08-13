@@ -1,6 +1,8 @@
+import Chain from "./chain.ts";
 import { EComponent, EMonOpType, EMType, ENodeState, EOpType } from "./enumeration.ts";
-import { IKVOp, IKVWatch, IMonOp, IMonWatch, IState } from "./interfaces/interface.ts";
+import { IChainOp, IKVOp, IKVWatch, IMonOp, IMonWatch, IState } from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
+import Monitor from "./monitor.ts";
 import { H } from "./type.ts";
 
 export default class Api extends Messenger {
@@ -72,6 +74,10 @@ export default class Api extends Messenger {
           },
           EComponent.Monitor
         );
+        break;
+      }
+      case EOpType.ChainOp: {
+        this.send(EMType.ChainOpRequest, null, Chain, message.source);
         break;
       }
       default:

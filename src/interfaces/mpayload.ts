@@ -183,6 +183,8 @@ export interface IMPayload {
     timestamp: number
   };
 
+  [EMType.ChainOpRequest]: null,
+
   [EMType.InvalidMessageType]: IMessage<EMType>;
 
   [EMType.InvalidMessageDestination]: {

@@ -1,5 +1,5 @@
 import type { IKeyValue, ILog, IMessage, IOPayload } from "../src/interfaces/interface.ts";
-import { EKVOpType, EMonOpType, EMType, EOpType } from "./enumeration.ts";
+import { EChainOpType, EKVOpType, EMonOpType, EMType, EOpType } from "./enumeration.ts";
 import { H } from "./type.ts";
 
 export default class Client {
@@ -146,6 +146,12 @@ export default class Client {
         this.send(EOpType.MonWatch, {
             key: key,
             expire: expire
+        })
+    }
+
+    public chainop() {
+        return this.send(EOpType.ChainOp, {
+            op: EChainOpType.TxAdd
         })
     }
 }

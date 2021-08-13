@@ -6,6 +6,7 @@ import Store from "./src/store.ts";
 import Api from "./src/api.ts";
 import Monitor from "./src/monitor.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
+import Chain from "./src/chain.ts";
 
 console.table(Deno.version);
 
@@ -17,6 +18,7 @@ new Api(state);
 new Monitor(state);
 new Store(state);
 new Peer(state);
+new Chain(state);
 
 const net = new Net(state);
 

@@ -60,23 +60,41 @@ export default class Messenger extends Object {
   public send<T extends EMType>(
     type: T,
     payload: IMPayload[T],
-    destination: EComponent | string, // string is used for peers & clients (IPs)
+    destination: EComponent | string | typeof Messenger, // string is used for peers & clients (IPs)
     source?: string, // to forward messages transparently like the API
   ) {
     setTimeout(() => {
-      dispatchEvent(
-        new CustomEvent(destination, {
-          detail: {
-            type: type,
-            source: source // By default the source is the class name
-              ? source.toUpperCase().substring(0, 1) + source.substring(1)
-              : this.constructor.name,
-            destination: destination.toUpperCase().substring(0, 1) +
-              destination.substring(1),
-            payload: payload,
-          },
-        }),
-      );
+      if(typeof destination === typeof Messenger) {
+        const comp = destination as typeof Messenger;
+        dispatchEvent(
+          new CustomEvent(comp.name, {
+            detail: {
+              type: type,
+              source: source // By default the source is the class name
+                ? source.toUpperCase().substring(0, 1) + source.substring(1)
+                : this.constructor.name,
+              destination: comp.name.toUpperCase().substring(0, 1) +
+                comp.name.substring(1),
+              payload: payload,
+            },
+          }),
+        );
+      } else {
+        const dest = destination as EComponent | string;
+        dispatchEvent(
+          new CustomEvent(dest, {
+            detail: {
+              type: type,
+              source: source // By default the source is the class name
+                ? source.toUpperCase().substring(0, 1) + source.substring(1)
+                : this.constructor.name,
+              destination: dest.toUpperCase().substring(0, 1) +
+                dest.substring(1),
+              payload: payload,
+            },
+          }),
+        );
+      }
     }, 0);
   }
 }

@@ -5,7 +5,7 @@ import type {
   IMessage,
 } from "../src/interfaces/interface.ts";
 import Client from "../src/client.ts";
-import { EKVOpType, EMonOpType, EMType } from "../src/enumeration.ts";
+import { EChainOpType, EKVOpType, EMonOpType, EMType } from "../src/enumeration.ts";
 
 const ARGS = parse(Deno.args);
 
@@ -19,6 +19,7 @@ const duration: number = ARGS["d"] | 0;
 const get: string = ARGS["get"];
 const put: string = ARGS["put"] || ARGS["set"];
 const mon: string = ARGS["mon"];
+const chain: string = ARGS["chain"];
 const watch: string = ARGS["watch"];
 
 new Client(addr, port).co.then((operations) => {
@@ -50,6 +51,11 @@ new Client(addr, port).co.then((operations) => {
     }
   } else if (mon) {
     operations.monop(EMonOpType.Get, mon).then((response) => {
+      console.dir(response.payload, { depth: 10 });
+      Deno.exit();
+    });
+  } else if (chain) {
+    operations.chainop().then((response) => {
       console.dir(response.payload, { depth: 10 });
       Deno.exit();
     });
@@ -197,6 +203,6 @@ new Client(addr, port).co.then((operations) => {
   }
 }).catch(console.error);
 
-for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {
-  Deno.exit();
-}
+// for await (const _ of Deno.signal(Deno.Signal.SIGINT)) {
+//   Deno.exit();
+// }

@@ -12,7 +12,8 @@ export enum EComponent {
   Net = "Net",
   Monitor = "Monitor",
   Logger = "Logger",
-  Api = "Api"
+  Api = "Api",
+  Chain = "Chain"
 }
 
 export enum EKVOpType {
@@ -25,11 +26,16 @@ export enum EMonOpType {
   Get = "Get"
 }
 
+export enum EChainOpType {
+  TxAdd = "TxAdd"
+}
+
 export enum EOpType {
   KVOp = "KVOp",
   KVWatch = "KVWatch",
   MonOp = "MonOp",
-  MonWatch = "MonWatch"
+  MonWatch = "MonWatch",
+  ChainOp = "ChainOp"
 }
 
 export enum EMType {
@@ -95,6 +101,9 @@ export enum EMType {
   KVOpRequestComplete = "KVOpRequestComplete",
   KVOpRequestIncomplete = "KVOpRequestIncomplete",
   KVOpAcceptedReceived = "KVOpAcceptedReceived",
+
+  // CHAIN
+  ChainOpRequest = "ChainOpRequest",
 
   // ERROR MESSAGES
 
