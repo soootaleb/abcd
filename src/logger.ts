@@ -53,7 +53,7 @@ export default class Logger extends Messenger {
   };
 
   private log = (message: IMessage<EMType>) => {
-    if (this.filter(message)) {
+    if (this.filter(message) || this.args.debug) {
       let icon = "🔄".padEnd(1);
       let source = message.source.padEnd(20);
       let destination = message.destination.padEnd(20);
