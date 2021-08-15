@@ -9,6 +9,7 @@ import {
   acceptWebSocket,
   WebSocket as DenoWS,
 } from "https://deno.land/std/ws/mod.ts";
+import Peer from "./peer.ts";
 
 export default class Net extends Messenger {
   
@@ -31,13 +32,13 @@ export default class Net extends Messenger {
             success: true,
             result: ip,
             source: "http_success",
-          }, EComponent.Node);
+          }, Peer);
         }).catch((error) => {
           this.send(EMType.DiscoveryResult, {
             success: false,
             result: error.message,
             source: "http_fail",
-          }, EComponent.Node);
+          }, Peer);
         });
     }
   }

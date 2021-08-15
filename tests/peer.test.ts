@@ -1,5 +1,5 @@
 import { state } from "../src/state.ts";
-import Node from "../src/node.ts";
+import Node from "../src/peer.ts";
 import {
   EComponent,
   EKVOpType,
@@ -11,7 +11,7 @@ import { assertMessages } from "./helpers.ts";
 import { IMessage, IState } from "../src/interfaces/interface.ts";
 import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
 
-Deno.test("Node::NewState::Follower", async () => {
+Deno.test("Peer::NewState::Follower", async () => {
   const s: IState = {
     ...state,
     net: {
@@ -50,7 +50,7 @@ Deno.test("Node::NewState::Follower", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::NewState::Leader", async () => {
+Deno.test("Peer::NewState::Leader", async () => {
   const s: IState = {
     ...state,
     heartBeatInterval: 10,
@@ -97,7 +97,7 @@ Deno.test("Node::NewState::Leader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::NewTerm::Accept", async () => {
+Deno.test("Peer::NewTerm::Accept", async () => {
   const s: IState = {
     ...state,
     voteGrantedDuringTerm: true,
@@ -133,7 +133,7 @@ Deno.test("Node::NewTerm::Accept", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::NewTerm::Reject", async () => {
+Deno.test("Peer::NewTerm::Reject", async () => {
   const s: IState = {
     ...state,
     heartBeatInterval: 10,
@@ -168,7 +168,7 @@ Deno.test("Node::NewTerm::Reject", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::NewTermRejected", async () => {
+Deno.test("Peer::NewTermRejected", async () => {
   const s: IState = {
     ...state,
     heartBeatInterval: 10,
@@ -204,7 +204,7 @@ Deno.test("Node::NewTermRejected", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::CallForVoteRequest::Granted", async () => {
+Deno.test("Peer::CallForVoteRequest::Granted", async () => {
   const s: IState = {
     ...state,
     voteGrantedDuringTerm: false,
@@ -239,7 +239,7 @@ Deno.test("Node::CallForVoteRequest::Granted", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::CallForVoteRequest::AlreadyVoted", async () => {
+Deno.test("Peer::CallForVoteRequest::AlreadyVoted", async () => {
   const s: IState = {
     ...state,
     voteGrantedDuringTerm: true,
@@ -272,7 +272,7 @@ Deno.test("Node::CallForVoteRequest::AlreadyVoted", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::CallForVoteRequest::Leader", async () => {
+Deno.test("Peer::CallForVoteRequest::Leader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Leader,
@@ -304,7 +304,7 @@ Deno.test("Node::CallForVoteRequest::Leader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::CallForVoteRequest::OutdatedTerm", async () => {
+Deno.test("Peer::CallForVoteRequest::OutdatedTerm", async () => {
   const s: IState = {
     ...state,
     term: 3,
@@ -338,7 +338,7 @@ Deno.test("Node::CallForVoteRequest::OutdatedTerm", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::KVOpRejected::Leader", async () => {
+Deno.test("Peer::KVOpRejected::Leader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Leader,
@@ -380,7 +380,7 @@ Deno.test("Node::KVOpRejected::Leader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::KVOpRejected::NotLeader", async () => {
+Deno.test("Peer::KVOpRejected::NotLeader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Candidate,
@@ -424,7 +424,7 @@ Deno.test("Node::KVOpRejected::NotLeader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::ClientRequestForward", async () => {
+Deno.test("Peer::ClientRequestForward", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Candidate,
@@ -463,7 +463,7 @@ Deno.test("Node::ClientRequestForward", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::ClientResponse", async () => {
+Deno.test("Peer::ClientResponse", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Candidate,
@@ -502,7 +502,7 @@ Deno.test("Node::ClientResponse", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::StoreLogCommitSuccess::Follower", async () => {
+Deno.test("Peer::StoreLogCommitSuccess::Follower", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Follower,
@@ -551,7 +551,7 @@ Deno.test("Node::StoreLogCommitSuccess::Follower", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::StoreLogCommitSuccess::Leader", async () => {
+Deno.test("Peer::StoreLogCommitSuccess::Leader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Leader,
@@ -616,7 +616,7 @@ Deno.test("Node::StoreLogCommitSuccess::Leader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::KVOpRequestComplete::Leader", async () => {
+Deno.test("Peer::KVOpRequestComplete::Leader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Leader,
@@ -663,7 +663,7 @@ Deno.test("Node::KVOpRequestComplete::Leader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::KVOpRequestComplete::NotLeader", async () => {
+Deno.test("Peer::KVOpRequestComplete::NotLeader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Candidate,
@@ -704,7 +704,7 @@ Deno.test("Node::KVOpRequestComplete::NotLeader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::HeartBeat::Leader", async () => {
+Deno.test("Peer::HeartBeat::Leader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Leader,
@@ -733,7 +733,7 @@ Deno.test("Node::HeartBeat::Leader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::HeartBeat::NotLeader", async () => {
+Deno.test("Peer::HeartBeat::NotLeader", async () => {
   const s: IState = {
     ...state,
     role: ENodeState.Candidate,
@@ -766,7 +766,7 @@ Deno.test("Node::HeartBeat::NotLeader", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::AppendEntry::Commited", async () => {
+Deno.test("Peer::AppendEntry::Commited", async () => {
   const s: IState = {
     ...state
   };
@@ -812,7 +812,7 @@ Deno.test("Node::AppendEntry::Commited", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::AppendEntry::NotCommited", async () => {
+Deno.test("Peer::AppendEntry::NotCommited", async () => {
   const s: IState = {
     ...state
   };
@@ -852,7 +852,7 @@ Deno.test("Node::AppendEntry::NotCommited", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::DiscoveryResult::Success", async () => {
+Deno.test("Peer::DiscoveryResult::Success", async () => {
   const s: IState = {
     ...state
   };
@@ -884,7 +884,7 @@ Deno.test("Node::DiscoveryResult::Success", async () => {
   component.shutdown();
 });
 
-Deno.test("Node::DiscoveryResult::NotSuccess", async () => {
+Deno.test("Peer::DiscoveryResult::NotSuccess", async () => {
   const s: IState = {
     ...state
   };

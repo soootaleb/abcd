@@ -1,5 +1,5 @@
 import Logger from "./src/logger.ts";
-import Peer from "./src/node.ts";
+import Peer from "./src/peer.ts";
 import { state } from "./src/state.ts";
 import Net from "./src/net.ts";
 import Store from "./src/store.ts";
