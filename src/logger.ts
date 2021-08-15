@@ -13,6 +13,11 @@ export default class Logger extends Messenger {
   private filters: ((message: IMessage<EMType>) => boolean)[] = [
     (_) => this.state.log.console,
     (message: IMessage<EMType>) => !this.state.log.exclude.includes(message.type),
+    (message: IMessage<EMType>) => 
+    Object.keys(this.state.net.clients).includes(message.source)
+    || Object.keys(this.state.net.clients).includes(message.destination)
+    || typeof message.destination === typeof Logger,
+
     (message: IMessage<EMType>) => {
       if (message.type === EMType.NewState) {
         const payload: IMPayload[EMType.NewState] = message.payload as IMPayload[EMType.NewState];

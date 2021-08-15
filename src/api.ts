@@ -101,7 +101,6 @@ export default class Api extends Messenger {
             timestamp: number;
           },
           Chain,
-          message.source,
         );
         break;
       }
@@ -142,21 +141,22 @@ export default class Api extends Messenger {
    * Removes the tokens related to the closed connection
    * @param message the related peer
    */
-  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> =
-    (message) => {
-      const requests = Object.entries(this.state.net.requests)
-        .filter((o) => o[1] === message.payload);
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = (
+    message,
+  ) => {
+    const requests = Object.entries(this.state.net.requests)
+      .filter((o) => o[1] === message.payload);
 
-      // Requests
-      if (requests.length) {
-        for (const request of requests) {
-          delete this.state.net.requests[request[0]];
-          clearInterval(this.state.mon.watchers[request[0]]);
-        }
+    // Requests
+    if (requests.length) {
+      for (const request of requests) {
+        delete this.state.net.requests[request[0]];
+        clearInterval(this.state.mon.watchers[request[0]]);
       }
+    }
 
-      // MonWatch on logs
-      this.state.mon.loggers = this.state.mon.loggers
-        .filter((o) => !requests.map((o) => o[0]).includes(o));
-    };
+    // MonWatch on logs
+    this.state.mon.loggers = this.state.mon.loggers
+      .filter((o) => !requests.map((o) => o[0]).includes(o));
+  };
 }
