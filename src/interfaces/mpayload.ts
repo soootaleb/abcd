@@ -1,6 +1,15 @@
 import { EComponent, EMType, ENodeState, EOpType } from "../enumeration.ts";
 import { TWal } from "../type.ts";
-import { IEntry, IKeyValue, ILog, IMessage, IMonOp, IMonWatch, IOPayload } from "./interface.ts";
+import {
+  IEntry,
+  IKeyValue,
+  ILog,
+  IMessage,
+  IMonOp,
+  IMonWatch,
+  IOPayload,
+} from "./interface.ts";
+import { Block } from "../chain.ts";
 
 export interface IMPayload {
   [EMType.LogMessage]: {
@@ -45,7 +54,7 @@ export interface IMPayload {
   [EMType.ClientConnectionOpen]: {
     clientIp: string;
     remoteAddr: Deno.NetAddr;
-    clientId: number
+    clientId: number;
   };
 
   [EMType.ClientConnectionClose]: string;
@@ -55,7 +64,7 @@ export interface IMPayload {
   };
 
   [EMType.PeerConnectionOpen]: {
-    peerIp: string
+    peerIp: string;
   };
 
   [EMType.PeerConnectionPending]: {
@@ -69,14 +78,14 @@ export interface IMPayload {
   [EMType.PeerConnectionSuccess]: {
     peerIp: string;
   };
-  
+
   [EMType.PeerConnectionClose]: string;
 
   [EMType.PeerConnectionAccepted]: {
     term: number;
-    knownPeers: string[],
-    wal: TWal
-  }
+    knownPeers: string[];
+    wal: TWal;
+  };
 
   [EMType.HeartBeat]: null;
 
@@ -85,7 +94,7 @@ export interface IMPayload {
   [EMType.NewState]: {
     from: ENodeState;
     to: ENodeState;
-    reason: string
+    reason: string;
   };
 
   [EMType.NewTerm]: {
@@ -170,20 +179,25 @@ export interface IMPayload {
   };
 
   [EMType.MonOpRequest]: {
-    token: string,
-    type: EOpType.MonOp,
-    payload: IMonOp,
-    timestamp: number
-  }
-
-  [EMType.MonWatchRequest]: {
-    token: string,
-    type: EOpType.MonWatch,
-    payload: IMonWatch,
-    timestamp: number
+    token: string;
+    type: EOpType.MonOp;
+    payload: IMonOp;
+    timestamp: number;
   };
 
-  [EMType.ChainOpRequest]: null,
+  [EMType.MonWatchRequest]: {
+    token: string;
+    type: EOpType.MonWatch;
+    payload: IMonWatch;
+    timestamp: number;
+  };
+
+  [EMType.ChainOpRequest]: {
+    token: string;
+    type: EOpType.ChainOp;
+    payload: IOPayload[EOpType.ChainOp];
+    timestamp: number;
+  };
 
   [EMType.InvalidMessageType]: IMessage<EMType>;
 

@@ -1,3 +1,4 @@
+import { Block } from "../chain.ts";
 import { EChainOpType, EComponent, EKVOpType, EMonOpType, EMType, ENodeState, EOpType } from "../enumeration.ts";
 import { TWal } from "../type.ts";
 import { IMPayload } from "./mpayload.ts";
@@ -107,7 +108,8 @@ export interface IMonWatch {
 }
 
 export interface IChainOp {
-  op: EChainOpType
+  op: EChainOpType,
+  blocks: Block[]
 }
 
 export interface IOPayload {

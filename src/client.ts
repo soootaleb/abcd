@@ -151,7 +151,8 @@ export default class Client {
 
     public chainop() {
         return this.send(EOpType.ChainOp, {
-            op: EChainOpType.TxAdd
+            op: EChainOpType.TxAdd,
+            blocks: []
         })
     }
 }

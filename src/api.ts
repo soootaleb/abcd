@@ -1,16 +1,27 @@
 import Chain from "./chain.ts";
-import { EComponent, EMonOpType, EMType, ENodeState, EOpType } from "./enumeration.ts";
-import { IChainOp, IKVOp, IKVWatch, IMonOp, IMonWatch, IState } from "./interfaces/interface.ts";
+import {
+  EComponent,
+  EMonOpType,
+  EMType,
+  ENodeState,
+  EOpType,
+} from "./enumeration.ts";
+import {
+  IChainOp,
+  IKVOp,
+  IKVWatch,
+  IMonOp,
+  IMonWatch,
+  IState,
+} from "./interfaces/interface.ts";
 import Messenger from "./messenger.ts";
-import Monitor from "./monitor.ts";
 import { H } from "./type.ts";
 
 export default class Api extends Messenger {
-
   constructor(protected state: IState) {
     super(state);
   }
-  
+
   [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
     this.state.net.requests[message.payload.token] = message.source;
     switch (message.payload.type) {
@@ -24,10 +35,14 @@ export default class Api extends Messenger {
               timestamp: message.payload.timestamp,
               payload: message.payload.payload as IKVOp,
             },
-            EComponent.Store
+            EComponent.Store,
           );
         } else {
-          this.send(EMType.ClientRequestForward, message.payload, this.state.leader);
+          this.send(
+            EMType.ClientRequestForward,
+            message.payload,
+            this.state.leader,
+          );
         }
         break;
       }
@@ -40,7 +55,7 @@ export default class Api extends Messenger {
             type: EOpType.KVWatch,
             payload: message.payload.payload as IKVWatch,
           },
-          EComponent.Store
+          EComponent.Store,
         );
         break;
       }
@@ -59,7 +74,7 @@ export default class Api extends Messenger {
             type: message.payload.type,
             timestamp: message.payload.timestamp,
           },
-          EComponent.Monitor
+          EComponent.Monitor,
         );
         break;
       }
@@ -72,12 +87,22 @@ export default class Api extends Messenger {
             payload: IMonWatch;
             timestamp: number;
           },
-          EComponent.Monitor
+          EComponent.Monitor,
         );
         break;
       }
       case EOpType.ChainOp: {
-        this.send(EMType.ChainOpRequest, null, Chain, message.source);
+        this.send(
+          EMType.ChainOpRequest,
+          message.payload as {
+            token: string;
+            type: EOpType.ChainOp;
+            payload: IChainOp;
+            timestamp: number;
+          },
+          Chain,
+          message.source,
+        );
         break;
       }
       default:
@@ -88,42 +113,50 @@ export default class Api extends Messenger {
     }
   };
 
-  [EMType.ClientResponse]: H<EMType.ClientResponse> = message => {
+  [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
     if (Object.keys(this.state.net.requests).includes(message.payload.token)) {
-      this.send(EMType.ClientResponse, message.payload, this.state.net.requests[message.payload.token]);
+      this.send(
+        EMType.ClientResponse,
+        message.payload,
+        this.state.net.requests[message.payload.token],
+      );
       delete this.state.net.requests[message.payload.token];
     }
-  }
+  };
 
   /**
    * Messages sent to clients watching values
    * @param message watch operation
    */
-  [EMType.ClientNotification]: H<EMType.ClientNotification> = message => {
+  [EMType.ClientNotification]: H<EMType.ClientNotification> = (message) => {
     if (Object.keys(this.state.net.requests).includes(message.payload.token)) {
-      this.send(EMType.ClientNotification, message.payload, this.state.net.requests[message.payload.token]);
+      this.send(
+        EMType.ClientNotification,
+        message.payload,
+        this.state.net.requests[message.payload.token],
+      );
     }
-  }
+  };
 
   /**
    * Removes the tokens related to the closed connection
    * @param message the related peer
    */
-  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> = message => {
-    const requests = Object.entries(this.state.net.requests)
-      .filter(o => o[1] === message.payload)
+  [EMType.ClientConnectionClose]: H<EMType.ClientConnectionClose> =
+    (message) => {
+      const requests = Object.entries(this.state.net.requests)
+        .filter((o) => o[1] === message.payload);
 
-    // Requests
-    if (requests.length) {
-      for (const request of requests) {
-        delete this.state.net.requests[request[0]];
-        clearInterval(this.state.mon.watchers[request[0]]);
+      // Requests
+      if (requests.length) {
+        for (const request of requests) {
+          delete this.state.net.requests[request[0]];
+          clearInterval(this.state.mon.watchers[request[0]]);
+        }
       }
-    }
-    
-    // MonWatch on logs
-    this.state.mon.loggers = this.state.mon.loggers
-      .filter(o => !requests.map(o => o[0]).includes(o));
-    
-  }
+
+      // MonWatch on logs
+      this.state.mon.loggers = this.state.mon.loggers
+        .filter((o) => !requests.map((o) => o[0]).includes(o));
+    };
 }
