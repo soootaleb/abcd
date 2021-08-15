@@ -7,8 +7,6 @@ import Logger from "./logger.ts";
 import { createHash } from "https://deno.land/std@0.104.0/hash/mod.ts";
 import Api from "./api.ts";
 
-const SHA256 = createHash("sha256");
-
 export class Block {
   timestamp: number = new Date().getTime();
   tx: Transaction[];
@@ -17,12 +15,20 @@ export class Block {
 
   constructor(tx: Transaction[]) {
     this.tx = tx;
-    this.hash = SHA256.update(
+    this.hash = this.computeHash();
+  }
+
+  private computeHash(): string {
+    return createHash("sha256").update(
       this.timestamp.toString() + this.tx.join("") + this.nonce.toString(),
     ).toString();
   }
 
-  public mine() {
+  public mine(difficulty: number) {
+    while (this.hash.substring(0, difficulty) !== Array(difficulty + 1).join("0")) {
+      this.nonce++;
+      this.hash = this.computeHash();
+    }
   }
 
   [Symbol.toString()]() {
@@ -48,17 +54,17 @@ export class Transaction {
 
 export default class Chain extends Messenger {
   private blocks: Block[] = [];
+  
+  private static readonly DIFFICULTY = 4;
 
   [EMType.ChainOpRequest]: H<EMType.ChainOpRequest> = (message) => {
-    this.send(message.type, message.payload, Logger);
-
     const block = new Block([
       new Transaction("from", "to", 100),
       new Transaction("to", "from", 50),
       new Transaction("from", "to", 100),
     ]);
 
-    block.mine();
+    block.mine(Chain.DIFFICULTY);
 
     this.blocks.push(block);
 
