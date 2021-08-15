@@ -27,7 +27,9 @@ export enum EMonOpType {
 }
 
 export enum EChainOpType {
-  TxAdd = "TxAdd"
+  TxAdd = "TxAdd",
+  TxGet = "TxGet",
+  TxSum = "TxSum"
 }
 
 export enum EOpType {

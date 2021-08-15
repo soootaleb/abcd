@@ -149,10 +149,28 @@ export default class Client {
         })
     }
 
-    public chainop() {
+    public chainadd(from: string, to: string, amount: number) {
         return this.send(EOpType.ChainOp, {
             op: EChainOpType.TxAdd,
-            blocks: []
+            payload: {
+                from: from,
+                to: to,
+                amount: amount
+            }
+        })
+    }
+
+    public chainget() {
+        return this.send(EOpType.ChainOp, {
+            op: EChainOpType.TxGet,
+            payload: null
+        })
+    }
+
+    public chainsum() {
+        return this.send(EOpType.ChainOp, {
+            op: EChainOpType.TxSum,
+            payload: null
         })
     }
 }

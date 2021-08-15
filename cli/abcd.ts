@@ -55,9 +55,17 @@ new Client(addr, port).co.then((operations) => {
       Deno.exit();
     });
   } else if (chain) {
-    operations.chainop().then((response) => {
-      console.dir(response.payload, { depth: 10 });
-      Deno.exit();
+    operations.chainadd(ARGS["from"], ARGS["to"], ARGS["amount"]).then((response) => {
+      console.dir(response.payload, { depth: 10 })
+    }).then(() => {
+      return operations.chainget().then((response) => {
+        console.dir(response.payload, { depth: 10 })
+      })
+    }).then(() => {
+      return operations.chainsum().then((response) => {
+        console.dir(response.payload, { depth: 10 })
+        Deno.exit();
+      })
     });
   } else {
     let counter = 0;

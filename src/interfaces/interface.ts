@@ -107,9 +107,21 @@ export interface IMonWatch {
   expire: number // limit of notifies
 }
 
+export interface ICOPayload {
+  [EChainOpType.TxAdd]: {
+    from: string,
+    to: string,
+    amount: number
+  }
+
+  [EChainOpType.TxGet]: null,
+
+  [EChainOpType.TxSum]: null
+}
+
 export interface IChainOp {
   op: EChainOpType,
-  blocks: Block[]
+  payload: ICOPayload[EChainOpType]
 }
 
 export interface IOPayload {
