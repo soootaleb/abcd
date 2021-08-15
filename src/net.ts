@@ -20,7 +20,7 @@ export default class Net extends Messenger {
     [key: string]: DenoWS;
   } = {};
 
-  constructor(protected state: IState, discovery = true) {
+  constructor(protected state: IState, discovery = false) {
     super(state);
 
     // to deactivate for tests
