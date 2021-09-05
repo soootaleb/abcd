@@ -31,7 +31,7 @@ export default class Api extends Messenger {
           type: EOpType.Pong,
           payload: Date.now() - message.payload.timestamp,
           timestamp: Date.now()
-        }, message.source);
+        }, Api);
         break;
       }
       case EOpType.KVOp: {
