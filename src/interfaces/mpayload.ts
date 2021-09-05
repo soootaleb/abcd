@@ -9,9 +9,9 @@ import {
   IMonWatch,
   IOPayload,
 } from "./interface.ts";
-import { Block } from "../chain.ts";
 
 export interface IMPayload {
+
   [EMType.LogMessage]: {
     message: string;
   };

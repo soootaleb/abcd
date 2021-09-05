@@ -25,6 +25,15 @@ export default class Api extends Messenger {
   [EMType.ClientRequest]: H<EMType.ClientRequest> = (message) => {
     this.state.net.requests[message.payload.token] = message.source;
     switch (message.payload.type) {
+      case EOpType.Ping: {
+        this.send(EMType.ClientResponse, {
+          token: message.payload.token,
+          type: EOpType.Pong,
+          payload: Date.now() - message.payload.timestamp,
+          timestamp: Date.now()
+        }, message.source);
+        break;
+      }
       case EOpType.KVOp: {
         if (this.state.role === ENodeState.Leader) {
           this.send(

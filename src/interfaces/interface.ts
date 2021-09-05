@@ -125,6 +125,9 @@ export interface IChainOp {
 }
 
 export interface IOPayload {
+  [EOpType.Ping]: null,
+  [EOpType.Pong]: number,
+
   [EOpType.KVOp]: IKVOp,
   [EOpType.KVWatch]: IKVWatch,
   [EOpType.MonOp]: IMonOp,

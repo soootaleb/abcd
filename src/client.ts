@@ -173,4 +173,8 @@ export default class Client {
             payload: null
         })
     }
+
+    public ping() {
+        return this.send(EOpType.Ping, null);
+    }
 }

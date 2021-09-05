@@ -33,6 +33,8 @@ export enum EChainOpType {
 }
 
 export enum EOpType {
+  Ping = "Ping",
+  Pong = "Pong",
   KVOp = "KVOp",
   KVWatch = "KVWatch",
   MonOp = "MonOp",
