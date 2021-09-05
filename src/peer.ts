@@ -2,6 +2,7 @@ import type { ILog } from "./interfaces/interface.ts";
 import { EComponent, EMType, ENodeState, EOpType } from "./enumeration.ts";
 import Messenger from "./messenger.ts";
 import { H } from "./type.ts";
+import Api from "./api.ts";
 
 export default class Peer extends Messenger {
 
@@ -341,7 +342,7 @@ export default class Peer extends Messenger {
 
   [EMType.KVOpRejected]: H<EMType.KVOpRejected> = (message) => {
     if (this.state.role === ENodeState.Leader) {
-      this.send(EMType.ClientResponse, message.payload.request, EComponent.Node);
+      this.send(EMType.ClientResponse, message.payload.request, Api);
     } else {
       this.send(EMType.LogMessage, {
         message: "Unexpected KVOpRejected with role " + this.state.role
@@ -356,7 +357,7 @@ export default class Peer extends Messenger {
    * @param message 
    */
   [EMType.ClientResponse]: H<EMType.ClientResponse> = (message) => {
-    this.send(EMType.ClientResponse, message.payload, EComponent.Api);
+    this.send(EMType.ClientResponse, message.payload, Api);
   };
 
   [EMType.ClientRequestForward]: H<EMType.ClientRequestForward> = message => {
