@@ -9,7 +9,7 @@ await new Command()
   .description("Interact with abcd")
   .option("-a, --address <addr>", "HTTP endpoint", { default: "localhost" })
   .option("-p, --port <port>", "HTTP port", { default: 8080 })
-  .action(async ({ address, port }) => {
+  .action(async ({ address, port }: { address: string; port: number }) => {
     remote = await new Client(address, port).co;
     await remote.ping().then(console.dir);
     Deno.exit(0);
