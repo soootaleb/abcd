@@ -10,7 +10,7 @@ import {
 
 Deno.test("Net::PeerConnectionOpen", async () => {
   const s: IState = { ...state };
-  const component = new Net(s, false)
+  const component = new Net(s)
 
   const payload = {
     peerIp: "127.0.0.1",
@@ -57,7 +57,7 @@ Deno.test("Net::PeerConnectionClose", async () => {
     }
   };
 
-  const component = new Net(s, false);
+  const component = new Net(s);
 
   const message: IMessage<EMType.PeerConnectionClose> = {
     type: EMType.PeerConnectionClose,
@@ -81,7 +81,7 @@ Deno.test("Net::PeerConnectionClose", async () => {
 
 Deno.test("Net::ClientConnectionOpen", async () => {
   const s: IState = { ...state };
-  const component = new Net(s, false);
+  const component = new Net(s);
 
   const payload = {
     clientIp: "127.0.0.1",
@@ -139,7 +139,7 @@ Deno.test("Net::ClientConnectionClose", async () => {
     }
   };
 
-  const component = new Net(s, false);
+  const component = new Net(s);
 
   const message: IMessage<EMType.ClientConnectionClose> = {
     type: EMType.ClientConnectionClose,
