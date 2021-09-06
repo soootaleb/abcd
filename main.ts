@@ -2,11 +2,11 @@ import Logger from "./src/logger.ts";
 import Peer from "./src/peer.ts";
 import { state } from "./src/state.ts";
 import Net from "./src/net.ts";
-import Store from "./src/store.ts";
 import Api from "./src/api.ts";
 import Monitor from "./src/monitor.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import Chain from "./src/chain.ts";
+import Store from "./src/store.ts";
 
 console.table({
   ...Deno.version,
@@ -28,5 +28,9 @@ const net = new Net(state);
 Deno.signal(Deno.Signal.SIGINT).then(() => Deno.exit())
 
 for await (const request of server) {
-  net.request(request);
+  try {
+    net.request(request);
+  } catch (error) { 
+    console.error(error);
+  }
 }
