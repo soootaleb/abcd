@@ -373,7 +373,7 @@ Deno.test("Peer::KVOpRejected::Leader", async () => {
       type: EMType.ClientResponse,
       payload: request,
       source: EComponent.Node,
-      destination: EComponent.Node,
+      destination: EComponent.Api,
     },
   ], message);
 
