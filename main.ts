@@ -10,7 +10,7 @@ import Store from "./src/store.ts";
 
 console.table({
   ...Deno.version,
-  abcd: 'v11.2'
+  abcd: 'v12.2'
 });
 
 const server = serve({ hostname: "0.0.0.0", port: 8080 });

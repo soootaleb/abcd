@@ -121,6 +121,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 - v12.0: Blockchain
     - v12.1: Fix unit test
+    - v12.2: Fix product version
 - v11.0: No workers
     - Allows deno compile
     - Allows docker from scratch
@@ -195,3 +196,9 @@ This list is a chronological feature implementation. Changes are not reflected b
  - Accept a log only if it's from the current term ?
  - Commit a log only if it's from the current term
 4. Peers & Clients suffix (for multi conns from same IP) seems to create problems
+
+# Release process
+
+- product version
+- git tag
+- deno test
