@@ -104,7 +104,13 @@ export default class Chain extends Messenger {
         this.send(EMType.LogMessage, {
           message: this.blocks.join("\n")
         }, Logger)
-        this.send(EMType.ClientResponse, message.payload, Api);
+        this.send(EMType.ClientResponse, {
+          ...message.payload,
+          payload: {
+            ...message.payload.payload,
+            payload: this.blocks
+          }
+        }, Api);
         break;
       }
       case EChainOpType.TxSum: {
@@ -121,11 +127,13 @@ export default class Chain extends Messenger {
             balances[transaction.to] += transaction.amount;
           }
         }
-        console.dir(balances)
-        this.send(EMType.LogMessage, {
-          message: balances.toString()
-        }, Logger)
-        this.send(EMType.ClientResponse, message.payload, Api);
+        this.send(EMType.ClientResponse, {
+          ...message.payload,
+          payload: {
+            ...message.payload.payload,
+            payload: balances
+          }
+        }, Api);
         break;
       }
       default:

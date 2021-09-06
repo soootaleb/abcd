@@ -114,9 +114,11 @@ export interface ICOPayload {
     amount: number
   }
 
-  [EChainOpType.TxGet]: null,
+  [EChainOpType.TxGet]: Block[] | null,
 
-  [EChainOpType.TxSum]: null
+  [EChainOpType.TxSum]: {
+    [key: string]: number
+  } | null
 }
 
 export interface IChainOp {
