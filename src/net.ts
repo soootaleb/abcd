@@ -20,26 +20,35 @@ export default class Net extends Messenger {
     [key: string]: DenoWS;
   } = {};
 
-  constructor(protected state: IState, discovery = false) {
+  constructor(protected state: IState) {
     super(state);
 
     // to deactivate for tests
-    if (discovery) {
-      fetch(`http://${Deno.env.get("ABCD_CLUSTER_HOSTNAME")}:8080/discovery`)
-        .then((response) => response.text())
-        .then((ip) => {
-          this.send(EMType.DiscoveryResult, {
-            success: true,
-            result: ip,
-            source: "http_success",
-          }, Peer);
-        }).catch((error) => {
-          this.send(EMType.DiscoveryResult, {
-            success: false,
-            result: error.message,
-            source: "http_fail",
-          }, Peer);
-        });
+    if (this.args.discovery) {
+      const endpoint = Deno.env.get("ABCD_CLUSTER_HOSTNAME") || this.args.discovery;
+      if(endpoint && typeof endpoint === 'string') {
+        fetch(`http://${endpoint}:8080/discovery`)
+          .then((response) => response.text())
+          .then((ip) => {
+            this.send(EMType.DiscoveryResult, {
+              success: true,
+              result: ip,
+              source: "http_success",
+            }, Peer);
+          }).catch((error) => {
+            this.send(EMType.DiscoveryResult, {
+              success: false,
+              result: error.message,
+              source: "http_fail",
+            }, Peer);
+          });
+      } else {
+        this.send(EMType.DiscoveryResult, {
+          success: false,
+          result: `Invalid endpoint "${endpoint}"`,
+          source: "http_fail",
+        }, Peer);
+      }
     }
   }
 
