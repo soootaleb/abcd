@@ -119,6 +119,7 @@ This list is a chronological feature implementation. Changes are not reflected b
 
 # Version
 
+- v12.0: Blockchain
 - v11.0: No workers
     - Allows deno compile
     - Allows docker from scratch
