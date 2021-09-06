@@ -8,7 +8,10 @@ import Monitor from "./src/monitor.ts";
 import { serve } from "https://deno.land/std/http/server.ts";
 import Chain from "./src/chain.ts";
 
-console.table(Deno.version);
+console.table({
+  ...Deno.version,
+  abcd: 'v11.2'
+});
 
 const server = serve({ hostname: "0.0.0.0", port: 8080 });
 
