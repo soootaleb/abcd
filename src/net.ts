@@ -73,7 +73,6 @@ export default class Net extends Messenger {
     this.state.net.clients[message.payload.clientIp] = message.payload;
     addEventListener(message.payload.clientIp, this.sendOnNetwork);
     this.send(EMType.ClientConnectionOpen, message.payload, EComponent.Logger);
-    this.send(EMType.ClientConnectionOpen, message.payload, EComponent.Node);
   };
 
   [EMType.PeerConnectionClose]: H<EMType.PeerConnectionClose> = (message) => {
@@ -139,7 +138,7 @@ export default class Net extends Messenger {
     } else if (request.url === "/ready") {
       request.respond({
         status: this.state.ready ? 200 : 500,
-        body: this.state.ready ? "OK" : "KO",
+        body: JSON.stringify(this.state),
       });
     } else {
       acceptWebSocket({
