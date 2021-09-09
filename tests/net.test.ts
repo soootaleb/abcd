@@ -105,11 +105,6 @@ Deno.test("Net::ClientConnectionOpen", async () => {
       ...message,
       source: EComponent.Net,
       destination: EComponent.Logger,
-    },
-    {
-      ...message,
-      source: EComponent.Net,
-      destination: EComponent.Node,
     }
   ], message)
 
