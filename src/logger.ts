@@ -16,7 +16,8 @@ export default class Logger extends Messenger {
     (message: IMessage<EMType>) => 
     Object.keys(this.state.net.clients).includes(message.source)
     || Object.keys(this.state.net.clients).includes(message.destination)
-    || typeof message.destination === typeof Logger,
+    || typeof message.destination === typeof Logger
+    || this.args.debug,
 
     (message: IMessage<EMType>) => {
       if (message.type === EMType.NewState) {
@@ -53,7 +54,7 @@ export default class Logger extends Messenger {
   };
 
   private log = (message: IMessage<EMType>) => {
-    if (this.filter(message) || this.args.debug) {
+    if (this.filter(message)) {
       let icon = "🔄".padEnd(1);
       let source = message.source.padEnd(20);
       let destination = message.destination.padEnd(20);
