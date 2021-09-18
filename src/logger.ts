@@ -11,14 +11,17 @@ export default class Logger extends Messenger {
    * Messages will print only if every filter is passed (returns True)
    */
   private filters: ((message: IMessage<EMType>) => boolean)[] = [
-    (_) => this.state.log.console,
-    (message: IMessage<EMType>) => !this.state.log.exclude.includes(message.type),
-    (message: IMessage<EMType>) => 
+    (_) => this.state.log.console, // if --console-messages is passed
+    
+    (message: IMessage<EMType>) => !this.state.log.exclude.includes(message.type), // if message is not excluded (e.g HeartBeat)
+    
+    (message: IMessage<EMType>) => // only log i/o with clients & log messages (to Logger) except if --debug
     Object.keys(this.state.net.clients).includes(message.source)
     || Object.keys(this.state.net.clients).includes(message.destination)
-    || typeof message.destination === typeof Logger,
+    || typeof message.destination === typeof Logger
+    || this.args.debug,
 
-    (message: IMessage<EMType>) => {
+    (message: IMessage<EMType>) => { // only print NewState if state changes
       if (message.type === EMType.NewState) {
         const payload: IMPayload[EMType.NewState] = message.payload as IMPayload[EMType.NewState];
         return payload.to != payload.from
@@ -53,7 +56,7 @@ export default class Logger extends Messenger {
   };
 
   private log = (message: IMessage<EMType>) => {
-    if (this.filter(message) || this.args.debug) {
+    if (this.filter(message)) {
       let icon = "🔄".padEnd(1);
       let source = message.source.padEnd(20);
       let destination = message.destination.padEnd(20);
