@@ -1,0 +1,19 @@
+{
+  "importMap": "import_map.json",
+  "tasks": {
+    "start-chain": "deno run -A --import-map=import_map.json --unstable chain.main.ts --console-messages  --debug",
+    "start-kv": "deno run -A --import-map=import_map.json --unstable kv.main.ts --console-messages partial --debug",
+    "test-e2e-chain": "deno test -A --import-map=import_map.json --unstable e2e --filter E2E::Chain -- -a 192.168.64.2",
+    "test-e2e-kv": "deno test -A --import-map=import_map.json --unstable e2e --filter E2E::KV:: -- -a 192.168.64.2",
+    "test-unit-kv": "deno test -A --import-map=import_map.json --unstable tests",
+    "compile": "deno task compile-cli && deno task compile-kv && deno task compile-chain",
+    "compile-cli": "deno compile -A --unstable --import-map=import_map.json --output abcdctl cli/cli.ts",
+    "compile-kv": "deno compile -A --unstable --import-map=import_map.json --output kv kv.main.ts",
+    "compile-chain": "deno compile -A --unstable --import-map=import_map.json --output chain chain.main.ts"
+  },
+  "fmt": {
+    "options": {
+      "lineWidth": 180
+    }
+  }
+}

@@ -1,0 +1,19 @@
+language: node_js
+
+node_js:
+- '10'
+
+services:
+- docker
+
+before_install:
+  - curl -fsSL https://deno.land/x/install/install.sh | sh
+  - ~/.deno/bin/deno upgrade --version 1.20.1
+  - ~/.deno/bin/deno test --allow-all --unstable tests/
+
+before_script:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+script:
+  - TAG=$([ "$TRAVIS_TAG" == "" ] && echo "latest" || echo "$TRAVIS_TAG")
+  - docker build -t soootaleb/abcd:$TAG --no-cache . && docker push soootaleb/abcd:$TAG
