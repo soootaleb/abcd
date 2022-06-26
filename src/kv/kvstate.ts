@@ -1,19 +1,20 @@
 import { parse } from "std/flags/mod.ts";
 import { IKVState } from "./interface.ts";
-import { of, state } from "ddapps/state.ts";
+import { of } from "ddapps/state.ts";
 import { ENodeState } from "./enumeration.ts";
 import { Store } from "./store.ts";
 import { EKVMType, IKVMPayload } from "./messages.ts";
 import { IKVRequestPayload, IKVResponsePayload } from "./operation.ts";
 
 const ARGS = parse(Deno.args);
+const state = of<IKVRequestPayload, IKVResponsePayload, IKVMPayload>()
 
 const dataDir = typeof ARGS["data-dir"] === "string"
   ? ARGS["data-dir"]
   : Store.DEFAULT_DATA_DIR;
 
 export const kvstate: IKVState = {
-  ...of<IKVRequestPayload, IKVResponsePayload, IKVMPayload>(),
+  ...state,
 
   leader: "",
   role: ENodeState.Starting,
