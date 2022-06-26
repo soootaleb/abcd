@@ -171,7 +171,7 @@ const load = new Command()
             (!duration && mon.requests.sent < mon.objective)
           ) {
             // Generate random key & request timestamp
-            const key = Math.random().toString(36).substr(2);
+            const key = Math.random().toString(36).substring(2);
             const sent = new Date().getTime();
             mon.requests.all[key] = {
               sent: sent,
